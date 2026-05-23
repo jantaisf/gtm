@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated CSVs — don't commit large data files
+data_generation/output/
+
+# GCP credentials — never commit
+*.json
+service-account*.json
+
+.env
+.DS_Store
