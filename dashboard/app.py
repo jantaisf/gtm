@@ -18,6 +18,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from google.cloud import bigquery
+from typing import Optional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
@@ -58,21 +59,21 @@ def get_bq_client():
 
 @st.cache_data(ttl=300, show_spinner="Loading rep rollup…")
 def load_rep_rollup(as_of_date: str) -> pd.DataFrame:
+    # Try exact date match first; fall back to latest available data
     sql = f"""
     SELECT *
     FROM {DS}.carr_rep_rollup
     WHERE DATE(as_of_date) = DATE '{as_of_date}'
     """
-    try:
-        return get_bq_client().query(sql).to_dataframe()
-    except Exception:
-        # Table may reflect the last pipeline run; fall back to latest
-        sql_latest = f"SELECT * FROM {DS}.carr_rep_rollup ORDER BY calculated_at DESC LIMIT 1000"
-        return get_bq_client().query(sql_latest).to_dataframe()
+    df = get_bq_client().query(sql).to_dataframe()
+    if not df.empty:
+        return df
+    sql_latest = f"SELECT * FROM {DS}.carr_rep_rollup ORDER BY calculated_at DESC LIMIT 1000"
+    return get_bq_client().query(sql_latest).to_dataframe()
 
 
 @st.cache_data(ttl=300, show_spinner="Loading account detail…")
-def load_accounts(as_of_date: str, region: str | None = None, rep_id: str | None = None) -> pd.DataFrame:
+def load_accounts(as_of_date: str, region: Optional[str] = None, rep_id: Optional[str] = None) -> pd.DataFrame:
     filters = [f"DATE(as_of_date) = DATE '{as_of_date}'"]
     sql = f"""
     SELECT
@@ -185,13 +186,12 @@ def render_sidebar(rep_df: pd.DataFrame):
 def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
     st.header("Portfolio Overview")
 
-    filtered_rep = rep_df if region == "All" else rep_df[rep_df["region"] == region]
-
-    total_arr  = filtered_rep["total_arr"].sum()
-    total_carr = filtered_rep["total_carr"].sum()
-    total_risk = filtered_rep["total_arr_at_risk"].sum()
+    # rep_df is already filtered by region/rep from main()
+    total_arr  = rep_df["total_arr"].sum()
+    total_carr = rep_df["total_carr"].sum()
+    total_risk = rep_df["total_arr_at_risk"].sum()
     att_rate   = total_carr / total_arr if total_arr else 0
-    expansion_pipeline = filtered_rep["expansion_arr_pipeline"].sum()
+    expansion_pipeline = rep_df["expansion_arr_pipeline"].sum()
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Total ARR",              fmt_m(total_arr))
@@ -270,7 +270,7 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
 
     # Attainment scatter
     st.subheader("cARR Attainment vs. ARR — by Rep")
-    scatter_df = filtered_rep.copy()
+    scatter_df = rep_df.copy()
     scatter_df["attainment_pct"] = scatter_df["carr_attainment_rate"].fillna(0) * 100
     scatter_df["bubble_size"] = (scatter_df["total_arr"] / scatter_df["total_arr"].max() * 40).clip(lower=5)
 
@@ -392,8 +392,8 @@ def page_region(rep_df: pd.DataFrame):
 def page_reps(rep_df: pd.DataFrame, region: str):
     st.header("Rep Leaderboard")
 
-    filtered = rep_df if region == "All" else rep_df[rep_df["region"] == region]
-    filtered = filtered.sort_values("total_carr", ascending=False).reset_index(drop=True)
+    # rep_df is already filtered by region/rep from main()
+    filtered = rep_df.sort_values("total_carr", ascending=False).reset_index(drop=True)
 
     # Top/bottom callouts
     c1, c2 = st.columns(2)
@@ -551,13 +551,15 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.title("cARR Executive Dashboard")
-    st.caption("Consumed Annual Recurring Revenue · Powered by BigQuery")
+    st.title("Prisma Cloud cARR Executive Dashboard")
+    st.caption("Consumed Annual Recurring Revenue · Prisma Cloud · Powered by BigQuery")
 
     # Load rep data first (needed for sidebar)
     with st.spinner("Connecting to BigQuery…"):
         try:
-            rep_df_full = load_rep_rollup(str(date.today()))
+            available_dates = load_available_dates()
+            initial_date = available_dates[0] if available_dates else str(date.today())
+            rep_df_full = load_rep_rollup(initial_date)
         except Exception as e:
             st.error(f"BigQuery connection failed: {e}")
             st.info("Ensure ADC credentials are set: `gcloud auth application-default login`")
@@ -569,12 +571,15 @@ def main():
 
     as_of_date, region, rep_name, rep_id = render_sidebar(rep_df_full)
 
-    # Reload rep data for the selected date
+    # Full dataset for the selected date (used by region-level charts)
     rep_df = load_rep_rollup(as_of_date)
+
+    # Filtered view: apply region + rep selection for KPIs and rep pages
+    rep_df_view = rep_df.copy()
     if region != "All":
-        rep_df_filtered = rep_df[rep_df["region"] == region]
-    else:
-        rep_df_filtered = rep_df
+        rep_df_view = rep_df_view[rep_df_view["region"] == region]
+    if rep_id:
+        rep_df_view = rep_df_view[rep_df_view["rep_id"] == rep_id]
 
     acct_df = load_accounts(as_of_date, region, rep_id)
 
@@ -584,13 +589,16 @@ def main():
     ])
 
     with tab_overview:
-        page_overview(rep_df, acct_df, region)
+        # Pass rep_df_view so KPIs reflect the active filter
+        page_overview(rep_df_view, acct_df, region)
 
     with tab_region:
+        # Always show all regions for context
         page_region(rep_df)
 
     with tab_reps:
-        page_reps(rep_df, region)
+        # Pass rep_df_view so leaderboard reflects region/rep filter
+        page_reps(rep_df_view, region)
 
     with tab_accounts:
         page_accounts(acct_df, rep_name)

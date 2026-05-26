@@ -1,5 +1,5 @@
 # Product Spec: Consumed ARR (cARR)
-## North Star Metric for PANW GTM Transition to Hybrid Consumption Model
+## North Star Metric for Prisma Cloud GTM — Hybrid Consumption Model
 
 **Version:** 1.0
 **Owner:** Principal PM, Analytics & AI
@@ -11,7 +11,7 @@
 
 ## 1. Problem Statement
 
-Palo Alto Networks is transitioning from a pure Annual Recurring Revenue (ARR) model to a hybrid consumption-based model anchored on compute credits (Cloud NGFW, Prisma Cloud). This creates a critical measurement gap:
+Palo Alto Networks is transitioning Prisma Cloud from a pure Annual Recurring Revenue (ARR) model to a hybrid consumption-based model anchored on Prisma Cloud compute credits. This creates a critical measurement gap:
 
 **ARR alone is no longer sufficient.** A $500K deal with zero credit consumption looks identical to a $500K deal with 95% utilization — yet they represent fundamentally different business realities. The first is a churn liability. The second is a healthy, expanding customer.
 
@@ -40,8 +40,8 @@ consumption_rate = trailing_90d_avg(monthly_credits_consumed / included_monthly_
 
 **Where:**
 - `annual_commit_dollars` — the contracted ARR from the account's active contract
-- `monthly_credits_consumed` — sum of `compute_credits_consumed` from `daily_usage_logs` for the calendar month
-- `included_monthly_compute_credits` — the monthly credit allowance from the `contracts` table
+- `monthly_credits_consumed` — sum of Prisma Cloud credits consumed from `daily_usage_logs` for the calendar month
+- `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
 **Example:**
@@ -82,7 +82,7 @@ This metric is consistent with how leading consumption-based companies measure r
 | Databricks | DBUs | Consumed ARR = annualized trailing DBU usage |
 | MongoDB | Queries/ops | Incremental ARR above usage baseline |
 | OpenAI / Anthropic | Tokens | Revenue recognized on actual token consumption |
-| **PANW (this spec)** | Compute Credits | **cARR = annual_commit × consumption_rate** |
+| **PANW Prisma Cloud** | Prisma Cloud Credits | **cARR = annual_commit × consumption_rate** |
 
 **Snowflake precedent on compensation weighting:**
 - New/greenfield reps: 70% bookings / 30% consumption

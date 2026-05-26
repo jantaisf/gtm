@@ -1,5 +1,5 @@
 # Technical Spec: cARR Data Pipeline
-## Consumed ARR — End-to-End Architecture
+## Prisma Cloud Consumed ARR — End-to-End Architecture
 
 **Version:** 1.0
 **Owner:** Principal PM, Analytics & AI

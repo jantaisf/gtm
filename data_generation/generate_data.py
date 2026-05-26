@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Phase 1: Synthetic B2B SaaS Data Generator
-GTM North Star Metric Project
+Prisma Cloud GTM — cARR North Star Metric
 
 Generates four relational tables covering 12 months of data (2024):
   - sales_reps       ~50 rows
@@ -49,16 +49,21 @@ Faker.seed(SEED)
 
 # ── BigQuery destination ──────────────────────────────────────────────────────
 GCP_PROJECT = "openclaw-gateway-491103"
-BQ_DATASET  = "gtm_north_star"
+BQ_DATASET  = "gtm"
 
 # ── Simulation window ─────────────────────────────────────────────────────────
 SIM_START = date(2024, 1, 1)
-SIM_END   = date(2024, 12, 31)
+SIM_END   = date.today()
 
 # ── Table sizes ───────────────────────────────────────────────────────────────
 N_REPS      = 50
 N_ACCOUNTS  = 1_000
 N_CONTRACTS = 1_200          # ~1,000 base + expansions + extras
+
+# Accounts whose contract started within this many days of today will be flagged
+# as `new_account = TRUE` in the Phase 2 metric pipeline and excluded from
+# cARR calculations (insufficient consumption history for trailing 90-day rate).
+NEW_ACCOUNT_THRESHOLD_DAYS = 90
 
 # ── Edge case fractions ───────────────────────────────────────────────────────
 FRAC_SPIKE_DROP  = 0.05   # 5%  of accounts
@@ -67,12 +72,43 @@ FRAC_OVERAGE     = 0.15   # 15% of accounts
 FRAC_EXPANSION   = 0.05   # 5%  of accounts get a second mid-year contract
 N_ORPHAN_LOGS    = 300    # rows with bad/missing account references
 
+# ── PANW credit pricing reference ────────────────────────────────────────────
+# Source 1: Prisma Cloud Business Edition = 100 credits at $9,000/year
+#   → $90/credit/year baseline
+# Source 2: NGFW Credits Estimator — tiered subscription discount structure:
+#   Commit at 100% of base = 12.5% discount  → effective ~$79/credit/year
+#   Commit at 120% of base = 20%   discount  → effective ~$72/credit/year
+#   Commit at 140% of base = 25%   discount  → effective ~$68/credit/year
+# Source 3: Cloud NGFW for AWS (docs.paloaltonetworks.com/cloud-ngfw-aws/reference/pricing)
+#   Base NGFW compute : $1.50/hr (up to 3 AZs) + $0.50/hr per additional AZ
+#   Security add-ons  : $0.30–$0.60/hr stacked on top
+#   Traffic tiers     :
+#     Tier 1 — first 15 TB/month : $0.065/GB
+#     Tier 2 — next  15 TB/month : $0.045/GB
+#     Tier 3 — above 30 TB/month : $0.030/GB
+#   Overage billing   : PAYG rates (non-discounted) — higher penalty than tier pricing
+#   Contract terms    : 1, 2, or 3 years (multi-year = larger upfront discount)
+#   Credits bundle compute hours + GB secured. 1 credit ≈ $90/year at Business tier.
+CREDIT_PRICE_MIDMARKET   = 90   # $/credit/year — no volume discount
+CREDIT_PRICE_ENTERPRISE  = 72   # $/credit/year — ~20% volume discount (2–3 yr term)
+CREDIT_PRICE_SHELFWARE   = 79   # $/credit/year — ~12.5% (large commit, low usage)
+CREDIT_PRICE_OVERAGE     = 90   # $/credit/year — no discount; overages at PAYG rates
+
+# ── Usage pattern weights (Cloud NGFW traffic rhythm) ─────────────────────────
+# Weekday traffic is ~40% heavier than weekend (corporate network activity)
+# Monthly incident spikes: ~8% of days see a 2-3× surge (threat events)
+WEEKDAY_WEIGHT  = 1.0
+WEEKEND_WEIGHT  = 0.60
+INCIDENT_PROB   = 0.08   # probability any given day is a spike day
+INCIDENT_MULT   = 2.5    # credits multiplier on spike days
+
 # ── Domain lookups ────────────────────────────────────────────────────────────
 REGIONS    = ["Northeast", "Southeast", "Midwest", "West", "International"]
 SEGMENTS   = ["Enterprise", "Mid-Market"]
 INDUSTRIES = [
-    "Technology", "Financial Services", "Healthcare",
-    "Retail", "Manufacturing", "Media & Entertainment", "Government",
+    "Financial Services", "Healthcare", "Government & Public Sector",
+    "Technology", "Energy & Utilities", "Retail & E-Commerce",
+    "Manufacturing", "Telecommunications", "Education",
 ]
 
 OUTPUT_DIR = Path(__file__).parent / "output"
@@ -146,49 +182,88 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     ctr_idx = 1
 
     def _contract_value(acc_id: str) -> tuple[int, int]:
-        """Return (annual_commit_dollars, included_monthly_compute_credits)."""
+        """
+        Return (annual_commit_dollars, included_monthly_compute_credits).
+
+        ARR ranges are calibrated to Prisma Cloud deal sizes:
+          Mid-Market : $15K – $150K   (Prisma Cloud Business Edition)
+          Enterprise : $100K – $1M    (Prisma Cloud Enterprise Edition)
+          Shelfware  : $100K – $500K  (large commits that never activate)
+          Overage    : $15K – $80K    (modest commits consistently exceeded)
+
+        Credits are derived from ARR using Prisma Cloud credit pricing:
+          $90/credit/year → monthly_credits = ARR / CREDIT_PRICE_PER_YEAR
+          ±15% noise simulates negotiated discounts / premium tiers.
+        """
+        def _arr_to_monthly_credits(arr: int, price_per_year: int) -> int:
+            # Annual credits = ARR / price_per_credit_per_year
+            # Monthly allocation = annual_credits / 12
+            # ±15% noise simulates deal-level negotiation
+            annual_credits = arr / price_per_year
+            noise = random.uniform(0.85, 1.15)
+            return max(10, int(annual_credits * noise / 12))
+
         if acc_id in shelfware:
-            # Shelfware: high-dollar deals that never get used
-            return random.randint(80_000, 300_000), random.randint(8_000, 25_000)
+            arr = random.randint(100_000, 500_000)
+            return arr, _arr_to_monthly_credits(arr, CREDIT_PRICE_SHELFWARE)
         if acc_id in overage:
-            # Overage accounts: modest commit they'll consistently blow past
-            return random.randint(20_000, 60_000), random.randint(1_000, 4_000)
+            arr = random.randint(15_000, 80_000)
+            return arr, _arr_to_monthly_credits(arr, CREDIT_PRICE_OVERAGE)
         # Normal: size by segment (proxy via rep_id range)
         rep_num = int(accounts.loc[accounts["account_id"] == acc_id, "rep_id"]
                       .iloc[0].split("-")[1])
-        if rep_num <= 25:  # first 25 reps = Enterprise
-            return random.randint(100_000, 500_000), random.randint(10_000, 50_000)
-        return random.randint(10_000, 75_000), random.randint(1_000, 8_000)
+        if rep_num <= 25:  # first 25 reps = Enterprise — volume discount applies
+            arr = random.randint(100_000, 1_000_000)
+            return arr, _arr_to_monthly_credits(arr, CREDIT_PRICE_ENTERPRISE)
+        arr = random.randint(15_000, 150_000)
+        return arr, _arr_to_monthly_credits(arr, CREDIT_PRICE_MIDMARKET)
 
-    # Base contract — one per account
+    def _contract_term(acc_id: str) -> int:
+        """
+        Contract term in years (1, 2, or 3).
+        Enterprise skews multi-year (larger upfront discount per PANW pricing).
+        Mid-Market mostly annual.
+        end_date = start_date + term_years * 365 days.
+        """
+        rep_num = int(accounts.loc[accounts["account_id"] == acc_id, "rep_id"]
+                      .iloc[0].split("-")[1])
+        if rep_num <= 25:  # Enterprise
+            return random.choices([1, 2, 3], weights=[0.30, 0.45, 0.25])[0]
+        return random.choices([1, 2, 3], weights=[0.70, 0.25, 0.05])[0]
+
+    # Base contract — one per account, start dates spread across full window
+    window_days = (SIM_END - SIM_START).days
     for acc_id in account_ids:
         arr, credits = _contract_value(acc_id)
-        start = SIM_START + timedelta(days=random.randint(0, 30))
-        end   = start + timedelta(days=random.randint(330, 395))
+        term  = _contract_term(acc_id)
+        start = SIM_START + timedelta(days=random.randint(0, window_days))
+        end   = start + timedelta(days=term * 365)
         contracts.append({
-            "contract_id":                    f"CTR-{ctr_idx:04d}",
-            "account_id":                     acc_id,
-            "start_date":                     start,
-            "end_date":                       end,
-            "annual_commit_dollars":          arr,
+            "contract_id":                      f"CTR-{ctr_idx:04d}",
+            "account_id":                       acc_id,
+            "start_date":                       start,
+            "end_date":                         end,
+            "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
+            "contract_term_years":              term,
         })
         ctr_idx += 1
 
     # Edge case [4]: Mid-year expansion — second, larger overlapping contract
     for acc_id in expansion:
-        # Find the base contract for this account
-        base = next(c for c in contracts if c["account_id"] == acc_id)
-        exp_start  = SIM_START + timedelta(days=random.randint(150, 210))
-        exp_end    = exp_start + timedelta(days=random.randint(330, 365))
+        base       = next(c for c in contracts if c["account_id"] == acc_id)
+        exp_start  = base["start_date"] + timedelta(days=random.randint(150, 210))
+        term       = _contract_term(acc_id)
+        exp_end    = exp_start + timedelta(days=term * 365)
         multiplier = random.uniform(1.3, 2.5)
         contracts.append({
-            "contract_id":                    f"CTR-{ctr_idx:04d}",
-            "account_id":                     acc_id,
-            "start_date":                     exp_start,
-            "end_date":                       exp_end,
-            "annual_commit_dollars":          int(base["annual_commit_dollars"] * multiplier),
+            "contract_id":                      f"CTR-{ctr_idx:04d}",
+            "account_id":                       acc_id,
+            "start_date":                       exp_start,
+            "end_date":                         exp_end,
+            "annual_commit_dollars":            int(base["annual_commit_dollars"] * multiplier),
             "included_monthly_compute_credits": int(base["included_monthly_compute_credits"] * multiplier),
+            "contract_term_years":              term,
         })
         ctr_idx += 1
 
@@ -196,14 +271,16 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     while len(contracts) < N_CONTRACTS:
         acc_id = random.choice(account_ids)
         arr, credits = _contract_value(acc_id)
-        start = SIM_START + timedelta(days=random.randint(0, 60))
+        term  = _contract_term(acc_id)
+        start = SIM_START + timedelta(days=random.randint(0, window_days))
         contracts.append({
-            "contract_id":                    f"CTR-{ctr_idx:04d}",
-            "account_id":                     acc_id,
-            "start_date":                     start,
-            "end_date":                       start + timedelta(days=365),
-            "annual_commit_dollars":          arr,
+            "contract_id":                      f"CTR-{ctr_idx:04d}",
+            "account_id":                       acc_id,
+            "start_date":                       start,
+            "end_date":                         start + timedelta(days=term * 365),
+            "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
+            "contract_term_years":              term,
         })
         ctr_idx += 1
 
@@ -288,7 +365,11 @@ def build_usage_logs(
                 log_idx += 1
 
             # Sparse, near-zero tail (sample ~10% of remaining days)
-            tail_sample = random.sample(tail_days, max(1, int(len(tail_days) * 0.10)))
+            # Guard: tail_days may be empty for contracts that started recently
+            if tail_days:
+                tail_sample = random.sample(tail_days, max(1, int(len(tail_days) * 0.10)))
+            else:
+                tail_sample = []
             for d in tail_sample:
                 rows.append({
                     "log_id":                   f"LOG-{log_idx:07d}",
@@ -299,37 +380,44 @@ def build_usage_logs(
                 log_idx += 1
 
         # Edge case [3]: Consistent Overages
+        # Accounts intentionally exceed monthly commit to hit cheaper
+        # higher-volume pricing tiers (Cloud NGFW traffic tier structure).
         elif acc_id in overage:
             overage_multiplier = random.uniform(1.20, 1.60)
-            # Active most days
-            sampled = random.sample(contract_dates, int(len(contract_dates) * 0.90))
-            for d in sampled:
+            for d in contract_dates:
+                day_weight = WEEKDAY_WEIGHT if d.weekday() < 5 else WEEKEND_WEIGHT
+                is_incident = random.random() < INCIDENT_PROB
+                multiplier  = INCIDENT_MULT if is_incident else overage_multiplier
                 rows.append({
                     "log_id":                   f"LOG-{log_idx:07d}",
                     "account_id":               acc_id,
                     "date":                     d.date(),
                     "compute_credits_consumed": round(
                         max(0, np.random.normal(
-                            daily_budget * overage_multiplier,
+                            daily_budget * multiplier * day_weight,
                             daily_budget * 0.12,
                         )), 2,
                     ),
                 })
                 log_idx += 1
 
-        # Normal healthy usage
+        # Normal healthy usage — weekday/weekend rhythm + occasional incident spikes
         else:
-            activity_rate = random.uniform(0.55, 0.85)
-            sampled = random.sample(contract_dates, int(len(contract_dates) * activity_rate))
             consumption_pct = random.uniform(0.65, 0.95)
-            for d in sampled:
+            for d in contract_dates:
+                # Skip ~20% of days (firewall still logs but below threshold)
+                if random.random() < 0.20:
+                    continue
+                day_weight  = WEEKDAY_WEIGHT if d.weekday() < 5 else WEEKEND_WEIGHT
+                is_incident = random.random() < INCIDENT_PROB
+                multiplier  = INCIDENT_MULT if is_incident else consumption_pct
                 rows.append({
                     "log_id":                   f"LOG-{log_idx:07d}",
                     "account_id":               acc_id,
                     "date":                     d.date(),
                     "compute_credits_consumed": round(
                         max(0, np.random.normal(
-                            daily_budget * consumption_pct,
+                            daily_budget * multiplier * day_weight,
                             daily_budget * 0.20,
                         )), 2,
                     ),
@@ -409,6 +497,7 @@ def upload_to_bigquery(tables: dict[str, pd.DataFrame]) -> None:
             bigquery.SchemaField("end_date",                         "DATE"),
             bigquery.SchemaField("annual_commit_dollars",            "INTEGER"),
             bigquery.SchemaField("included_monthly_compute_credits", "INTEGER"),
+            bigquery.SchemaField("contract_term_years",              "INTEGER"),
         ],
         "daily_usage_logs": [
             bigquery.SchemaField("log_id",                    "STRING",  mode="REQUIRED"),
