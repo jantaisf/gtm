@@ -72,7 +72,31 @@ This is the headline health ratio for the CFO. A portfolio at 78% attainment mea
 
 ---
 
-## 3. Industry Benchmarks
+## 3. Prisma Cloud Credit Pricing Model
+
+Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ARR at the time of deal signing.
+
+| Edition | List Price | Typical Effective Price | Deal Profile |
+|---|---|---|---|
+| **Business Edition** | $90/credit/yr | $90/credit/yr | Mid-Market, 1-year term, no volume discount |
+| **Enterprise Edition** | $180/credit/yr | ~$126/credit/yr | Enterprise, 2–3 year platform deal, ~30% discount |
+| **Overage (PAYG)** | $90/credit/yr | $90/credit/yr | Above-commit usage billed at Business list rate |
+
+**Credit consumption by workload type** (Enterprise Edition):
+
+| Workload | Credits per Unit |
+|---|---|
+| VM (EC2, Azure VM, GCE) | 1 credit per VM |
+| Host Defender (Linux/Windows) | 0.5 credits per host |
+| Container Defender (host + all containers) | 5 credits per Defender |
+| Serverless container (Fargate, Cloud Run) | 1 credit per container |
+| Serverless function (Lambda, Azure Functions) | 1 credit per 6 functions |
+
+*Source: Prisma Cloud Enterprise Edition licensing guide (PANW partner spec). Official list price not publicly published; figures from third-party research.*
+
+---
+
+## 4. Industry Benchmarks
 
 This metric is consistent with how leading consumption-based companies measure revenue health:
 
@@ -90,7 +114,7 @@ This metric is consistent with how leading consumption-based companies measure r
 
 ---
 
-## 4. Health Tier Classification
+## 5. Health Tier Classification
 
 While cARR is a continuous metric, health tiers provide operational clarity for CS and sales prioritization:
 
@@ -107,7 +131,7 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ---
 
-## 5. Edge Case Handling
+## 6. Edge Case Handling
 
 | Anomaly | Detection | cARR Treatment |
 |---|---|---|
@@ -122,7 +146,7 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ---
 
-## 6. Proposed Compensation Framework
+## 7. Proposed Compensation Framework
 
 Modeled on Snowflake's territory-weighted hybrid approach:
 
@@ -138,7 +162,7 @@ Modeled on Snowflake's territory-weighted hybrid approach:
 
 ---
 
-## 7. Success Criteria
+## 8. Success Criteria
 
 | KPI | Target | Window |
 |---|---|---|
@@ -150,7 +174,7 @@ Modeled on Snowflake's territory-weighted hybrid approach:
 
 ---
 
-## 8. Open Questions for Executive Alignment
+## 9. Open Questions for Executive Alignment
 
 1. **Territory weighting:** Does the VP Sales accept the 70/30 → 30/70 Hunter/Farmer split, or does the current team structure require a different breakdown?
 2. **Overage recognition:** When cARR exceeds ARR (consumption_rate > 1.0), does finance recognize overage revenue in the same period or defer to contract renewal?

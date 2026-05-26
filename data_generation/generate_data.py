@@ -73,21 +73,24 @@ FRAC_EXPANSION   = 0.05   # 5%  of accounts get a second mid-year contract
 N_ORPHAN_LOGS    = 300    # rows with bad/missing account references
 
 # ── Prisma Cloud credit pricing reference ────────────────────────────────────
-# Source: Prisma Cloud Business Edition = 100 credits at $9,000/year
-#   → $90/credit/year baseline (list price, no volume discount)
+# Source: Third-party research (no public PANW list price; official guide is gated)
 #
-# PANW volume discount ladder (applies to Prisma Cloud multi-year commits):
-#   Standard commit (Mid-Market, 1 yr)  : $90/credit/year  (no discount)
-#   Large commit   (Enterprise, 2–3 yr) : ~$72/credit/year (~20% volume discount)
-#   Shelfware      (large commit, low usage): ~$79/credit/year (~12.5% discount)
-#   Overage        (PAYG, above commit) : $90/credit/year  (no discount; billed at list)
+# Edition list prices:
+#   Business Edition  : $90/credit/year  (100-credit minimum = $9,000/yr entry)
+#   Enterprise Edition: $180/credit/year (100-credit minimum = $18,000/yr entry)
+#
+# PANW platform discount ladder (multi-product, multi-year commits):
+#   Platform deal, 3yr (Enterprise) : ~30% off list → $126/credit/year
+#   Large commit, low usage (Shelfware): ~20% off list → $144/credit/year
+#   PAYG / overage above commit     : $90/credit/year (Business list; no discount)
 #
 # Note: Cloud NGFW hourly compute and GB traffic tier pricing is NOT applicable here.
-# Prisma Cloud credits cover cloud workload protection units, not network throughput.
-CREDIT_PRICE_MIDMARKET   = 90   # $/credit/year — list price, no volume discount
-CREDIT_PRICE_ENTERPRISE  = 72   # $/credit/year — ~20% volume discount (2–3 yr term)
-CREDIT_PRICE_SHELFWARE   = 79   # $/credit/year — ~12.5% discount (large commit, low usage)
-CREDIT_PRICE_OVERAGE     = 90   # $/credit/year — PAYG list price; no discount on overages
+# Prisma Cloud credits cover cloud workload protection units (VMs = 1 credit,
+# Container Defenders = 5 credits, Serverless = 1 credit per 6 functions).
+CREDIT_PRICE_MIDMARKET   =  90   # $/credit/year — Business Edition list price
+CREDIT_PRICE_ENTERPRISE  = 126   # $/credit/year — Enterprise Edition, ~30% platform discount off $180
+CREDIT_PRICE_SHELFWARE   = 144   # $/credit/year — Enterprise Edition, ~20% discount (large commit, low use)
+CREDIT_PRICE_OVERAGE     =  90   # $/credit/year — PAYG Business rate; no discount on overages
 
 # ── Usage pattern weights (Prisma Cloud workload activity rhythm) ─────────────
 # Weekday workload scans are ~40% heavier than weekend (CI/CD and prod deployments
