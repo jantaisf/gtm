@@ -72,34 +72,31 @@ FRAC_OVERAGE     = 0.15   # 15% of accounts
 FRAC_EXPANSION   = 0.05   # 5%  of accounts get a second mid-year contract
 N_ORPHAN_LOGS    = 300    # rows with bad/missing account references
 
-# ── PANW credit pricing reference ────────────────────────────────────────────
-# Source 1: Prisma Cloud Business Edition = 100 credits at $9,000/year
-#   → $90/credit/year baseline
-# Source 2: NGFW Credits Estimator — tiered subscription discount structure:
-#   Commit at 100% of base = 12.5% discount  → effective ~$79/credit/year
-#   Commit at 120% of base = 20%   discount  → effective ~$72/credit/year
-#   Commit at 140% of base = 25%   discount  → effective ~$68/credit/year
-# Source 3: Cloud NGFW for AWS (docs.paloaltonetworks.com/cloud-ngfw-aws/reference/pricing)
-#   Base NGFW compute : $1.50/hr (up to 3 AZs) + $0.50/hr per additional AZ
-#   Security add-ons  : $0.30–$0.60/hr stacked on top
-#   Traffic tiers     :
-#     Tier 1 — first 15 TB/month : $0.065/GB
-#     Tier 2 — next  15 TB/month : $0.045/GB
-#     Tier 3 — above 30 TB/month : $0.030/GB
-#   Overage billing   : PAYG rates (non-discounted) — higher penalty than tier pricing
-#   Contract terms    : 1, 2, or 3 years (multi-year = larger upfront discount)
-#   Credits bundle compute hours + GB secured. 1 credit ≈ $90/year at Business tier.
-CREDIT_PRICE_MIDMARKET   = 90   # $/credit/year — no volume discount
+# ── Prisma Cloud credit pricing reference ────────────────────────────────────
+# Source: Prisma Cloud Business Edition = 100 credits at $9,000/year
+#   → $90/credit/year baseline (list price, no volume discount)
+#
+# PANW volume discount ladder (applies to Prisma Cloud multi-year commits):
+#   Standard commit (Mid-Market, 1 yr)  : $90/credit/year  (no discount)
+#   Large commit   (Enterprise, 2–3 yr) : ~$72/credit/year (~20% volume discount)
+#   Shelfware      (large commit, low usage): ~$79/credit/year (~12.5% discount)
+#   Overage        (PAYG, above commit) : $90/credit/year  (no discount; billed at list)
+#
+# Note: Cloud NGFW hourly compute and GB traffic tier pricing is NOT applicable here.
+# Prisma Cloud credits cover cloud workload protection units, not network throughput.
+CREDIT_PRICE_MIDMARKET   = 90   # $/credit/year — list price, no volume discount
 CREDIT_PRICE_ENTERPRISE  = 72   # $/credit/year — ~20% volume discount (2–3 yr term)
-CREDIT_PRICE_SHELFWARE   = 79   # $/credit/year — ~12.5% (large commit, low usage)
-CREDIT_PRICE_OVERAGE     = 90   # $/credit/year — no discount; overages at PAYG rates
+CREDIT_PRICE_SHELFWARE   = 79   # $/credit/year — ~12.5% discount (large commit, low usage)
+CREDIT_PRICE_OVERAGE     = 90   # $/credit/year — PAYG list price; no discount on overages
 
-# ── Usage pattern weights (Cloud NGFW traffic rhythm) ─────────────────────────
-# Weekday traffic is ~40% heavier than weekend (corporate network activity)
-# Monthly incident spikes: ~8% of days see a 2-3× surge (threat events)
+# ── Usage pattern weights (Prisma Cloud workload activity rhythm) ─────────────
+# Weekday workload scans are ~40% heavier than weekend (CI/CD and prod deployments
+# concentrate on business days; cloud workloads run lighter over weekends).
+# Spike days: ~8% of days see a 2-3× surge driven by large batch scans,
+# compliance sweeps, or incident response forensics.
 WEEKDAY_WEIGHT  = 1.0
 WEEKEND_WEIGHT  = 0.60
-INCIDENT_PROB   = 0.08   # probability any given day is a spike day
+INCIDENT_PROB   = 0.08   # probability any given day is a high-scan day
 INCIDENT_MULT   = 2.5    # credits multiplier on spike days
 
 # ── Domain lookups ────────────────────────────────────────────────────────────
@@ -380,8 +377,8 @@ def build_usage_logs(
                 log_idx += 1
 
         # Edge case [3]: Consistent Overages
-        # Accounts intentionally exceed monthly commit to hit cheaper
-        # higher-volume pricing tiers (Cloud NGFW traffic tier structure).
+        # Accounts whose cloud workload growth outpaces their contracted credit
+        # allowance — overage billed at PAYG list price ($90/credit/year).
         elif acc_id in overage:
             overage_multiplier = random.uniform(1.20, 1.60)
             for d in contract_dates:
