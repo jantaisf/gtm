@@ -33,6 +33,7 @@ Requirements:
 
 import argparse
 import random
+import uuid
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -120,9 +121,9 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 def build_sales_reps() -> pd.DataFrame:
     records = []
-    for i in range(1, N_REPS + 1):
+    for _ in range(N_REPS):
         records.append({
-            "rep_id":   f"REP-{i:03d}",
+            "rep_id":   str(uuid.uuid4()),
             "name":     fake.name(),
             "region":   random.choice(REGIONS),
             "segment":  random.choice(SEGMENTS),
@@ -137,9 +138,9 @@ def build_sales_reps() -> pd.DataFrame:
 def build_accounts(reps: pd.DataFrame) -> pd.DataFrame:
     rep_ids = reps["rep_id"].tolist()
     records = []
-    for i in range(1, N_ACCOUNTS + 1):
+    for _ in range(N_ACCOUNTS):
         records.append({
-            "account_id":   f"ACC-{i:04d}",
+            "account_id":   str(uuid.uuid4()),
             "company_name": fake.company(),
             "industry":     random.choice(INDUSTRIES),
             "rep_id":       random.choice(rep_ids),
@@ -151,7 +152,7 @@ def build_accounts(reps: pd.DataFrame) -> pd.DataFrame:
 # 3. Contracts  (+ edge case labels returned for usage generation)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     """
     Returns (contracts_df, edge_case_map).
 
@@ -178,8 +179,14 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "expansion":  expansion,
     }
 
+    # Segment lookup: account_id → "Enterprise" or "Mid-Market"
+    rep_segment = dict(zip(reps["rep_id"], reps["segment"]))
+    acc_segment = {
+        row["account_id"]: rep_segment.get(row["rep_id"], "Mid-Market")
+        for _, row in accounts.iterrows()
+    }
+
     contracts = []
-    ctr_idx = 1
 
     def _contract_value(acc_id: str) -> tuple[int, int]:
         """
@@ -209,10 +216,7 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         if acc_id in overage:
             arr = random.randint(15_000, 80_000)
             return arr, _arr_to_monthly_credits(arr, CREDIT_PRICE_OVERAGE)
-        # Normal: size by segment (proxy via rep_id range)
-        rep_num = int(accounts.loc[accounts["account_id"] == acc_id, "rep_id"]
-                      .iloc[0].split("-")[1])
-        if rep_num <= 25:  # first 25 reps = Enterprise — volume discount applies
+        if acc_segment.get(acc_id) == "Enterprise":
             arr = random.randint(100_000, 1_000_000)
             return arr, _arr_to_monthly_credits(arr, CREDIT_PRICE_ENTERPRISE)
         arr = random.randint(15_000, 150_000)
@@ -225,9 +229,7 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         Mid-Market mostly annual.
         end_date = start_date + term_years * 365 days.
         """
-        rep_num = int(accounts.loc[accounts["account_id"] == acc_id, "rep_id"]
-                      .iloc[0].split("-")[1])
-        if rep_num <= 25:  # Enterprise
+        if acc_segment.get(acc_id) == "Enterprise":
             return random.choices([1, 2, 3], weights=[0.30, 0.45, 0.25])[0]
         return random.choices([1, 2, 3], weights=[0.70, 0.25, 0.05])[0]
 
@@ -239,7 +241,7 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         start = SIM_START + timedelta(days=random.randint(0, window_days))
         end   = start + timedelta(days=term * 365)
         contracts.append({
-            "contract_id":                      f"CTR-{ctr_idx:04d}",
+            "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
             "start_date":                       start,
             "end_date":                         end,
@@ -247,7 +249,6 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             "included_monthly_compute_credits": credits,
             "contract_term_years":              term,
         })
-        ctr_idx += 1
 
     # Edge case [4]: Mid-year expansion — second, larger overlapping contract
     for acc_id in expansion:
@@ -257,7 +258,7 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         exp_end    = exp_start + timedelta(days=term * 365)
         multiplier = random.uniform(1.3, 2.5)
         contracts.append({
-            "contract_id":                      f"CTR-{ctr_idx:04d}",
+            "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
             "start_date":                       exp_start,
             "end_date":                         exp_end,
@@ -265,7 +266,6 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             "included_monthly_compute_credits": int(base["included_monthly_compute_credits"] * multiplier),
             "contract_term_years":              term,
         })
-        ctr_idx += 1
 
     # Pad to N_CONTRACTS with additional contracts on random accounts
     while len(contracts) < N_CONTRACTS:
@@ -274,7 +274,7 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         term  = _contract_term(acc_id)
         start = SIM_START + timedelta(days=random.randint(0, window_days))
         contracts.append({
-            "contract_id":                      f"CTR-{ctr_idx:04d}",
+            "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
             "start_date":                       start,
             "end_date":                         start + timedelta(days=term * 365),
@@ -282,7 +282,6 @@ def build_contracts(accounts: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             "included_monthly_compute_credits": credits,
             "contract_term_years":              term,
         })
-        ctr_idx += 1
 
     df = pd.DataFrame(contracts)
     df["start_date"] = pd.to_datetime(df["start_date"])
@@ -324,7 +323,6 @@ def build_usage_logs(
 
     all_dates = pd.date_range(SIM_START, SIM_END, freq="D")
     rows = []
-    log_idx = 1
 
     for acc_id in accounts["account_id"]:
 
@@ -357,12 +355,11 @@ def build_usage_logs(
             for d in spike_days:
                 daily_share = spike_pool / max(len(spike_days), 1)
                 rows.append({
-                    "log_id":                   f"LOG-{log_idx:07d}",
+                    "log_id":                   str(uuid.uuid4()),
                     "account_id":               acc_id,
                     "date":                     d.date(),
                     "compute_credits_consumed": round(max(0, np.random.normal(daily_share, daily_share * 0.1)), 2),
                 })
-                log_idx += 1
 
             # Sparse, near-zero tail (sample ~10% of remaining days)
             # Guard: tail_days may be empty for contracts that started recently
@@ -372,12 +369,11 @@ def build_usage_logs(
                 tail_sample = []
             for d in tail_sample:
                 rows.append({
-                    "log_id":                   f"LOG-{log_idx:07d}",
+                    "log_id":                   str(uuid.uuid4()),
                     "account_id":               acc_id,
                     "date":                     d.date(),
                     "compute_credits_consumed": round(max(0, np.random.normal(1.5, 0.5)), 2),
                 })
-                log_idx += 1
 
         # Edge case [3]: Consistent Overages
         # Accounts whose cloud workload growth outpaces their contracted credit
@@ -389,7 +385,7 @@ def build_usage_logs(
                 is_incident = random.random() < INCIDENT_PROB
                 multiplier  = INCIDENT_MULT if is_incident else overage_multiplier
                 rows.append({
-                    "log_id":                   f"LOG-{log_idx:07d}",
+                    "log_id":                   str(uuid.uuid4()),
                     "account_id":               acc_id,
                     "date":                     d.date(),
                     "compute_credits_consumed": round(
@@ -399,20 +395,19 @@ def build_usage_logs(
                         )), 2,
                     ),
                 })
-                log_idx += 1
 
         # Normal healthy usage — weekday/weekend rhythm + occasional incident spikes
         else:
             consumption_pct = random.uniform(0.65, 0.95)
             for d in contract_dates:
-                # Skip ~20% of days (firewall still logs but below threshold)
+                # Skip ~20% of days (workload below scan threshold)
                 if random.random() < 0.20:
                     continue
                 day_weight  = WEEKDAY_WEIGHT if d.weekday() < 5 else WEEKEND_WEIGHT
                 is_incident = random.random() < INCIDENT_PROB
                 multiplier  = INCIDENT_MULT if is_incident else consumption_pct
                 rows.append({
-                    "log_id":                   f"LOG-{log_idx:07d}",
+                    "log_id":                   str(uuid.uuid4()),
                     "account_id":               acc_id,
                     "date":                     d.date(),
                     "compute_credits_consumed": round(
@@ -422,18 +417,16 @@ def build_usage_logs(
                         )), 2,
                     ),
                 })
-                log_idx += 1
 
     # Edge case [5a]: Orphaned — account_id not in Accounts table
-    ghost_ids = [f"ACC-GHOST-{i:03d}" for i in range(1, 101)]
+    ghost_ids = [str(uuid.uuid4()) for _ in range(100)]
     for _ in range(N_ORPHAN_LOGS // 2):
         rows.append({
-            "log_id":                   f"LOG-{log_idx:07d}",
+            "log_id":                   str(uuid.uuid4()),
             "account_id":               random.choice(ghost_ids),
             "date":                     fake.date_between(SIM_START, SIM_END),
             "compute_credits_consumed": round(random.uniform(10, 500), 2),
         })
-        log_idx += 1
 
     # Edge case [5b]: Rogue — valid account_id but date far outside contract window
     valid_ids = accounts["account_id"].tolist()
@@ -443,12 +436,11 @@ def build_usage_logs(
         else:
             rogue_date = SIM_END + timedelta(days=random.randint(60, 180))
         rows.append({
-            "log_id":                   f"LOG-{log_idx:07d}",
+            "log_id":                   str(uuid.uuid4()),
             "account_id":               random.choice(valid_ids),
             "date":                     rogue_date,
             "compute_credits_consumed": round(random.uniform(5, 300), 2),
         })
-        log_idx += 1
 
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"])
@@ -539,7 +531,7 @@ def main():
     accounts = build_accounts(reps)
     print(f"  accounts        : {len(accounts):>7,} rows")
 
-    contracts, edge_cases = build_contracts(accounts)
+    contracts, edge_cases = build_contracts(accounts, reps)
     print(f"  contracts       : {len(contracts):>7,} rows")
     print(f"    ↳ edge cases  : shelfware={len(edge_cases['shelfware'])}  "
           f"spike_drop={len(edge_cases['spike_drop'])}  "
