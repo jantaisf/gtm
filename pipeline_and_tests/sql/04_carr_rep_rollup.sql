@@ -64,7 +64,7 @@ WITH rep_metrics AS (
     CURRENT_TIMESTAMP()                                         AS calculated_at
 
   FROM `openclaw-gateway-491103.gtm.carr_account` ca
-  JOIN `openclaw-gateway-491103.gtm.sales_reps` sr
+  JOIN `openclaw-gateway-491103.raw.sales_reps` sr
     ON sr.rep_id = ca.rep_id
   GROUP BY
     ca.rep_id, sr.name, sr.region, sr.segment

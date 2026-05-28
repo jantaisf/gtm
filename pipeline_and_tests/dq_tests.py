@@ -39,8 +39,10 @@ from typing import Literal
 from google.cloud import bigquery
 
 GCP_PROJECT = "openclaw-gateway-491103"
-BQ_DATASET  = "gtm"
-DS          = f"`{GCP_PROJECT}.{BQ_DATASET}`"
+DS_RAW      = f"`{GCP_PROJECT}.raw`"
+DS_STAGING  = f"`{GCP_PROJECT}.staging`"
+DS_GTM      = f"`{GCP_PROJECT}.gtm`"
+DS          = DS_RAW   # DQ tests run against raw tables
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -394,7 +396,7 @@ def main():
     client = bigquery.Client(project=GCP_PROJECT)
 
     print(f"\n── Data Quality Report ─────────────────────────────────────────")
-    print(f"   Project    : {GCP_PROJECT}.{BQ_DATASET}")
+    print(f"   Project    : {GCP_PROJECT}  (raw / staging / gtm)")
     print(f"   As-of date : {args.as_of_date}\n")
     print(f"  {'Test':<40} {'Sev':<9} {'Status':<8} {'Rows'}")
     print("  " + "─" * 68)

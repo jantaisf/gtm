@@ -7,6 +7,8 @@
 **Status:** Proposed — pending executive alignment
 **Last Updated:** May 2026
 
+> **Product scope note:** This spec covers the Prisma Cloud CNAPP capability set (cloud security posture, workload protection, code security). In Q2 FY2025, PANW rebranded Prisma Cloud as **Cortex Cloud**, merging it with Cortex CDR into a unified platform. The metric design and data model in this spec apply equally to the Cortex Cloud successor product.
+
 ---
 
 ## 1. Problem Statement

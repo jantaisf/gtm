@@ -25,8 +25,9 @@ from typing import Optional
 # ─────────────────────────────────────────────────────────────────────────────
 
 GCP_PROJECT = "openclaw-gateway-491103"
-BQ_DATASET  = "gtm"
-DS          = f"`{GCP_PROJECT}.{BQ_DATASET}`"
+DS_RAW      = f"`{GCP_PROJECT}.raw`"
+DS_GTM      = f"`{GCP_PROJECT}.gtm`"
+DS          = DS_GTM   # modelled tables (carr_account, carr_rep_rollup)
 
 HEALTH_COLORS = {
     "Expansion": "#10b981",   # emerald
@@ -82,7 +83,7 @@ def load_accounts(as_of_date: str, region: Optional[str] = None, rep_id: Optiona
         sr.region,
         sr.segment
     FROM {DS}.carr_account ca
-    JOIN {DS}.sales_reps sr ON sr.rep_id = ca.rep_id
+    JOIN {DS_RAW}.sales_reps sr ON sr.rep_id = ca.rep_id
     WHERE DATE(ca.as_of_date) = DATE '{as_of_date}'
     """
     if region and region != "All":
@@ -95,7 +96,7 @@ def load_accounts(as_of_date: str, region: Optional[str] = None, rep_id: Optiona
         sql_latest = f"""
         SELECT ca.*, sr.name AS rep_name, sr.region, sr.segment
         FROM {DS}.carr_account ca
-        JOIN {DS}.sales_reps sr ON sr.rep_id = ca.rep_id
+        JOIN {DS_RAW}.sales_reps sr ON sr.rep_id = ca.rep_id
         """
         df = get_bq_client().query(sql_latest).to_dataframe()
         if region and region != "All":
@@ -174,7 +175,7 @@ def render_sidebar(rep_df: pd.DataFrame):
 
     st.sidebar.markdown("---")
     st.sidebar.caption(f"**Project:** {GCP_PROJECT}")
-    st.sidebar.caption(f"**Dataset:** {BQ_DATASET}")
+    st.sidebar.caption("**Datasets:** raw · staging · gtm")
 
     return as_of_date, region, rep_name, rep_id
 

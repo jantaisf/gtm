@@ -11,7 +11,7 @@
 -- Output: one row per account with at least one active contract.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE TABLE `openclaw-gateway-491103.gtm.stg_active_contracts` AS
+CREATE OR REPLACE TABLE `openclaw-gateway-491103.staging.stg_active_contracts` AS
 
 WITH active_contracts AS (
   SELECT
@@ -27,7 +27,7 @@ WITH active_contracts AS (
       PARTITION BY c.account_id
       ORDER BY c.annual_commit_dollars DESC, c.start_date ASC
     ) AS contract_rank
-  FROM `openclaw-gateway-491103.gtm.contracts` c
+  FROM `openclaw-gateway-491103.raw.contracts` c
   WHERE
     c.end_date   >= c.start_date              -- exclude malformed
     AND c.start_date <= {as_of_date}
@@ -72,6 +72,6 @@ SELECT
   CASE WHEN cc.active_contract_count > 1 THEN TRUE ELSE FALSE END AS has_expansion
 FROM primary_contracts      p
 JOIN combined_credits        cc USING (account_id)
-JOIN `openclaw-gateway-491103.gtm.accounts` a
+JOIN `openclaw-gateway-491103.raw.accounts` a
   ON a.account_id = p.account_id
 ;

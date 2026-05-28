@@ -27,7 +27,7 @@ trailing_window AS (
       PARTITION BY account_id
       ORDER BY usage_month DESC
     ) AS month_rank
-  FROM `openclaw-gateway-491103.gtm.stg_monthly_consumption`
+  FROM `openclaw-gateway-491103.staging.stg_monthly_consumption`
 ),
 
 trailing_stats AS (
@@ -133,7 +133,7 @@ SELECT
   {as_of_date}        AS as_of_date,
   CURRENT_TIMESTAMP() AS calculated_at
 
-FROM `openclaw-gateway-491103.gtm.stg_active_contracts` ac
+FROM `openclaw-gateway-491103.staging.stg_active_contracts` ac
 LEFT JOIN health_classification hc
   ON hc.account_id = ac.account_id
 ;

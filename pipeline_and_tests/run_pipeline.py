@@ -5,16 +5,20 @@ Phase 2 Part 2: cARR Pipeline Runner
 Executes the 4 SQL transformation steps in order against BigQuery,
 producing the full derived table chain from raw tables to carr_rep_rollup.
 
+Dataset layout:
+    raw      — source tables (sales_reps, accounts, contracts, daily_usage_logs)
+    staging  — stg_active_contracts, stg_monthly_consumption
+    gtm      — carr_account, carr_rep_rollup
+
 Usage:
     python3 run_pipeline.py
-    python3 run_pipeline.py --as-of-date 2025-06-30
+    python3 run_pipeline.py --as-of-date 2026-05-28
     python3 run_pipeline.py --step 3
     python3 run_pipeline.py --dry-run
 
 Options:
     --as-of-date YYYY-MM-DD   Evaluation date for active contract resolution.
-                               Default: today. Use a 2024/2025 date when running
-                               against the synthetic dataset.
+                               Default: today.
     --step N                   Run only step N (1-4).
     --dry-run                  Print SQL without executing.
 """
@@ -28,15 +32,26 @@ from pathlib import Path
 from google.cloud import bigquery
 
 GCP_PROJECT = "openclaw-gateway-491103"
-BQ_DATASET  = "gtm"
 SQL_DIR     = Path(__file__).parent / "sql"
 
+# (sql_file, destination_dataset, destination_table, description)
 PIPELINE_STEPS = [
-    ("01_stg_active_contracts.sql",     "stg_active_contracts",   "Resolve active contracts (handles mid-year expansions)"),
-    ("02_stg_monthly_consumption.sql",  "stg_monthly_consumption","Aggregate monthly usage (excludes orphaned + rogue logs)"),
-    ("03_carr_account.sql",             "carr_account",            "Compute account-level cARR + health tiers"),
-    ("04_carr_rep_rollup.sql",          "carr_rep_rollup",         "Roll up cARR to rep + region level"),
+    ("01_stg_active_contracts.sql",    "staging", "stg_active_contracts",   "Resolve active contracts (handles mid-year expansions)"),
+    ("02_stg_monthly_consumption.sql", "staging", "stg_monthly_consumption", "Aggregate monthly usage (excludes orphaned + rogue logs)"),
+    ("03_carr_account.sql",            "gtm",     "carr_account",            "Compute account-level cARR + health tiers"),
+    ("04_carr_rep_rollup.sql",         "gtm",     "carr_rep_rollup",         "Roll up cARR to rep + region level"),
 ]
+
+
+def ensure_datasets(client: bigquery.Client):
+    """Create raw, staging, and gtm datasets if they don't exist."""
+    for ds_name in ("raw", "staging", "gtm"):
+        ds_ref = bigquery.Dataset(f"{GCP_PROJECT}.{ds_name}")
+        ds_ref.location = "US"
+        try:
+            client.create_dataset(ds_ref, exists_ok=True)
+        except Exception as e:
+            print(f"  ⚠ Could not ensure dataset {ds_name}: {e}")
 
 
 def execute_step(
@@ -89,16 +104,20 @@ def main():
     client = None if args.dry_run else bigquery.Client(project=GCP_PROJECT)
 
     print(f"\n── cARR Pipeline ───────────────────────────────────────────────")
-    print(f"   Project    : {GCP_PROJECT}.{BQ_DATASET}")
+    print(f"   Project    : {GCP_PROJECT}")
+    print(f"   Datasets   : raw → staging → gtm")
     print(f"   As-of date : {args.as_of_date}")
     print(f"   Mode       : {'DRY RUN' if args.dry_run else 'LIVE'}\n")
+
+    if not args.dry_run:
+        ensure_datasets(client)
 
     steps = [PIPELINE_STEPS[args.step - 1]] if args.step else PIPELINE_STEPS
     total = 0.0
 
-    for i, (sql_file, table, description) in enumerate(steps, start=args.step or 1):
+    for i, (sql_file, dataset, table, description) in enumerate(steps, start=args.step or 1):
         print(f"Step {i}: {description}")
-        print(f"  → {GCP_PROJECT}.{BQ_DATASET}.{table}")
+        print(f"  → {GCP_PROJECT}.{dataset}.{table}")
         elapsed = execute_step(client, sql_file, args.as_of_date, args.dry_run)
         total  += elapsed
         if not args.dry_run:
@@ -108,8 +127,8 @@ def main():
         print(f"── Done ─────────────────────────────────────────────────────────")
         print(f"   Total time : {total:.1f}s")
         print(f"\n   Output tables:")
-        for _, table, _ in (steps if args.step else PIPELINE_STEPS):
-            print(f"   · {GCP_PROJECT}.{BQ_DATASET}.{table}")
+        for _, dataset, table, _ in (steps if args.step else PIPELINE_STEPS):
+            print(f"   · {GCP_PROJECT}.{dataset}.{table}")
 
 
 if __name__ == "__main__":

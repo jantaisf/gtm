@@ -11,7 +11,7 @@
 -- Output: one row per account per calendar month.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE TABLE `openclaw-gateway-491103.gtm.stg_monthly_consumption` AS
+CREATE OR REPLACE TABLE `openclaw-gateway-491103.staging.stg_monthly_consumption` AS
 
 WITH
 
@@ -21,12 +21,12 @@ clean_logs AS (
     l.account_id,
     l.date,
     l.compute_credits_consumed
-  FROM `openclaw-gateway-491103.gtm.daily_usage_logs` l
+  FROM `openclaw-gateway-491103.raw.daily_usage_logs` l
   -- Orphan guard: account must exist in accounts table
-  INNER JOIN `openclaw-gateway-491103.gtm.accounts` a
+  INNER JOIN `openclaw-gateway-491103.raw.accounts` a
     ON a.account_id = l.account_id
   -- Out-of-contract guard: date must fall within at least one contract window
-  INNER JOIN `openclaw-gateway-491103.gtm.contracts` c
+  INNER JOIN `openclaw-gateway-491103.raw.contracts` c
     ON  c.account_id = l.account_id
     AND l.date BETWEEN c.start_date AND c.end_date
     AND c.end_date >= c.start_date
@@ -49,7 +49,7 @@ contract_months AS (
     c.account_id,
     DATE_TRUNC(month_dt, MONTH)              AS contract_month,
     c.included_monthly_compute_credits
-  FROM `openclaw-gateway-491103.gtm.contracts` c
+  FROM `openclaw-gateway-491103.raw.contracts` c
   CROSS JOIN UNNEST(
     GENERATE_DATE_ARRAY(
       DATE_TRUNC(c.start_date, MONTH),

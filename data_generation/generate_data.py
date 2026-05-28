@@ -49,7 +49,7 @@ Faker.seed(SEED)
 
 # ── BigQuery destination ──────────────────────────────────────────────────────
 GCP_PROJECT = "openclaw-gateway-491103"
-BQ_DATASET  = "gtm"
+BQ_DATASET  = "raw"
 
 # ── Simulation window ─────────────────────────────────────────────────────────
 SIM_START = date(2024, 1, 1)
