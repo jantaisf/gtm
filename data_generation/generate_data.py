@@ -37,6 +37,8 @@ import uuid
 from datetime import date, timedelta
 from pathlib import Path
 
+from dateutil.relativedelta import relativedelta
+
 import numpy as np
 import pandas as pd
 from faker import Faker
@@ -239,7 +241,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         arr, credits = _contract_value(acc_id)
         term  = _contract_term(acc_id)
         start = SIM_START + timedelta(days=random.randint(0, window_days))
-        end   = start + timedelta(days=term * 30)
+        end   = start + relativedelta(months=term)
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
@@ -255,7 +257,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         base       = next(c for c in contracts if c["account_id"] == acc_id)
         exp_start  = base["start_date"] + timedelta(days=random.randint(150, 210))
         term       = _contract_term(acc_id)
-        exp_end    = exp_start + timedelta(days=term * 30)
+        exp_end    = exp_start + relativedelta(months=term)
         multiplier = random.uniform(1.3, 2.5)
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
@@ -277,7 +279,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
             "start_date":                       start,
-            "end_date":                         start + timedelta(days=term * 30),
+            "end_date":                         start + relativedelta(months=term),
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
             "contract_term_months":              term,

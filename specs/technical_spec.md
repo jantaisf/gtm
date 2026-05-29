@@ -74,7 +74,7 @@
 | `contract_id` | STRING | PK — format `CTR-NNNN` |
 | `account_id` | STRING | FK → accounts.account_id |
 | `start_date` | DATE | |
-| `end_date` | DATE | Derived: start_date + contract_term_months × 30 days |
+| `end_date` | DATE | Derived: start_date + contract_term_months calendar months (e.g. 2026-01-01 + 12mo = 2027-01-01) |
 | `annual_commit_dollars` | INTEGER | ACV — annualized contract value |
 | `included_monthly_compute_credits` | INTEGER | Monthly credit allowance (Option A: use-it-or-lose-it per month) |
 | `contract_term_months` | INTEGER | 12 / 24 / 36 — Enterprise skews multi-year |
