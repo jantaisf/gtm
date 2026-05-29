@@ -123,18 +123,29 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 def build_sales_reps() -> pd.DataFrame:
     """
-    Assigns reps with a guaranteed per-region segment mix.
-    Each region gets 4 Enterprise + 6 Mid-Market = 10 reps.
-    Matches PANW/cybersecurity norm: more commercial reps than enterprise per geo.
+    Assigns reps proportionally by region based on PANW FY2025 revenue geography
+    (Americas 67%, International 33%) and US TAM density (West > Northeast > Southeast > Midwest).
+    Each region maintains a 40% Enterprise / 60% Mid-Market segment split.
+
+    Region headcount:
+        West          12  (5 Enterprise, 7 Mid-Market) — Bay Area + SoCal tech density
+        Northeast      9  (4 Enterprise, 5 Mid-Market) — FSI / NY / DC adjacency
+        Southeast      7  (3 Enterprise, 4 Mid-Market)
+        Midwest        6  (2 Enterprise, 4 Mid-Market)
+        International 16  (6 Enterprise, 10 Mid-Market) — EMEA + APAC combined
     """
-    reps_per_region    = N_REPS // len(REGIONS)          # 10
-    enterprise_per_reg = round(reps_per_region * 0.40)   # 4
-    midmarket_per_reg  = reps_per_region - enterprise_per_reg  # 6
+    # (region, enterprise_count, midmarket_count)
+    REGION_HEADCOUNT = [
+        ("West",          5,  7),
+        ("Northeast",     4,  5),
+        ("Southeast",     3,  4),
+        ("Midwest",       2,  4),
+        ("International", 6, 10),
+    ]
 
     records = []
-    for region in REGIONS:
-        for segment, count in [("Enterprise", enterprise_per_reg),
-                                ("Mid-Market", midmarket_per_reg)]:
+    for region, ent_count, mm_count in REGION_HEADCOUNT:
+        for segment, count in [("Enterprise", ent_count), ("Mid-Market", mm_count)]:
             for _ in range(count):
                 records.append({
                     "rep_id":  str(uuid.uuid4()),
