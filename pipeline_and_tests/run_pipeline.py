@@ -36,7 +36,8 @@ SQL_DIR     = Path(__file__).parent / "sql"
 
 # (sql_file, destination_dataset, destination_table, description)
 PIPELINE_STEPS = [
-    ("01_stg_active_contracts.sql",    "staging", "stg_active_contracts",   "Resolve active contracts (handles mid-year expansions)"),
+    ("00_dim_dates.sql",               "gtm",     "dim_dates",               "Build calendar dimension (2000-01-01 → today, incl. PANW fiscal calendar)"),
+    ("01_stg_active_contracts.sql",    "staging", "stg_active_contracts",    "Resolve active contracts (handles mid-year expansions)"),
     ("02_stg_monthly_consumption.sql", "staging", "stg_monthly_consumption", "Aggregate monthly usage (excludes orphaned + rogue logs)"),
     ("03_carr_account.sql",            "gtm",     "carr_account",            "Compute account-level cARR + health tiers"),
     ("04_carr_rep_rollup.sql",         "gtm",     "carr_rep_rollup",         "Roll up cARR to rep + region level"),
@@ -92,8 +93,8 @@ def main():
         help="Evaluation date (default: today)",
     )
     parser.add_argument(
-        "--step", type=int, choices=[1, 2, 3, 4],
-        help="Run only this step",
+        "--step", type=int, choices=[0, 1, 2, 3, 4],
+        help="Run only this step (0 = dim_dates)",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -112,7 +113,7 @@ def main():
     if not args.dry_run:
         ensure_datasets(client)
 
-    steps = [PIPELINE_STEPS[args.step - 1]] if args.step else PIPELINE_STEPS
+    steps = [PIPELINE_STEPS[args.step]] if args.step is not None else PIPELINE_STEPS
     total = 0.0
 
     for i, (sql_file, dataset, table, description) in enumerate(steps, start=args.step or 1):
