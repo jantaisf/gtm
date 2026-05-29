@@ -122,14 +122,28 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_sales_reps() -> pd.DataFrame:
+    """
+    Assigns reps with a guaranteed per-region segment mix.
+    Each region gets 4 Enterprise + 6 Mid-Market = 10 reps.
+    Matches PANW/cybersecurity norm: more commercial reps than enterprise per geo.
+    """
+    reps_per_region    = N_REPS // len(REGIONS)          # 10
+    enterprise_per_reg = round(reps_per_region * 0.40)   # 4
+    midmarket_per_reg  = reps_per_region - enterprise_per_reg  # 6
+
     records = []
-    for _ in range(N_REPS):
-        records.append({
-            "rep_id":   str(uuid.uuid4()),
-            "name":     fake.name(),
-            "region":   random.choice(REGIONS),
-            "segment":  random.choices(SEGMENTS, weights=[0.40, 0.60])[0],  # 40% Enterprise, 60% Mid-Market
-        })
+    for region in REGIONS:
+        for segment, count in [("Enterprise", enterprise_per_reg),
+                                ("Mid-Market", midmarket_per_reg)]:
+            for _ in range(count):
+                records.append({
+                    "rep_id":  str(uuid.uuid4()),
+                    "name":    fake.name(),
+                    "region":  region,
+                    "segment": segment,
+                })
+
+    random.shuffle(records)  # shuffle so order isn't region-sorted
     return pd.DataFrame(records)
 
 
