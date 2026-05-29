@@ -128,7 +128,7 @@ def build_sales_reps() -> pd.DataFrame:
             "rep_id":   str(uuid.uuid4()),
             "name":     fake.name(),
             "region":   random.choice(REGIONS),
-            "segment":  random.choice(SEGMENTS),
+            "segment":  random.choices(SEGMENTS, weights=[0.40, 0.60])[0],  # 40% Enterprise, 60% Mid-Market
         })
     return pd.DataFrame(records)
 
