@@ -260,6 +260,9 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             return random.choices([12, 24, 36], weights=[0.30, 0.45, 0.25])[0]
         return random.choices([12, 24, 36], weights=[0.70, 0.25, 0.05])[0]
 
+    # Signing rep lookup: account_id → rep_id at contract creation time
+    signing_rep = dict(zip(accounts["account_id"], accounts["rep_id"]))
+
     # Base contract — one per account, start dates spread across full window
     window_days = (SIM_END - SIM_START).days
     for acc_id in account_ids:
@@ -270,11 +273,12 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
+            "owner_id":                         signing_rep[acc_id],
             "start_date":                       start,
             "end_date":                         end,
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
-            "contract_term_months":              term,
+            "contract_term_months":             term,
         })
 
     # Edge case [4]: Mid-year expansion — second, larger overlapping contract
@@ -287,11 +291,12 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
+            "owner_id":                         signing_rep[acc_id],
             "start_date":                       exp_start,
             "end_date":                         exp_end,
             "annual_commit_dollars":            int(base["annual_commit_dollars"] * multiplier),
             "included_monthly_compute_credits": int(base["included_monthly_compute_credits"] * multiplier),
-            "contract_term_months":              term,
+            "contract_term_months":             term,
         })
 
     # Pad to N_CONTRACTS with additional contracts on random accounts
@@ -303,16 +308,29 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
+            "owner_id":                         signing_rep[acc_id],
             "start_date":                       start,
             "end_date":                         start + relativedelta(months=term),
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
-            "contract_term_months":              term,
+            "contract_term_months":             term,
         })
 
     df = pd.DataFrame(contracts)
     df["start_date"] = pd.to_datetime(df["start_date"])
     df["end_date"]   = pd.to_datetime(df["end_date"])
+
+    # ── Simulate account reassignments (~20% of accounts) ─────────────────────
+    # Reassign a subset of accounts to a different rep, creating a realistic
+    # divergence between contracts.owner_id (who signed) and accounts.rep_id
+    # (who owns the account today).
+    reassign_ids = random.sample(account_ids, int(len(account_ids) * 0.20))
+    rep_ids      = reps["rep_id"].tolist()
+    for acc_id in reassign_ids:
+        current_rep = accounts.loc[accounts["account_id"] == acc_id, "rep_id"].iloc[0]
+        other_reps  = [r for r in rep_ids if r != current_rep]
+        accounts.loc[accounts["account_id"] == acc_id, "rep_id"] = random.choice(other_reps)
+
     return df, edge_cases
 
 
@@ -512,11 +530,12 @@ def upload_to_bigquery(tables: dict[str, pd.DataFrame]) -> None:
         "contracts": [
             bigquery.SchemaField("contract_id",                      "STRING",  mode="REQUIRED"),
             bigquery.SchemaField("account_id",                       "STRING"),
+            bigquery.SchemaField("owner_id",                         "STRING"),
             bigquery.SchemaField("start_date",                       "DATE"),
             bigquery.SchemaField("end_date",                         "DATE"),
             bigquery.SchemaField("annual_commit_dollars",            "INTEGER"),
             bigquery.SchemaField("included_monthly_compute_credits", "INTEGER"),
-            bigquery.SchemaField("contract_term_months",              "INTEGER"),
+            bigquery.SchemaField("contract_term_months",             "INTEGER"),
         ],
         "daily_usage_logs": [
             bigquery.SchemaField("log_id",                    "STRING",  mode="REQUIRED"),

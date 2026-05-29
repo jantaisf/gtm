@@ -80,7 +80,8 @@ health_classification AS (
 
 SELECT
   ac.account_id,
-  ac.rep_id,
+  ac.rep_id,            -- current account owner
+  ac.signing_owner_id,  -- rep who owned the account at contract signing
   ac.company_name,
   ac.industry,
   ac.primary_contract_id,

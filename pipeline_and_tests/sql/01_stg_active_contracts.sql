@@ -17,6 +17,7 @@ WITH active_contracts AS (
   SELECT
     c.contract_id,
     c.account_id,
+    c.owner_id,
     c.start_date,
     c.end_date,
     c.annual_commit_dollars,
@@ -39,6 +40,7 @@ primary_contracts AS (
   SELECT
     account_id,
     contract_id             AS primary_contract_id,
+    owner_id                AS signing_owner_id,
     start_date              AS contract_start_date,
     end_date                AS contract_end_date,
     annual_commit_dollars,
@@ -59,7 +61,8 @@ combined_credits AS (
 
 SELECT
   p.account_id,
-  a.rep_id,
+  a.rep_id,                    -- current account owner (may differ from signing owner)
+  p.signing_owner_id,          -- rep who owned the account when contract was signed
   a.company_name,
   a.industry,
   p.primary_contract_id,
