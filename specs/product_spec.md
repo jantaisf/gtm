@@ -144,7 +144,7 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 | **Orphaned Usage** | `account_id` in logs not in Accounts table | Excluded from cARR; surfaced in DQ report |
 | **Out-of-contract Usage** | Log date outside all contract windows | Excluded from consumption rate calculation |
 | **New Accounts** | Contract start < 90 days ago | Excluded from cARR; shown as "Ramping" in dashboard |
-| **Multi-year Contracts** | `contract_term_years` = 2 or 3 | `annual_commit_dollars` used as-is (already annualized); term stored for renewal forecasting |
+| **Multi-year Contracts** | `contract_term_months` = 2 or 3 | `annual_commit_dollars` used as-is (already annualized); term stored for renewal forecasting |
 
 ---
 

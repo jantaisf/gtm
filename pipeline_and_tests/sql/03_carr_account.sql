@@ -86,7 +86,7 @@ SELECT
   ac.primary_contract_id,
   ac.contract_start_date,
   ac.contract_end_date,
-  ac.contract_term_years,
+  ac.contract_term_months,
   ac.annual_commit_dollars,
   ac.included_monthly_compute_credits,
   ac.has_expansion,

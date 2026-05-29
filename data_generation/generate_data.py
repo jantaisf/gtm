@@ -230,8 +230,8 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         end_date = start_date + term_years * 365 days.
         """
         if acc_segment.get(acc_id) == "Enterprise":
-            return random.choices([1, 2, 3], weights=[0.30, 0.45, 0.25])[0]
-        return random.choices([1, 2, 3], weights=[0.70, 0.25, 0.05])[0]
+            return random.choices([12, 24, 36], weights=[0.30, 0.45, 0.25])[0]
+        return random.choices([12, 24, 36], weights=[0.70, 0.25, 0.05])[0]
 
     # Base contract — one per account, start dates spread across full window
     window_days = (SIM_END - SIM_START).days
@@ -239,7 +239,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         arr, credits = _contract_value(acc_id)
         term  = _contract_term(acc_id)
         start = SIM_START + timedelta(days=random.randint(0, window_days))
-        end   = start + timedelta(days=term * 365)
+        end   = start + timedelta(days=term * 30)
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
@@ -247,7 +247,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             "end_date":                         end,
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
-            "contract_term_years":              term,
+            "contract_term_months":              term,
         })
 
     # Edge case [4]: Mid-year expansion — second, larger overlapping contract
@@ -255,7 +255,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         base       = next(c for c in contracts if c["account_id"] == acc_id)
         exp_start  = base["start_date"] + timedelta(days=random.randint(150, 210))
         term       = _contract_term(acc_id)
-        exp_end    = exp_start + timedelta(days=term * 365)
+        exp_end    = exp_start + timedelta(days=term * 30)
         multiplier = random.uniform(1.3, 2.5)
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
@@ -264,7 +264,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             "end_date":                         exp_end,
             "annual_commit_dollars":            int(base["annual_commit_dollars"] * multiplier),
             "included_monthly_compute_credits": int(base["included_monthly_compute_credits"] * multiplier),
-            "contract_term_years":              term,
+            "contract_term_months":              term,
         })
 
     # Pad to N_CONTRACTS with additional contracts on random accounts
@@ -277,10 +277,10 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
             "start_date":                       start,
-            "end_date":                         start + timedelta(days=term * 365),
+            "end_date":                         start + timedelta(days=term * 30),
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
-            "contract_term_years":              term,
+            "contract_term_months":              term,
         })
 
     df = pd.DataFrame(contracts)
@@ -489,7 +489,7 @@ def upload_to_bigquery(tables: dict[str, pd.DataFrame]) -> None:
             bigquery.SchemaField("end_date",                         "DATE"),
             bigquery.SchemaField("annual_commit_dollars",            "INTEGER"),
             bigquery.SchemaField("included_monthly_compute_credits", "INTEGER"),
-            bigquery.SchemaField("contract_term_years",              "INTEGER"),
+            bigquery.SchemaField("contract_term_months",              "INTEGER"),
         ],
         "daily_usage_logs": [
             bigquery.SchemaField("log_id",                    "STRING",  mode="REQUIRED"),

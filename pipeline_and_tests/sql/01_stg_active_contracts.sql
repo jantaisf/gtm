@@ -21,7 +21,7 @@ WITH active_contracts AS (
     c.end_date,
     c.annual_commit_dollars,
     c.included_monthly_compute_credits,
-    c.contract_term_years,
+    c.contract_term_months,
     -- Rank contracts per account by ARR desc to identify primary (highest value)
     ROW_NUMBER() OVER (
       PARTITION BY c.account_id
@@ -42,7 +42,7 @@ primary_contracts AS (
     start_date              AS contract_start_date,
     end_date                AS contract_end_date,
     annual_commit_dollars,
-    contract_term_years
+    contract_term_months
   FROM active_contracts
   WHERE contract_rank = 1
 ),
@@ -66,7 +66,7 @@ SELECT
   p.contract_start_date,
   p.contract_end_date,
   p.annual_commit_dollars,
-  p.contract_term_years,
+  p.contract_term_months,
   cc.included_monthly_compute_credits,
   cc.active_contract_count,
   CASE WHEN cc.active_contract_count > 1 THEN TRUE ELSE FALSE END AS has_expansion
