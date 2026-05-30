@@ -41,7 +41,7 @@ Sales leadership needs a single metric that:
 ## 2. The North Star Metric: Consumed ARR (cARR)
 
 ### 2.1 Definition
-,			
+
 **Consumed ARR is the portion of contracted ARR that is backed by actual platform usage.**
 
 It answers the question: *"Of the revenue we've booked, how much is the customer actually realizing?"*
@@ -85,6 +85,81 @@ cARR Attainment = cARR / Committed ARR
 ```
 
 This is the headline health ratio for the CFO. A portfolio at 78% attainment means 22% of booked revenue is at risk of non-renewal.
+
+---
+
+### 2.5 Intended Behavioral Drivers
+
+cARR is designed to shift incentives at every layer of the GTM organization. The behaviors it is explicitly intended to reward — and suppress — are:
+
+**Behaviors to reward**
+
+| Behavior | How cARR Rewards It |
+|---|---|
+| Selling the right-sized deal | Overselling credits the customer won't use directly lowers cARR; reps are incentivized to right-size commits |
+| Fast time-to-value | New accounts ramping to ≥80% consumption within 90 days trigger an activation bonus; slow onboarding costs attainment |
+| Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their cARR |
+| Proactive renewal risk management | Farmers' quota is tied to cARR, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
+| Expansion from genuine usage | Expansion flag accounts (2+ months >120%) represent organic demand; reps are credited for converting that signal into a larger contract |
+
+**Behaviors to suppress**
+
+| Behavior | How cARR Suppresses It |
+|---|---|
+| Overselling / shelfware deals | A $500K deal at 4% consumption contributes only $20K to cARR — the rep's attainment number reflects the shelfware reality |
+| Sandbagging credits at renewal | Renewing flat on a low-consumption account doesn't improve cARR; the rep must drive adoption, not just resign the paper |
+| Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under cARR, onboarding quality is in their comp |
+| Cherry-picking easy renewals | cARR weight for Farmers is 70%; avoiding at-risk accounts lowers their total attainment |
+
+---
+
+### 2.6 Retention and Churn as Secondary Metrics
+
+cARR is the North Star, but retention and churn metrics provide the lagging validation that cARR predictions are accurate. Together they form a leading/lagging system:
+
+```
+cARR attainment (leading) → predicts → NRR / Gross Retention (lagging)
+```
+
+**Net Revenue Retention (NRR)**
+
+```
+NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginning ARR
+```
+
+- cARR attainment rate is the leading indicator; NRR at renewal is the outcome it should predict
+- Target: cARR-based NRR forecast within ±10% of actual NRR (see §9 Success Criteria)
+- PANW disclosed NRR of ~119–120% in FY2024; an org-wide cARR attainment of ≥85% should support similar NRR levels in the consumption model
+
+**Gross Revenue Retention (GRR)**
+
+```
+GRR = (Beginning ARR - Churned ARR - Contraction ARR) / Beginning ARR
+```
+
+- GRR strips out expansion, isolating pure churn and downsell risk
+- Accounts in Shelfware or Inactive tier with renewals within 180 days are the primary GRR risk pool
+- `arr_at_risk` (sum across at-risk tier accounts) is the GRR exposure number the CFO monitors
+
+**Logo Churn Rate**
+
+```
+Logo Churn = Accounts lost at renewal / Total accounts up for renewal
+```
+
+- A secondary signal for CS prioritization — high cARR attainment should correlate with low logo churn
+- Spike & Drop accounts (`is_spike_drop = TRUE`) are the highest-risk cohort for logo churn; they consumed heavily at onboarding but have since gone dark
+
+**The leading/lagging relationship**
+
+| cARR Signal | Lagging Metric Risk |
+|---|---|
+| Org attainment falls below 80% | NRR compression at next renewal cycle |
+| Shelfware rate exceeds 10% | GRR deterioration within 2 quarters |
+| Expansion flag conversion < 30% | NRR plateaus; growth shifts entirely to new logos |
+| Ramping accounts fail to reach Healthy in 90 days | Elevated logo churn at first renewal |
+
+Tracking both cARR (real-time) and NRR/GRR (at renewal) allows the team to validate — and over time calibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
 
 ---
 
