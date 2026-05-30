@@ -74,8 +74,7 @@ def load_rep_rollup(as_of_date: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300, show_spinner="Loading account detail…")
-def load_accounts(as_of_date: str, region: Optional[str] = None, rep_id: Optional[str] = None) -> pd.DataFrame:
-    filters = [f"DATE(as_of_date) = DATE '{as_of_date}'"]
+def load_accounts(as_of_date: str, region: Optional[str] = None, employee_id: Optional[str] = None) -> pd.DataFrame:
     sql = f"""
     SELECT
         ca.*,
@@ -83,26 +82,26 @@ def load_accounts(as_of_date: str, region: Optional[str] = None, rep_id: Optiona
         sr.region,
         sr.segment
     FROM {DS}.carr_account ca
-    JOIN {DS_RAW}.sales_reps sr ON sr.rep_id = ca.rep_id
+    JOIN {DS_RAW}.sales_reps sr ON sr.employee_id = ca.employee_id
     WHERE DATE(ca.as_of_date) = DATE '{as_of_date}'
     """
     if region and region != "All":
         sql += f"\n    AND sr.region = '{region}'"
-    if rep_id and rep_id != "All":
-        sql += f"\n    AND ca.rep_id = '{rep_id}'"
+    if employee_id and employee_id != "All":
+        sql += f"\n    AND ca.employee_id = '{employee_id}'"
     try:
         return get_bq_client().query(sql).to_dataframe()
     except Exception:
         sql_latest = f"""
         SELECT ca.*, sr.name AS rep_name, sr.region, sr.segment
         FROM {DS}.carr_account ca
-        JOIN {DS_RAW}.sales_reps sr ON sr.rep_id = ca.rep_id
+        JOIN {DS_RAW}.sales_reps sr ON sr.employee_id = ca.employee_id
         """
         df = get_bq_client().query(sql_latest).to_dataframe()
         if region and region != "All":
             df = df[df["region"] == region]
-        if rep_id and rep_id != "All":
-            df = df[df["rep_id"] == rep_id]
+        if employee_id and employee_id != "All":
+            df = df[df["employee_id"] == employee_id]
         return df
 
 
@@ -168,16 +167,16 @@ def render_sidebar(rep_df: pd.DataFrame):
     rep_pool = rep_df if region == "All" else rep_df[rep_df["region"] == region]
     rep_options = ["All"] + sorted(rep_pool["rep_name"].dropna().unique().tolist())
     rep_name = st.sidebar.selectbox("Sales Rep", rep_options)
-    rep_id = None
+    employee_id = None
     if rep_name != "All":
         row = rep_pool[rep_pool["rep_name"] == rep_name]
-        rep_id = row["rep_id"].iloc[0] if not row.empty else None
+        employee_id = row["employee_id"].iloc[0] if not row.empty else None
 
     st.sidebar.markdown("---")
     st.sidebar.caption(f"**Project:** {GCP_PROJECT}")
     st.sidebar.caption("**Datasets:** raw · staging · gtm")
 
-    return as_of_date, region, rep_name, rep_id
+    return as_of_date, region, rep_name, employee_id
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -313,7 +312,7 @@ def page_region(rep_df: pd.DataFrame):
     region_agg = (
         rep_df.groupby("region", as_index=False)
         .agg(
-            reps=("rep_id", "count"),
+            reps=("employee_id", "count"),
             total_accounts=("total_accounts", "sum"),
             total_arr=("total_arr", "sum"),
             total_carr=("total_carr", "sum"),
@@ -570,7 +569,7 @@ def main():
         st.warning("No data found. Run the pipeline first: `python3 run_pipeline.py --as-of-date YYYY-MM-DD`")
         st.stop()
 
-    as_of_date, region, rep_name, rep_id = render_sidebar(rep_df_full)
+    as_of_date, region, rep_name, employee_id = render_sidebar(rep_df_full)
 
     # Full dataset for the selected date (used by region-level charts)
     rep_df = load_rep_rollup(as_of_date)
@@ -579,10 +578,10 @@ def main():
     rep_df_view = rep_df.copy()
     if region != "All":
         rep_df_view = rep_df_view[rep_df_view["region"] == region]
-    if rep_id:
-        rep_df_view = rep_df_view[rep_df_view["rep_id"] == rep_id]
+    if employee_id:
+        rep_df_view = rep_df_view[rep_df_view["employee_id"] == employee_id]
 
-    acct_df = load_accounts(as_of_date, region, rep_id)
+    acct_df = load_accounts(as_of_date, region, employee_id)
 
     # Navigation tabs
     tab_overview, tab_region, tab_reps, tab_accounts = st.tabs([

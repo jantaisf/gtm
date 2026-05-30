@@ -8,7 +8,7 @@ CREATE OR REPLACE TABLE `openclaw-gateway-491103.gtm.carr_rep_rollup` AS
 
 WITH rep_metrics AS (
   SELECT
-    ca.rep_id,
+    ca.employee_id,
     sr.name                                                     AS rep_name,
     sr.region,
     sr.segment,
@@ -65,9 +65,9 @@ WITH rep_metrics AS (
 
   FROM `openclaw-gateway-491103.gtm.carr_account` ca
   JOIN `openclaw-gateway-491103.raw.sales_reps` sr
-    ON sr.rep_id = ca.rep_id
+    ON sr.employee_id = ca.employee_id
   GROUP BY
-    ca.rep_id, sr.name, sr.region, sr.segment
+    ca.employee_id, sr.name, sr.region, sr.segment
 )
 
 SELECT

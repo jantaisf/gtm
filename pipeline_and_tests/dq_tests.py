@@ -72,17 +72,17 @@ def run_query(client: bigquery.Client, sql: str, as_of_date: str = "") -> list[d
 def test_null_primary_keys(client, **_) -> DQResult:
     """NULL primary keys in any raw table."""
     sql = f"""
-    SELECT 'sales_reps'        AS tbl, COUNT(*) AS nulls FROM {DS}.sales_reps        WHERE rep_id      IS NULL
+    SELECT 'sales_reps'        AS tbl, COUNT(*) AS null_count FROM {DS}.sales_reps        WHERE employee_id IS NULL
     UNION ALL
-    SELECT 'accounts',                  COUNT(*)          FROM {DS}.accounts           WHERE account_id  IS NULL
+    SELECT 'accounts',                  COUNT(*)              FROM {DS}.accounts           WHERE account_id  IS NULL
     UNION ALL
-    SELECT 'contracts',                 COUNT(*)          FROM {DS}.contracts          WHERE contract_id IS NULL
+    SELECT 'contracts',                 COUNT(*)              FROM {DS}.contracts          WHERE contract_id IS NULL
     UNION ALL
-    SELECT 'daily_usage_logs',          COUNT(*)          FROM {DS}.daily_usage_logs   WHERE log_id      IS NULL
+    SELECT 'daily_usage_logs',          COUNT(*)              FROM {DS}.daily_usage_logs   WHERE log_id      IS NULL
     """
     rows   = run_query(client, sql)
-    total  = sum(r["nulls"] for r in rows)
-    bad    = [r["tbl"] for r in rows if r["nulls"] > 0]
+    total  = sum(r["null_count"] for r in rows)
+    bad    = [r["tbl"] for r in rows if r["null_count"] > 0]
     return DQResult(
         test_name="test_null_primary_keys",
         severity="ERROR",
@@ -171,12 +171,12 @@ def test_contracts_missing_accounts(client, **_) -> DQResult:
 
 
 def test_accounts_missing_reps(client, **_) -> DQResult:
-    """Accounts referencing rep_ids not in the sales_reps table."""
+    """Accounts referencing employee_ids not in the sales_reps table."""
     sql = f"""
-    SELECT a.account_id, a.rep_id
+    SELECT a.account_id, a.employee_id
     FROM {DS}.accounts a
-    LEFT JOIN {DS}.sales_reps sr ON sr.rep_id = a.rep_id
-    WHERE sr.rep_id IS NULL
+    LEFT JOIN {DS}.sales_reps sr ON sr.employee_id = a.employee_id
+    WHERE sr.employee_id IS NULL
     LIMIT 20
     """
     rows = run_query(client, sql)
@@ -185,7 +185,7 @@ def test_accounts_missing_reps(client, **_) -> DQResult:
         severity="ERROR",
         passed=(len(rows) == 0),
         row_count=len(rows),
-        detail=f"{len(rows)} accounts reference non-existent rep_ids",
+        detail=f"{len(rows)} accounts reference non-existent employee_ids",
         sample_rows=rows[:5],
     )
 

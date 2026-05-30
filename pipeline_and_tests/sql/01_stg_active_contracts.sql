@@ -63,7 +63,7 @@ combined_totals AS (
 
 SELECT
   p.account_id,
-  a.rep_id,                    -- current account owner (may differ from signing owner)
+  a.employee_id,                    -- current account owner (may differ from signing owner)
   p.signing_owner_id,          -- rep who owned the account when original contract was signed
   a.company_name,
   a.industry,

@@ -2,13 +2,20 @@
 """
 Phase 2 Part 2: cARR Pipeline Runner
 
-Executes the 4 SQL transformation steps in order against BigQuery,
+Executes 5 SQL transformation steps in order against BigQuery,
 producing the full derived table chain from raw tables to carr_rep_rollup.
 
 Dataset layout:
     raw      — source tables (sales_reps, accounts, contracts, daily_usage_logs)
     staging  — stg_active_contracts, stg_monthly_consumption
-    gtm      — carr_account, carr_rep_rollup
+    gtm      — dim_dates, carr_account, carr_rep_rollup
+
+Steps:
+    0  dim_dates               Calendar + PANW fiscal dimension (2000–2030)
+    1  stg_active_contracts    Resolve active contracts per account
+    2  stg_monthly_consumption Aggregate monthly usage; exclude orphaned/rogue logs
+    3  carr_account            Account-level cARR + health tiers
+    4  carr_rep_rollup         Rep + region cARR rollup
 
 Usage:
     python3 run_pipeline.py
@@ -19,7 +26,7 @@ Usage:
 Options:
     --as-of-date YYYY-MM-DD   Evaluation date for active contract resolution.
                                Default: today.
-    --step N                   Run only step N (1-4).
+    --step N                   Run only step N (0–4).
     --dry-run                  Print SQL without executing.
 """
 

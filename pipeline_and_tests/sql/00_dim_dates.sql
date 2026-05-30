@@ -55,6 +55,13 @@ SELECT
   CASE WHEN date = LAST_DAY(date, QUARTER)
        THEN TRUE ELSE FALSE END                        AS is_quarter_end,
 
+  -- ── Calendar year / quarter (explicit aliases for symmetry with fiscal_*) ───
+  EXTRACT(YEAR    FROM date)                           AS calendar_year,
+  EXTRACT(QUARTER FROM date)                           AS calendar_quarter,
+  CONCAT(CAST(EXTRACT(YEAR FROM date) AS STRING),
+         '-Q', CAST(EXTRACT(QUARTER FROM date) AS STRING))
+                                                       AS calendar_year_quarter, -- e.g. 2026-Q1
+
   -- ── PANW fiscal calendar (FY ends July 31) ──────────────────────────────────
   -- FY2025 = Aug 1 2024 → Jul 31 2025
   -- Fiscal month 1 = August, fiscal month 12 = July
@@ -96,7 +103,7 @@ SELECT
     END AS STRING))                                    AS fiscal_year_quarter -- e.g. FY2025-Q1
 
 FROM UNNEST(
-  GENERATE_DATE_ARRAY('2000-01-01', CURRENT_DATE())
+  GENERATE_DATE_ARRAY('2000-01-01', '2030-12-31')
 ) AS date
 ORDER BY date
 ;

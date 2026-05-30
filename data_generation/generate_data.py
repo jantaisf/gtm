@@ -32,6 +32,7 @@ Requirements:
 """
 
 import argparse
+import math
 import random
 import uuid
 from datetime import date, timedelta
@@ -56,7 +57,7 @@ BQ_DATASET  = "raw"
 
 # ── Simulation window ─────────────────────────────────────────────────────────
 SIM_START = date(2024, 1, 1)
-SIM_END   = date.today()
+SIM_END   = date.today() - timedelta(days=1)   # yesterday — last complete day
 
 # ── Table sizes ───────────────────────────────────────────────────────────────
 N_REPS      = 50
@@ -72,7 +73,7 @@ NEW_ACCOUNT_THRESHOLD_DAYS = 90
 FRAC_SPIKE_DROP  = 0.05   # 5%  of accounts
 FRAC_SHELFWARE   = 0.10   # 10% of accounts
 FRAC_OVERAGE     = 0.15   # 15% of accounts
-FRAC_EXPANSION   = 0.05   # 5%  of accounts get a second mid-year contract
+FRAC_EXPANSION   = 0.15   # 15% of accounts get a second mid-year contract
 N_ORPHAN_LOGS    = 300    # rows with bad/missing account references
 
 # ── Prisma Cloud credit pricing reference ────────────────────────────────────
@@ -148,10 +149,10 @@ def build_sales_reps() -> pd.DataFrame:
         for segment, count in [("Enterprise", ent_count), ("Mid-Market", mm_count)]:
             for _ in range(count):
                 records.append({
-                    "rep_id":  str(uuid.uuid4()),
-                    "name":    fake.name(),
-                    "region":  region,
-                    "segment": segment,
+                    "employee_id": str(uuid.uuid4()),
+                    "name":        fake.name(),
+                    "region":      region,
+                    "segment":     segment,
                 })
 
     random.shuffle(records)  # shuffle so order isn't region-sorted
@@ -163,14 +164,14 @@ def build_sales_reps() -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_accounts(reps: pd.DataFrame) -> pd.DataFrame:
-    rep_ids = reps["rep_id"].tolist()
+    employee_ids = reps["employee_id"].tolist()
     records = []
     for _ in range(N_ACCOUNTS):
         records.append({
             "account_id":   str(uuid.uuid4()),
             "company_name": fake.company(),
             "industry":     random.choice(INDUSTRIES),
-            "rep_id":       random.choice(rep_ids),
+            "employee_id":  random.choice(employee_ids),
         })
     return pd.DataFrame(records)
 
@@ -207,9 +208,9 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
     }
 
     # Segment lookup: account_id → "Enterprise" or "Mid-Market"
-    rep_segment = dict(zip(reps["rep_id"], reps["segment"]))
+    rep_segment = dict(zip(reps["employee_id"], reps["segment"]))
     acc_segment = {
-        row["account_id"]: rep_segment.get(row["rep_id"], "Mid-Market")
+        row["account_id"]: rep_segment.get(row["employee_id"], "Mid-Market")
         for _, row in accounts.iterrows()
     }
 
@@ -251,17 +252,26 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
 
     def _contract_term(acc_id: str) -> int:
         """
-        Contract term in years (1, 2, or 3).
+        Contract term in months (12, 24, or 36).
         Enterprise skews multi-year (larger upfront discount per PANW pricing).
         Mid-Market mostly annual.
-        end_date = start_date + term_years * 365 days.
         """
         if acc_segment.get(acc_id) == "Enterprise":
             return random.choices([12, 24, 36], weights=[0.30, 0.45, 0.25])[0]
         return random.choices([12, 24, 36], weights=[0.70, 0.25, 0.05])[0]
 
-    # Signing rep lookup: account_id → rep_id at contract creation time
-    signing_rep = dict(zip(accounts["account_id"], accounts["rep_id"]))
+    def _renewal_term(acc_id: str) -> int:
+        """
+        Renewal contract term in months — skews annual.
+        After a mid-year expansion customers re-evaluate more frequently,
+        so 12-month renewals dominate over multi-year.
+        """
+        if acc_segment.get(acc_id) == "Enterprise":
+            return random.choices([12, 24, 36], weights=[0.60, 0.32, 0.08])[0]
+        return random.choices([12, 24, 36], weights=[0.80, 0.18, 0.02])[0]
+
+    # Signing rep lookup: account_id → employee_id at contract creation time
+    signing_rep = dict(zip(accounts["account_id"], accounts["employee_id"]))
 
     # Base contract — one per account, start dates spread across full window
     window_days = (SIM_END - SIM_START).days
@@ -269,7 +279,7 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
         arr, credits = _contract_value(acc_id)
         term  = _contract_term(acc_id)
         start = SIM_START + timedelta(days=random.randint(0, window_days))
-        end   = start + relativedelta(months=term)
+        end   = start + relativedelta(months=term) - timedelta(days=1)
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
@@ -279,25 +289,127 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
             "contract_term_months":             term,
+            "contract_type":                    "base",
         })
 
-    # Edge case [4]: Mid-year expansion — second, larger overlapping contract
+    # Edge case [4]: Mid-year expansion — type determined by timing of expansion
+    #
+    # Type is assigned based on when the expansion starts relative to contract 1:
+    #
+    #   Type A — expansion within first 4 months → co-termed, no renewal
+    #     Rationale: customer expanded very early; original commit still dominant.
+    #
+    #   Type B — expansion in months 5 through (term-4) → co-termed + renewal
+    #             anchored to expansion start anniversary (clean N-year total)
+    #     Rationale: mid-contract expansion; align renewal to expansion date.
+    #
+    #   Type C — expansion in last 4 months → co-termed + standard renewal term
+    #             from co-term end date
+    #     Rationale: late expansion; renewal just extends from co-term end.
+    #
+    #   Type D — a few random accounts, independent 12-month term, not co-termed
+    #     Rationale: customer negotiated separately; not aligned to C1 schedule.
+
+    type_d_accounts = set(random.sample(sorted(expansion), 3))
+
     for acc_id in expansion:
         base       = next(c for c in contracts if c["account_id"] == acc_id)
-        exp_start  = base["start_date"] + timedelta(days=random.randint(150, 210))
-        term       = _contract_term(acc_id)
-        exp_end    = exp_start + relativedelta(months=term)
         multiplier = random.uniform(1.3, 2.5)
+        exp_arr     = int(base["annual_commit_dollars"] * multiplier)
+        exp_credits = int(base["included_monthly_compute_credits"] * multiplier)
+
+        if acc_id in type_d_accounts:
+            # Type D: independent 12-month, not co-termed
+            exp_start = base["start_date"] + timedelta(days=random.randint(150, 210))
+            exp_end   = exp_start + relativedelta(months=12) - timedelta(days=1)
+            contracts.append({
+                "contract_id":                      str(uuid.uuid4()),
+                "account_id":                       acc_id,
+                "owner_id":                         signing_rep[acc_id],
+                "start_date":                       exp_start,
+                "end_date":                         exp_end,
+                "annual_commit_dollars":            exp_arr,
+                "included_monthly_compute_credits": exp_credits,
+                "contract_term_months":             12,
+                "contract_type":                    "expansion",
+            })
+            continue
+
+        # Types A / B / C — spread exp_start across the full contract period
+        # (leave at least 30 days of co-term overlap at the end)
+        contract_days = (base["end_date"] - base["start_date"]).days
+        exp_start = base["start_date"] + timedelta(
+            days=random.randint(30, max(31, contract_days - 30))
+        )
+
+        # Skip if no meaningful overlap remains
+        if (base["end_date"] - exp_start).days < 30:
+            continue
+
+        # Assign type by months into contract 1
+        months_into_c1  = (exp_start.year  - base["start_date"].year)  * 12 + (exp_start.month  - base["start_date"].month)
+        months_remaining = base["contract_term_months"] - months_into_c1
+
+        if months_into_c1 <= 4:
+            exp_type = 'A'
+        elif months_remaining <= 4:
+            exp_type = 'C'
+        else:
+            exp_type = 'B'
+
+        exp_end = base["end_date"]  # all three are co-termed
+        rd = relativedelta(exp_end + timedelta(days=1), exp_start)
+        exp_term_months = rd.years * 12 + rd.months
+
         contracts.append({
             "contract_id":                      str(uuid.uuid4()),
             "account_id":                       acc_id,
             "owner_id":                         signing_rep[acc_id],
             "start_date":                       exp_start,
             "end_date":                         exp_end,
-            "annual_commit_dollars":            int(base["annual_commit_dollars"] * multiplier),
-            "included_monthly_compute_credits": int(base["included_monthly_compute_credits"] * multiplier),
-            "contract_term_months":             term,
+            "annual_commit_dollars":            exp_arr,
+            "included_monthly_compute_credits": exp_credits,
+            "contract_term_months":             exp_term_months,
+            "contract_type":                    "expansion",
         })
+
+        if exp_type == 'A':
+            pass  # no renewal
+
+        elif exp_type == 'B':
+            # Renewal starts the day after co-term ends, term drawn from
+            # renewal-skewed distribution (mostly 12 months)
+            renewal_start = exp_end + timedelta(days=1)
+            renewal_term  = _renewal_term(acc_id)
+            renewal_end   = renewal_start + relativedelta(months=renewal_term) - timedelta(days=1)
+            contracts.append({
+                "contract_id":                      str(uuid.uuid4()),
+                "account_id":                       acc_id,
+                "owner_id":                         signing_rep[acc_id],
+                "start_date":                       renewal_start,
+                "end_date":                         renewal_end,
+                "annual_commit_dollars":            base["annual_commit_dollars"] + exp_arr,
+                "included_monthly_compute_credits": base["included_monthly_compute_credits"] + exp_credits,
+                "contract_term_months":             renewal_term,
+                "contract_type":                    "renewal",
+            })
+
+        elif exp_type == 'C':
+            # Renewal end = renewal-skewed term from co-term end date
+            renewal_start = exp_end + timedelta(days=1)
+            renewal_term  = _renewal_term(acc_id)
+            renewal_end   = renewal_start + relativedelta(months=renewal_term) - timedelta(days=1)
+            contracts.append({
+                "contract_id":                      str(uuid.uuid4()),
+                "account_id":                       acc_id,
+                "owner_id":                         signing_rep[acc_id],
+                "start_date":                       renewal_start,
+                "end_date":                         renewal_end,
+                "annual_commit_dollars":            base["annual_commit_dollars"] + exp_arr,
+                "included_monthly_compute_credits": base["included_monthly_compute_credits"] + exp_credits,
+                "contract_term_months":             renewal_term,
+                "contract_type":                    "renewal",
+            })
 
     # Pad to N_CONTRACTS with additional contracts on random accounts
     while len(contracts) < N_CONTRACTS:
@@ -310,10 +422,11 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
             "account_id":                       acc_id,
             "owner_id":                         signing_rep[acc_id],
             "start_date":                       start,
-            "end_date":                         start + relativedelta(months=term),
+            "end_date":                         start + relativedelta(months=term) - timedelta(days=1),
             "annual_commit_dollars":            arr,
             "included_monthly_compute_credits": credits,
             "contract_term_months":             term,
+            "contract_type":                    "additional",
         })
 
     df = pd.DataFrame(contracts)
@@ -322,14 +435,14 @@ def build_contracts(accounts: pd.DataFrame, reps: pd.DataFrame) -> tuple[pd.Data
 
     # ── Simulate account reassignments (~20% of accounts) ─────────────────────
     # Reassign a subset of accounts to a different rep, creating a realistic
-    # divergence between contracts.owner_id (who signed) and accounts.rep_id
+    # divergence between contracts.owner_id (who signed) and accounts.employee_id
     # (who owns the account today).
-    reassign_ids = random.sample(account_ids, int(len(account_ids) * 0.20))
-    rep_ids      = reps["rep_id"].tolist()
+    reassign_ids  = random.sample(account_ids, int(len(account_ids) * 0.20))
+    employee_ids  = reps["employee_id"].tolist()
     for acc_id in reassign_ids:
-        current_rep = accounts.loc[accounts["account_id"] == acc_id, "rep_id"].iloc[0]
-        other_reps  = [r for r in rep_ids if r != current_rep]
-        accounts.loc[accounts["account_id"] == acc_id, "rep_id"] = random.choice(other_reps)
+        current_rep = accounts.loc[accounts["account_id"] == acc_id, "employee_id"].iloc[0]
+        other_reps  = [r for r in employee_ids if r != current_rep]
+        accounts.loc[accounts["account_id"] == acc_id, "employee_id"] = random.choice(other_reps)
 
     return df, edge_cases
 
@@ -417,14 +530,16 @@ def build_usage_logs(
                     "log_id":                   str(uuid.uuid4()),
                     "account_id":               acc_id,
                     "date":                     d.date(),
-                    "compute_credits_consumed": round(max(0, np.random.normal(1.5, 0.5)), 2),
+                    # Proportional to daily_budget so small-budget accounts
+                    # also read as near-zero (~3% of daily budget per sampled day)
+                    "compute_credits_consumed": round(max(0, np.random.normal(daily_budget * 0.03, daily_budget * 0.01)), 2),
                 })
 
         # Edge case [3]: Consistent Overages
         # Accounts whose cloud workload growth outpaces their contracted credit
         # allowance — overage billed at PAYG list price ($90/credit/year).
         elif acc_id in overage:
-            overage_multiplier = random.uniform(1.20, 1.60)
+            overage_multiplier = random.uniform(1.60, 2.00)  # raised floor: 1.60 × 0.893 avg day weight = 1.43× monthly budget, well above 1.20 threshold after weekend drag
             for d in contract_dates:
                 day_weight = WEEKDAY_WEIGHT if d.weekday() < 5 else WEEKEND_WEIGHT
                 is_incident = random.random() < INCIDENT_PROB
@@ -473,13 +588,12 @@ def build_usage_logs(
             "compute_credits_consumed": round(random.uniform(10, 500), 2),
         })
 
-    # Edge case [5b]: Rogue — valid account_id but date far outside contract window
+    # Edge case [5b]: Rogue — valid account_id but date before any contract exists.
+    # Simulates usage logs that can't be joined to a contract window (e.g. pre-sale
+    # trial activity, mis-stamped dates, or data from a decommissioned system).
     valid_ids = accounts["account_id"].tolist()
     for _ in range(N_ORPHAN_LOGS // 2):
-        if random.random() < 0.5:
-            rogue_date = SIM_START - timedelta(days=random.randint(60, 180))
-        else:
-            rogue_date = SIM_END + timedelta(days=random.randint(60, 180))
+        rogue_date = SIM_START - timedelta(days=random.randint(1, 180))
         rows.append({
             "log_id":                   str(uuid.uuid4()),
             "account_id":               random.choice(valid_ids),
@@ -516,16 +630,16 @@ def upload_to_bigquery(tables: dict[str, pd.DataFrame]) -> None:
 
     bq_schemas = {
         "sales_reps": [
-            bigquery.SchemaField("rep_id",   "STRING", mode="REQUIRED"),
-            bigquery.SchemaField("name",     "STRING"),
-            bigquery.SchemaField("region",   "STRING"),
-            bigquery.SchemaField("segment",  "STRING"),
+            bigquery.SchemaField("employee_id", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("name",        "STRING"),
+            bigquery.SchemaField("region",      "STRING"),
+            bigquery.SchemaField("segment",     "STRING"),
         ],
         "accounts": [
             bigquery.SchemaField("account_id",   "STRING", mode="REQUIRED"),
             bigquery.SchemaField("company_name", "STRING"),
             bigquery.SchemaField("industry",     "STRING"),
-            bigquery.SchemaField("rep_id",       "STRING"),
+            bigquery.SchemaField("employee_id",  "STRING"),
         ],
         "contracts": [
             bigquery.SchemaField("contract_id",                      "STRING",  mode="REQUIRED"),
@@ -536,6 +650,7 @@ def upload_to_bigquery(tables: dict[str, pd.DataFrame]) -> None:
             bigquery.SchemaField("annual_commit_dollars",            "INTEGER"),
             bigquery.SchemaField("included_monthly_compute_credits", "INTEGER"),
             bigquery.SchemaField("contract_term_months",             "INTEGER"),
+            bigquery.SchemaField("contract_type",                    "STRING"),   # base | expansion | renewal | additional
         ],
         "daily_usage_logs": [
             bigquery.SchemaField("log_id",                    "STRING",  mode="REQUIRED"),

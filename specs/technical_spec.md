@@ -55,7 +55,7 @@
 #### `sales_reps`
 | Column | Type | Notes |
 |---|---|---|
-| `rep_id` | STRING | PK — format `REP-NNN` |
+| `employee_id` | STRING | PK — UUID |
 | `name` | STRING | |
 | `region` | STRING | Northeast / Southeast / Midwest / West / International |
 | `segment` | STRING | Enterprise / Mid-Market |
@@ -63,21 +63,23 @@
 #### `accounts`
 | Column | Type | Notes |
 |---|---|---|
-| `account_id` | STRING | PK — format `ACC-NNNN` |
+| `account_id` | STRING | PK — UUID |
 | `company_name` | STRING | |
 | `industry` | STRING | |
-| `rep_id` | STRING | FK → sales_reps.rep_id |
+| `employee_id` | STRING | FK → sales_reps.employee_id (current account owner; may differ from signing owner after reassignment) |
 
 #### `contracts`
 | Column | Type | Notes |
 |---|---|---|
-| `contract_id` | STRING | PK — format `CTR-NNNN` |
+| `contract_id` | STRING | PK — UUID |
 | `account_id` | STRING | FK → accounts.account_id |
+| `owner_id` | STRING | FK → sales_reps.employee_id — rep who owned the account at signing |
 | `start_date` | DATE | |
-| `end_date` | DATE | Derived: start_date + contract_term_months calendar months (e.g. 2026-01-01 + 12mo = 2027-01-01) |
+| `end_date` | DATE | Inclusive: `start_date + contract_term_months - 1 day` (e.g. 2026-01-01 + 12mo → 2026-12-31) |
 | `annual_commit_dollars` | INTEGER | ACV — annualized contract value |
 | `included_monthly_compute_credits` | INTEGER | Monthly credit allowance (Option A: use-it-or-lose-it per month) |
 | `contract_term_months` | INTEGER | 12 / 24 / 36 — Enterprise skews multi-year |
+| `contract_type` | STRING | `base` / `expansion` / `renewal` / `additional` |
 
 #### `daily_usage_logs`
 | Column | Type | Notes |
@@ -100,6 +102,23 @@
 
 ## 3. Pipeline Step-by-Step Logic
 
+### Step 0 — `dim_dates`
+
+**Purpose:** Build a calendar dimension table covering 2000-01-01 through 2030-12-31 used for date spine joins and fiscal calendar alignment.
+
+**Logic:**
+1. Generate one row per calendar day via `GENERATE_DATE_ARRAY`
+2. Derive standard calendar fields: `date_id`, `day_of_week`, `is_weekend`, month/quarter start and end flags
+3. Derive PANW fiscal calendar fields: `fiscal_year`, `fiscal_year_name`, `fiscal_month`, `fiscal_quarter`, `fiscal_year_quarter`
+   - PANW fiscal year ends July 31; FY starts August 1
+   - FQ1 = Aug–Oct, FQ2 = Nov–Jan, FQ3 = Feb–Apr, FQ4 = May–Jul
+   - `fiscal_month` formula: `MOD(calendar_month + 4, 12) + 1` → August = 1, July = 12
+4. Expose explicit calendar aliases: `calendar_year`, `calendar_quarter`, `calendar_year_quarter`
+
+**Output:** 29 columns; one row per day. Used as a date spine by downstream queries.
+
+---
+
 ### Step 1 — `stg_active_contracts`
 
 **Purpose:** Resolve which contract(s) are active per account and produce a single canonical row.
@@ -108,13 +127,14 @@
 1. Filter contracts where `as_of_date BETWEEN start_date AND end_date`
 2. Exclude malformed contracts where `end_date < start_date`
 3. For accounts with multiple active contracts (mid-year expansions):
-   - ARR basis = contract with highest `annual_commit_dollars`
-   - Monthly credits = **SUM** across all active contracts
+   - ARR = **SUM** of `annual_commit_dollars` across all active contracts
+   - Monthly credits = **SUM** of `included_monthly_compute_credits` across all active contracts
+   - Primary contract = earliest `start_date` (used for reference fields and comp attribution)
    - Set `has_expansion = TRUE`
-4. Join to `accounts` to carry `rep_id`, `company_name`, `industry`
+4. Join to `accounts` to carry `employee_id`, `company_name`, `industry`
 
 **Edge cases handled:**
-- Mid-year expansions → credits summed, ARR uses highest-value contract
+- Mid-year expansions → both ARR and credits summed across all active contracts
 - Malformed contracts → excluded via `end_date >= start_date` guard
 
 ---
@@ -168,7 +188,7 @@
 **Purpose:** Aggregate account cARR to rep and region level for dashboard and compensation.
 
 **Logic:**
-1. Join `carr_account` to `sales_reps` on `rep_id`
+1. Join `carr_account` to `sales_reps` on `employee_id`
 2. Aggregate per rep:
    - `total_arr` = SUM of `annual_commit_dollars`
    - `total_carr` = SUM of `cARR` (excludes new_account NULLs)
@@ -209,19 +229,21 @@ All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 ```
 gtm/
 ├── data_generation/
-│   ├── generate_data.py          # Phase 1: synthetic data + BQ upload
+│   ├── generate_data.py          # Synthetic data generation + BigQuery upload
+│   ├── verify_edge_cases.sql     # Ad-hoc BQ queries to validate edge case distributions
 │   └── requirements.txt
 ├── specs/
 │   ├── product_spec.md           # Metric definition, formula, comp design
 │   └── technical_spec.md        # This file
 ├── pipeline_and_tests/
 │   ├── sql/
-│   │   ├── 01_stg_active_contracts.sql
+│   │   ├── 00_dim_dates.sql             # Calendar + PANW fiscal dimension (2000–2030)
+│   │   ├── 01_stg_active_contracts.sql  # Resolve active contracts per account
 │   │   ├── 02_stg_monthly_consumption.sql
 │   │   ├── 03_carr_account.sql
 │   │   └── 04_carr_rep_rollup.sql
-│   ├── run_pipeline.py           # Executes all 4 SQL steps
-│   └── dq_tests.py              # Automated data quality assertions
+│   ├── run_pipeline.py           # Executes all 5 SQL steps (steps 0–4)
+│   └── dq_tests.py              # Automated data quality assertions (11 tests)
 ├── dashboard/
 │   ├── app.py                    # Streamlit executive dashboard
 │   └── requirements.txt
@@ -236,14 +258,26 @@ gtm/
 # Authenticate
 gcloud auth application-default login
 
-# Run full pipeline (uses today as as_of_date)
+# (Re-)generate synthetic data and upload to BigQuery
+python3 data_generation/generate_data.py --upload
+
+# Run full 5-step pipeline (uses today as as_of_date)
 python3 pipeline_and_tests/run_pipeline.py
 
-# Run against synthetic 2024-2025 data
+# Run against a specific historical snapshot
 python3 pipeline_and_tests/run_pipeline.py --as-of-date 2025-06-30
 
-# Run data quality tests
+# Run only a single step (0 = dim_dates, 1 = stg_active_contracts, …)
+python3 pipeline_and_tests/run_pipeline.py --step 3
+
+# Dry-run: print SQL without executing
+python3 pipeline_and_tests/run_pipeline.py --dry-run
+
+# Run data quality tests (11 assertions, ERROR / WARNING / INFO)
 python3 pipeline_and_tests/dq_tests.py --as-of-date 2025-06-30
+
+# DQ tests — fail CI on any ERROR
+python3 pipeline_and_tests/dq_tests.py --fail-on-error --output results.json
 
 # Launch dashboard
 streamlit run dashboard/app.py
