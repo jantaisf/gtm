@@ -264,7 +264,102 @@ cARR provides two distinct forecasting signals: **renewal risk** (defensive) and
 
 ---
 
-## 10. Open Questions for Executive Alignment
+## 10. Executive Dashboard
+
+The cARR dashboard is the primary operational interface for sales leadership. It is built in Streamlit + Plotly, connected live to BigQuery, and designed for three audiences: the VP of Sales (portfolio overview), regional managers (leaderboard and territory health), and CS leads (at-risk account triage).
+
+### Views
+
+**📊 Portfolio Overview** — VP of Sales / CFO
+| Element | What It Shows |
+|---|---|
+| KPI strip (5 metrics) | Total ARR, Total cARR, cARR Attainment %, ARR at Risk $, Expansion Pipeline $ |
+| cARR by Region bar chart | ARR (grey) overlaid with cARR (blue) per region; attainment % labeled inside each bar |
+| Account Health Mix donut | Distribution of accounts across all 6 health tiers |
+| Attainment scatter | Each rep plotted as ARR vs. cARR attainment %; bubble size = portfolio ARR; 80% and 100% reference lines |
+
+**🗺️ By Region** — Regional VPs / Sales Ops
+| Element | What It Shows |
+|---|---|
+| Region summary table | Reps, accounts, ARR, cARR, attainment, ARR at risk, expansion pipeline per region |
+| Health tier stacked bar | % of accounts in each health tier per region — surfaces which regions carry the most churn risk |
+
+**👤 By Rep — Leaderboard** — Sales Managers
+| Element | What It Shows |
+|---|---|
+| Top / bottom callout cards | #1 rep (green) and lowest-attainment rep (red if <60%) with one-line summary |
+| Horizontal ranked bar chart | Top 20 reps by cARR; ARR (grey) + cARR (blue) overlay with attainment % labeled |
+| Full rep table | All reps with org rank, region rank, ARR, cARR, attainment, at-risk $, expansion opps, health tier breakdown |
+
+**🏢 Accounts** — CS Leads / AEs
+| Element | What It Shows |
+|---|---|
+| Health tier filter | Drill into a single tier (e.g., show only Shelfware accounts) |
+| ARR vs. consumption scatter | Each account plotted by ARR commit vs. trailing 90d consumption rate; colored by health tier |
+| Account detail table | Per-account: ARR, cARR, consumption rate, health tier, contract dates, expansion flag, spike/drop flag |
+
+### Filters
+- **As-of Date** — select any pipeline run date for point-in-time analysis
+- **Region** — scope all views to a single region
+- **Sales Rep** — scope to an individual rep's portfolio
+
+---
+
+## 11. Downstream System Integrations
+
+cARR is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day.
+
+### Salesforce CRM
+
+**Direction:** BigQuery `carr_account` → Salesforce Account object (nightly sync)
+
+| cARR Field | Salesforce Field | Used For |
+|---|---|---|
+| `health_tier` | `Health_Tier__c` | Account list views, CS playbook triggers |
+| `carr_attainment_rate` | `cARR_Attainment__c` | Renewal forecast category (Commit / Upside / Risk) |
+| `arr_at_risk` | `ARR_at_Risk__c` | Renewal opportunity amount adjustment |
+| `expansion_flag = TRUE` | Auto-create Expansion Opportunity | Expansion pipeline in rep's book |
+| `is_spike_drop = TRUE` | Flag on Account for CS review | Save plan trigger |
+
+The `signing_owner_id` vs. `employee_id` split is critical here: Salesforce must attribute cARR to the *current* account owner (for quota tracking) and the *signing owner* (for comp credit on the original deal).
+
+### Compensation Platform (e.g., Xactly, CaptivateIQ)
+
+**Direction:** BigQuery `carr_rep_rollup` → compensation engine (monthly/quarterly)
+
+| Field | Comp Use |
+|---|---|
+| `total_carr` | Farmer quota attainment calculation |
+| `carr_attainment_rate` | Tier multiplier for accelerators/decelerators |
+| `expansion_arr_pipeline` | Expansion SPIF eligibility |
+| New account reaching ≥80% within 90 days | Activation bonus trigger (requires joining `carr_account` on `contract_start_date`) |
+
+### Customer Success Platform (e.g., Gainsight, Totango)
+
+**Direction:** BigQuery `carr_account` → CS health score engine (daily)
+
+| Health Tier | CS Action Triggered |
+|---|---|
+| Expansion | Handoff to AE for expansion motion |
+| Healthy | Automated check-in cadence maintained |
+| At Risk | CS escalation playbook opened within 30 days |
+| Shelfware | Executive sponsor outreach playbook |
+| Inactive | Immediate save plan; executive escalation |
+| Ramping | Onboarding playbook; 90-day activation tracking |
+
+### Business Intelligence / Board Reporting (e.g., Tableau, Looker)
+
+**Direction:** BigQuery `carr_rep_rollup` + `carr_account` → BI layer (on-demand)
+
+Key reports enabled:
+- **Board NRR forecast:** org-wide cARR attainment as leading indicator of next-period NRR
+- **Cohort analysis:** cARR attainment by contract start quarter → validate health tier thresholds against actual churn
+- **Segment benchmarking:** Enterprise vs. Mid-Market attainment trends over time
+- **Fiscal quarter close:** cARR vs. ARR by region for QBR packages
+
+---
+
+## 12. Open Questions for Executive Alignment
 
 1. **Territory weighting:** Does the VP Sales accept the 70/30 → 30/70 Hunter/Farmer split, or does the current team structure require a different breakdown?
 2. **Overage recognition:** When cARR exceeds ARR (consumption_rate > 1.0), does finance recognize overage revenue in the same period or defer to contract renewal?
@@ -274,7 +369,7 @@ cARR provides two distinct forecasting signals: **renewal risk** (defensive) and
 
 ---
 
-## 11. Sources
+## 13. Sources
 
 - Metronome — [State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025)
 - Palo Alto Networks — [Introducing Cortex Cloud (Feb 2025)](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)

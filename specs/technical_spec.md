@@ -299,7 +299,132 @@ streamlit run dashboard/app.py
 
 ---
 
-## 8. v2 Roadmap
+## 8. Dashboard Implementation
+
+### Stack
+- **Frontend:** Streamlit (Python) — single-file app (`dashboard/app.py`)
+- **Charting:** Plotly Express + Plotly Graph Objects
+- **Data:** BigQuery Python client (`google-cloud-bigquery`); queries cached with `@st.cache_data(ttl=300)`
+- **Auth:** Google Application Default Credentials (ADC) — `gcloud auth application-default login`
+
+### Data Flow
+
+```
+BigQuery                    Streamlit App
+──────────────────────────────────────────────────────
+gtm.carr_rep_rollup    →    load_rep_rollup(as_of_date)   → sidebar rep list, all rep-level charts
+gtm.carr_account       →    load_accounts(as_of_date,      → account scatter, account detail table
+                                region, employee_id)
+gtm.carr_rep_rollup    →    load_available_dates()         → as-of-date selector in sidebar
+raw.sales_reps         →    joined inside load_accounts()  → rep_name, region, segment on account rows
+```
+
+### Caching Strategy
+- `load_rep_rollup` and `load_accounts`: 5-minute TTL — balances freshness with BQ query cost
+- `load_available_dates`: 10-minute TTL — changes only when pipeline reruns
+- `get_bq_client`: `@st.cache_resource` — single client instance per session (no reconnect overhead)
+
+### Fallback Behavior
+If `carr_rep_rollup` has no rows for the requested `as_of_date`, the app falls back to the latest available data (`ORDER BY calculated_at DESC`). `load_accounts` similarly falls back to a full table scan with in-memory filtering if the date-filtered query returns nothing.
+
+---
+
+## 9. Downstream System Integrations
+
+### 9.1 Integration Architecture
+
+```
+BigQuery (gtm dataset)
+        │
+        ├─── Nightly export ──► Salesforce CRM        (Account health + expansion signals)
+        ├─── Monthly export ──► Compensation platform  (Rep attainment for quota/commission)
+        ├─── Daily export ───► CS platform             (Health scores + playbook triggers)
+        └─── On-demand ──────► BI layer                (Board reporting, cohort analysis)
+```
+
+All exports read from the two output tables: `carr_account` (account-level) and `carr_rep_rollup` (rep-level).
+
+---
+
+### 9.2 Salesforce CRM
+
+**Sync:** Nightly batch via BigQuery → Salesforce REST API (or Salesforce Connect external object)
+**Source table:** `gtm.carr_account`
+
+| BQ Field | Salesforce Object | Salesforce Field | Notes |
+|---|---|---|---|
+| `health_tier` | Account | `Health_Tier__c` | Picklist: Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
+| `carr_attainment_rate` | Account | `cARR_Attainment__c` | Number (%) — drives renewal forecast category |
+| `arr_at_risk` | Account | `ARR_at_Risk__c` | Currency — adjusts renewal opportunity amount |
+| `expansion_flag = TRUE` | Opportunity (auto-create) | Stage = `Expansion Identified` | Creates new opp on Account if none exists in stage |
+| `is_spike_drop = TRUE` | Account | `Spike_Drop_Flag__c` | Checkbox — triggers CS save plan task |
+| `employee_id` | Account | `Owner` (current) | Routes to current account owner for quota |
+| `signing_owner_id` | Account | `Signing_Owner__c` | Preserved for comp attribution on original deal |
+
+---
+
+### 9.3 Compensation Platform (e.g., Xactly, CaptivateIQ)
+
+**Sync:** Monthly close via BigQuery scheduled export → CSV/SFTP or direct API
+**Source table:** `gtm.carr_rep_rollup`
+
+| BQ Field | Comp Use |
+|---|---|
+| `total_carr` | Farmer quota attainment numerator |
+| `carr_attainment_rate` | Accelerator / decelerator tier lookup |
+| `total_arr` | Quota denominator for attainment % |
+| `expansion_arr_pipeline` | Expansion SPIF eligibility flag |
+
+**Activation bonus** (requires `gtm.carr_account`):
+```sql
+-- Accounts that hit ≥80% consumption within 90 days of contract start
+SELECT employee_id, account_id, company_name, carr_attainment_rate
+FROM gtm.carr_account
+WHERE is_new_account = FALSE                             -- just aged out of ramping
+  AND contract_start_date >= DATE_SUB(as_of_date, INTERVAL 180 DAY)
+  AND trailing_90d_avg_rate >= 0.80
+```
+
+---
+
+### 9.4 Customer Success Platform (e.g., Gainsight, Totango)
+
+**Sync:** Daily via BigQuery → CS platform API
+**Source table:** `gtm.carr_account`
+
+| Health Tier | CS Score Range | Automated Action |
+|---|---|---|
+| Expansion | 90–100 | Flag for AE expansion handoff |
+| Healthy | 70–89 | Maintain check-in cadence |
+| At Risk | 40–69 | Open CS escalation playbook; 30-day SLA |
+| Shelfware | 20–39 | Executive sponsor outreach playbook |
+| Inactive | 0–19 | Immediate save plan; escalate to VP CS |
+| Ramping | N/A | Onboarding playbook; 90-day activation tracking |
+
+Key field mapping:
+- `trailing_90d_avg_rate` → CS health score (normalized 0–100)
+- `months_of_data` → data confidence indicator (low if < 2)
+- `zero_usage_months` → trigger for proactive outreach if ≥ 2 consecutive
+
+---
+
+### 9.5 BI / Board Reporting (e.g., Tableau, Looker)
+
+**Source tables:** `gtm.carr_rep_rollup`, `gtm.carr_account`, `gtm.dim_dates`
+
+Key reports enabled by the current data model:
+
+| Report | Tables Used | Key Fields |
+|---|---|---|
+| Board NRR forecast | `carr_rep_rollup` | `total_carr / total_arr` org-wide as NRR leading indicator |
+| Renewal risk register | `carr_account` | `arr_at_risk`, `contract_end_date`, `health_tier` |
+| Expansion pipeline | `carr_account` | `expansion_flag`, `annual_commit_dollars`, `rep_name` |
+| Cohort churn analysis | `carr_account` + `dim_dates` | Attainment by `fiscal_year_quarter` of contract start |
+| QBR regional pack | `carr_rep_rollup` | `region`, `total_arr`, `total_carr`, `accounts_at_risk` |
+
+---
+
+## 10. v2 Roadmap
 
 | Enhancement | Effort | Value |
 |---|---|---|
