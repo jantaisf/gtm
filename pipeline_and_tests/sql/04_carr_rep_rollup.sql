@@ -22,6 +22,7 @@ WITH rep_metrics AS (
     SUM(ca.annual_commit_dollars)                               AS total_arr,
     SUM(ca.carr)                                                AS total_carr,
     SUM(ca.arr_at_risk)                                         AS total_arr_at_risk,
+    SUM(ca.expansion_signal_arr)                                AS total_expansion_signal_arr,
 
     -- cARR attainment rate = cARR / ARR (on mature accounts only)
     ROUND(

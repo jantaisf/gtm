@@ -3,13 +3,17 @@
 -- Computes account-level Consumed ARR (cARR).
 --
 -- Formula (product_spec.md §2.2):
---   cARR = annual_commit_dollars × trailing_90d_avg_consumption_rate
+--   cARR               = MIN(annual_commit × trailing_90d_avg_rate, annual_commit)
+--   expansion_signal_arr = MAX(annual_commit × trailing_90d_avg_rate − annual_commit, 0)
+--
+-- cARR is capped at the annual commit. Over-consumption flows to
+-- expansion_signal_arr as a separate upsell pipeline metric.
 --
 -- Edge cases handled:
 --   · New accounts (<90 days): excluded from cARR, flagged as ramping.
 --   · Spike & Drop: trailing 90-day window smooths spike once it ages out.
 --   · Shelfware: 0 consumption rate → near-zero cARR.
---   · Consistent Overages: cARR > ARR; expansion_flag surfaced to rep.
+--   · Consistent Overages: cARR capped at commit; surplus in expansion_signal_arr.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE TABLE `openclaw-gateway-491103.gtm.carr_account` AS
@@ -115,19 +119,31 @@ SELECT
     ELSE hc.health_tier
   END AS health_tier,
 
-  -- cARR: NULL for new accounts, direct multiplication for all others
+  -- cARR: NULL for new accounts; capped at annual_commit for all others
   CASE
     WHEN ac.contract_start_date >= DATE_SUB({as_of_date}, INTERVAL 90 DAY)
     THEN NULL
-    ELSE ROUND(ac.annual_commit_dollars * hc.trailing_90d_avg_rate, 2)
+    ELSE ROUND(
+      LEAST(ac.annual_commit_dollars * hc.trailing_90d_avg_rate, ac.annual_commit_dollars), 2
+    )
   END AS carr,
+
+  -- Expansion signal: over-consumption above commit (upsell pipeline metric)
+  CASE
+    WHEN ac.contract_start_date >= DATE_SUB({as_of_date}, INTERVAL 90 DAY)
+    THEN NULL
+    ELSE ROUND(
+      GREATEST(ac.annual_commit_dollars * hc.trailing_90d_avg_rate - ac.annual_commit_dollars, 0), 2
+    )
+  END AS expansion_signal_arr,
 
   -- ARR at risk = committed dollars not backed by consumption
   CASE
     WHEN ac.contract_start_date >= DATE_SUB({as_of_date}, INTERVAL 90 DAY)
     THEN NULL
     ELSE ROUND(
-      ac.annual_commit_dollars - (ac.annual_commit_dollars * hc.trailing_90d_avg_rate), 2
+      ac.annual_commit_dollars
+      - LEAST(ac.annual_commit_dollars * hc.trailing_90d_avg_rate, ac.annual_commit_dollars), 2
     )
   END AS arr_at_risk,
 

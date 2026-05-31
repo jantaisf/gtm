@@ -187,11 +187,11 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
     st.header("Portfolio Overview")
 
     # rep_df is already filtered by region/rep from main()
-    total_arr  = rep_df["total_arr"].sum()
-    total_carr = rep_df["total_carr"].sum()
-    total_risk = rep_df["total_arr_at_risk"].sum()
-    att_rate   = total_carr / total_arr if total_arr else 0
-    expansion_pipeline = rep_df["expansion_arr_pipeline"].sum()
+    total_arr            = rep_df["total_arr"].sum()
+    total_carr           = rep_df["total_carr"].sum()
+    total_risk           = rep_df["total_arr_at_risk"].sum()
+    att_rate             = total_carr / total_arr if total_arr else 0
+    expansion_signal     = rep_df["total_expansion_signal_arr"].sum() if "total_expansion_signal_arr" in rep_df.columns else 0
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Total ARR",              fmt_m(total_arr))
@@ -199,8 +199,9 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
     c3.metric("cARR Attainment",        fmt_pct(att_rate))
     c4.metric("ARR at Risk",            fmt_m(total_risk),
               delta=f"-{fmt_m(total_risk)}", delta_color="inverse")
-    c5.metric("Expansion Pipeline",     fmt_m(expansion_pipeline),
-              delta=fmt_m(expansion_pipeline), delta_color="normal")
+    c5.metric("Expansion Signal ARR",   fmt_m(expansion_signal),
+              delta=fmt_m(expansion_signal), delta_color="normal",
+              help="Over-commit consumption — upsell pipeline signal")
 
     st.markdown("---")
 
@@ -446,22 +447,25 @@ def page_reps(rep_df: pd.DataFrame, region: str):
 
     # Detailed table
     st.subheader("Full Rep Table")
+    extra_cols = ["total_expansion_signal_arr"] if "total_expansion_signal_arr" in filtered.columns else []
     tbl = filtered[[
         "org_rank", "region_rank", "rep_name", "region", "segment",
         "total_accounts", "ramping_accounts", "mature_accounts",
         "total_arr", "total_carr", "carr_attainment_rate",
         "total_arr_at_risk", "expansion_opportunities", "expansion_arr_pipeline",
+    ] + extra_cols + [
         "accounts_expansion", "accounts_healthy", "accounts_at_risk",
         "accounts_shelfware", "accounts_inactive",
     ]].copy()
-    tbl.columns = [
+    base_labels = [
         "Org#", "Rgn#", "Rep", "Region", "Segment",
         "Accts", "Ramping", "Mature",
         "ARR", "cARR", "Attainment",
         "At Risk $", "Exp Opps", "Exp Pipeline",
-        "Expansion", "Healthy", "At Risk", "Shelfware", "Inactive",
     ]
-    for col in ["ARR", "cARR", "At Risk $", "Exp Pipeline"]:
+    extra_labels = ["Exp Signal ARR"] if extra_cols else []
+    tbl.columns = base_labels + extra_labels + ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive"]
+    for col in ["ARR", "cARR", "At Risk $", "Exp Pipeline"] + (["Exp Signal ARR"] if extra_labels else []):
         tbl[col] = tbl[col].apply(fmt_m)
     tbl["Attainment"] = tbl["Attainment"].apply(fmt_pct)
 
@@ -514,21 +518,29 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
     st.plotly_chart(fig, use_container_width=True)
 
     # Account table
+    exp_signal_cols = ["expansion_signal_arr"] if "expansion_signal_arr" in view.columns else []
     tbl = view[[
         "company_name", "rep_name", "region", "health_tier",
-        "annual_commit_dollars", "trailing_90d_avg_rate", "carr", "arr_at_risk",
+        "annual_commit_dollars", "trailing_90d_avg_rate", "carr",
+    ] + exp_signal_cols + [
+        "arr_at_risk",
         "months_of_data", "expansion_flag", "is_spike_drop", "is_new_account",
         "contract_start_date", "contract_end_date",
     ]].copy()
-    tbl.columns = [
-        "Account", "Rep", "Region", "Health",
-        "ARR", "Cons Rate", "cARR", "ARR at Risk",
-        "Months Data", "Expansion?", "Spike/Drop?", "Ramping?",
-        "Contract Start", "Contract End",
-    ]
+    exp_signal_labels = ["Exp Signal"] if exp_signal_cols else []
+    tbl.columns = (
+        ["Account", "Rep", "Region", "Health",
+         "ARR", "Cons Rate", "cARR"]
+        + exp_signal_labels
+        + ["ARR at Risk",
+           "Months Data", "Expansion?", "Spike/Drop?", "Ramping?",
+           "Contract Start", "Contract End"]
+    )
     tbl["ARR"]        = tbl["ARR"].apply(fmt_m)
     tbl["cARR"]       = tbl["cARR"].apply(fmt_m)
     tbl["ARR at Risk"]= tbl["ARR at Risk"].apply(fmt_m)
+    if exp_signal_labels:
+        tbl["Exp Signal"] = tbl["Exp Signal"].apply(fmt_m)
     tbl["Cons Rate"]  = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
 
     def color_health(val):

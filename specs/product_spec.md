@@ -46,12 +46,15 @@ Sales leadership needs a single metric that:
 
 It answers the question: *"Of the revenue we've booked, how much is the customer actually realizing?"*
 
+> **Naming note:** cARR is an *imputed run-rate*, not recognized revenue. It equals `commit × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. Consider labeling it "cARR (GTM metric)" in any materials shared with investors to prevent confusion with reported ARR.
+
 ### 2.2 Formula
 
 ```
-cARR = annual_commit_dollars × consumption_rate
+cARR               = min(annual_commit_dollars × consumption_rate, annual_commit_dollars)
+expansion_signal_arr = max(annual_commit_dollars × consumption_rate − annual_commit_dollars, 0)
 
-consumption_rate = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
+consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
 ```
 
 **Where:**
@@ -60,14 +63,16 @@ consumption_rate = trailing_90d_avg(monthly_credits_consumed / included_monthly_
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
+**Cap rationale:** cARR is capped at the contracted commit. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric (`expansion_signal_arr`) that feeds the upsell pipeline, not the attainment calculation.
+
 **Example:**
 
-| Account | ARR | Trailing 90d Consumption Rate | cARR |
-|---|---|---|---|
-| Healthy customer | $200K | 92% | $184K |
-| Shelfware | $300K | 4% | $12K |
-| Overage (expansion signal) | $80K | 138% | $110K |
-| New account (<90 days) | $150K | — | Excluded (ramping) |
+| Account | ARR | Consumption Rate | cARR | Expansion Signal |
+|---|---|---|---|---|
+| Healthy customer | $200K | 92% | $184K | — |
+| Shelfware | $300K | 4% | $12K | — |
+| Overage (expansion signal) | $80K | 138% | $80K | $30K |
+| New account (<90 days) | $150K | — | Excluded (ramping) | — |
 
 ### 2.3 Aggregation Levels
 
@@ -110,6 +115,8 @@ cARR is designed to shift incentives at every layer of the GTM organization. The
 | Sandbagging credits at renewal | Renewing flat on a low-consumption account doesn't improve cARR; the rep must drive adoption, not just resign the paper |
 | Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under cARR, onboarding quality is in their comp |
 | Cherry-picking easy renewals | cARR weight for Farmers is 70%; avoiding at-risk accounts lowers their total attainment |
+
+**Known v1 gaming risk — Farmer credit-burning:** Farmers at 70% cARR weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, deploy Defenders on idle infrastructure, or otherwise burn credits without delivering security value. cARR cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
 
 ---
 
@@ -158,6 +165,8 @@ Logo Churn = Accounts lost at renewal / Total accounts up for renewal
 | Shelfware rate exceeds 10% | GRR deterioration within 2 quarters |
 | Expansion flag conversion < 30% | NRR plateaus; growth shifts entirely to new logos |
 | Ramping accounts fail to reach Healthy in 90 days | Elevated logo churn at first renewal |
+
+> **v1 note:** The NRR outcome bands in the prediction table above (≥90% → strong renewal, etc.) are starting hypotheses derived from industry analogues, not PANW-specific renewal data. Treat them as directional guidance for v1. The primary value of this framework is establishing the *measurement habit* — tracking cARR attainment alongside NRR outcomes at every renewal cohort — so the bands can be empirically recalibrated after 12–18 months. Plan a formal calibration milestone; commit to adjusting thresholds if the data contradicts them.
 
 Tracking both cARR (real-time) and NRR/GRR (at renewal) allows the team to validate — and over time calibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
 
@@ -241,20 +250,22 @@ While cARR is a continuous metric, health tiers provide operational clarity for 
 
 Health tiers are used for **dashboard visualization and CS prioritization only** — cARR itself uses the raw continuous consumption rate, not tiered multipliers.
 
+> **v1 note:** The thresholds above (5% / 40% / 80% / 120%) are starting hypotheses, not empirically validated cutoffs. They are reasonable starting points based on industry analogues but have not been tested against PANW renewal cohort data. Plan a calibration review at 12–18 months once sufficient renewal outcomes are available. Thresholds should not be used as performance targets until validated.
+
 ---
 
 ## 6. Edge Case Handling
 
-| Anomaly | Detection | cARR Treatment |
+| Anomaly | Business Signal | cARR Treatment |
 |---|---|---|
-| **Shelfware** | `consumption_rate < 0.05` | cARR reflects near-zero value; flagged for save plan |
-| **Spike & Drop** | Month 1 > 50% annual credits; trailing rate < 5% | Trailing 90-day window smooths spike; correctly reflects current inactive state |
-| **Consistent Overages** | `consumption_rate > 1.2` for 2+ consecutive months | cARR exceeds ARR; `expansion_flag = TRUE` surfaced to rep |
-| **Mid-Year Expansion** | Multiple overlapping active contracts | Both ARR and credits summed across all simultaneously active contracts; `has_expansion = TRUE` |
-| **Orphaned Usage** | `account_id` in logs not in Accounts table | Excluded from cARR; surfaced in DQ report |
-| **Out-of-contract Usage** | Log date outside all contract windows | Excluded from consumption rate calculation |
-| **New Accounts** | Contract start < 90 days ago | Excluded from cARR; shown as "Ramping" in dashboard |
-| **Multi-year Contracts** | `contract_term_months` = 2 or 3 | `annual_commit_dollars` used as-is (already annualized); term stored for renewal forecasting |
+| **Shelfware** | Near-zero consumption rate over trailing 90 days | cARR reflects near-zero value; account flagged for save plan |
+| **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects current inactive state once spike ages out |
+| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | cARR capped at commit; excess reported as expansion signal; expansion flag surfaced to rep for upsell motion |
+| **Mid-Year Expansion** | Customer signs additional contract before original expires | ARR and credits summed across all simultaneously active contracts; expansion flag set |
+| **Orphaned Usage** | Usage logs reference an account not in the customer master | Excluded from cARR; surfaced in data quality report |
+| **Out-of-contract Usage** | Usage logged before contract start or after contract end | Excluded from consumption rate calculation |
+| **New Accounts** | Contract start within last 90 days — insufficient consumption history | Excluded from cARR; shown as "Ramping" until 90-day window matures |
+| **Multi-year Contracts** | 2- or 3-year deal term | Annual commit used as-is (already annualized in contract); term stored for renewal forecasting. See §12 for v1 ARR basis decision |
 
 ---
 
@@ -268,9 +279,11 @@ Modeled on Snowflake's territory-weighted hybrid approach:
 | **Farmer** (renewals/expansion) | 30% | 70% | Primary job is value realization and expansion |
 | **Overlay SE** | 0% | 100% | Purely accountable for consumption growth |
 
-**Activation bonus:** Any rep whose new account reaches >80% consumption rate within 90 days of go-live earns a one-time SPIFf. Incentivizes quality of sale, not just deal size.
+**Activation bonus:** Any rep whose new account sustains ≥80% consumption rate through month 6 (not month 3) earns a one-time SPIF. The 6-month tenure requirement is intentional: paying at 90 days creates a Spike & Drop exploit where reps push aggressive onboarding in the window and the customer drops off after the bonus clears. Month 6 requires sustained adoption, not a burst.
 
 **Incremental cARR (MongoDB model):** Farmers are paid quarterly on incremental cARR above the account's baseline — usage growth driven by sales activity, not organic expansion.
+
+**Out of scope for v1:** Compensation design for channel partners, overlay SEs, and CSMs is a separate workstream and is not addressed in this spec. These roles interact with consumption outcomes but require distinct quota structures and attribution rules.
 
 ---
 
@@ -339,7 +352,36 @@ cARR provides two distinct forecasting signals: **renewal risk** (defensive) and
 
 ---
 
-## 10. Executive Dashboard
+## 10. v1 Scope
+
+This section makes explicit what is and is not in scope for the initial launch of cARR. The metric is designed to ship, not to be perfect.
+
+### In scope for v1
+
+- cARR calculation at account, rep, region, and org level
+- Health tier classification (6 tiers) based on trailing 90-day consumption rate
+- `expansion_signal_arr` as a separate metric for over-consuming accounts (cARR itself capped at commit)
+- Hunter / Farmer comp weighting (bookings vs. cARR), with activation bonus at month 6
+- Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
+- Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
+- Data quality framework (11 automated assertions) with orphaned and rogue usage handling
+- Multi-year contract treatment: Year 1 annual commit as the ARR basis *(v1 decision — see §13)*
+
+### Explicitly out of scope for v1
+
+| Out-of-scope item | Rationale | Where it goes |
+|---|---|---|
+| Channel partner / SE / CSM comp design | Distinct quota structures and attribution rules; separate workstream | Separate spec |
+| Engagement quality signal (active usage vs. passive credit burn) | Requires additional instrumentation (login events, alert actions); acknowledged v1 risk | v2 roadmap |
+| Real-time consumption updates | Daily batch sufficient for v1; near-real-time adds infra complexity | v2 roadmap |
+| Health tier threshold calibration | Requires 12–18 months of renewal cohort data to validate | v2 milestone |
+| NRR prediction band validation | Same dependency on renewal cohort data | v2 milestone |
+| Multi-region currency normalization | Not relevant to current territory structure | v2 if needed |
+| cARR as an externally reported metric | Requires audit trail, definition consistency, and investor alignment | CFO decision (§13 Q6) |
+
+---
+
+## 11. Executive Dashboard
 
 The cARR dashboard is the primary operational interface for sales leadership. It serves four distinct audiences, each with different questions and a different level of granularity.
 
@@ -411,7 +453,7 @@ The cARR dashboard is the primary operational interface for sales leadership. It
 
 ---
 
-## 11. Downstream System Integrations
+## 12. Downstream System Integrations
 
 cARR is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day. Four downstream systems consume cARR data, each serving a distinct audience and purpose.
 
@@ -470,61 +512,91 @@ An important attribution rule: the rep who currently owns the account gets cARR 
 
 ---
 
-## 12. Open Questions for Executive Alignment
+## 13. Open Questions for Executive Alignment
 
-The following decisions require VP of Sales and/or CFO sign-off before cARR can be operationalized for compensation and reporting.
-
----
-
-**1. Comp transition timeline and grandfathering** *(VP of Sales)*
-
-How quickly do we shift rep compensation from bookings-weighted to cARR-weighted — and do we grandfather any existing OTE plans for reps mid-cycle? A hard cutover protects metric integrity but creates morale risk; a phased transition reduces disruption but delays the behavioral change.
-
-**Decision needed:** Rollout timeline (next fiscal year vs. phased over 2 years) and whether current plans are protected through their existing term.
+The following decisions require VP of Sales and/or CFO sign-off before cARR can be operationalized. They are grouped by whether they block v1 launch or can be resolved post-launch.
 
 ---
 
-**2. Overage revenue recognition** *(CFO)*
+### v1-Blocking Decisions
 
-When a customer consistently exceeds their credit commit, cARR will exceed their contracted ARR. Does Finance recognize the implied overage revenue in the current quarter, or hold it until a formal contract amendment is signed? This affects both the cARR number reps are measured on and the financial statements.
+**1. Comp go-live timing** *(VP of Sales)*
 
-**Decision needed:** Whether over-consumption translates to in-period revenue recognition or deferred expansion bookings.
+Do we launch cARR-weighted comp in the same fiscal year as the metric, or shadow-track for 1–2 quarters first before paying on it? Shadow-tracking reduces risk but delays behavioral change. Paying immediately requires reps to trust the metric before it has a track record.
 
----
-
-**3. Multi-year contract ARR basis** *(CFO)*
-
-For 2- and 3-year deals, the annual commit can be calculated as the Year 1 value (lower, biased toward new logos) or the average annual value across the full term (higher, more representative of long-term commitment). The choice affects quota fairness, cARR magnitude, and how multi-year deals are incentivized vs. annual renewals.
-
-**Decision needed:** Whether annual commit is Year 1 only or average annual value across the full contract term.
+**Decision needed:** Same-year comp launch vs. shadow-tracking period; if shadow-tracking, how long and what triggers the switch.
 
 ---
 
-**4. Quota relief for ramping accounts** *(VP of Sales)*
+**2. Single vs. dual quota** *(VP of Sales)*
 
-New accounts are excluded from cARR for their first 90 days. Should reps receive quota relief — a temporary reduction in their cARR target — for accounts in this window? Without relief, a rep who closes several new logos in a quarter will see their attainment artificially suppressed until those accounts mature.
+Do reps carry a single blended attainment number (bookings + cARR weighted), or two separate quotas (one bookings, one cARR)? A single blended number is simpler but allows reps to trade off one against the other. Dual quotas create separate accountability but add comp system complexity.
 
-**Decision needed:** Whether ramping accounts reduce the rep's cARR quota denominator for the duration of the ramp period.
-
----
-
-**5. Minimum portfolio attainment floor** *(VP of Sales)*
-
-Should there be a floor below which sustained low cARR attainment triggers a formal performance review, independent of bookings performance? For example: if a rep's portfolio falls below 60% cARR attainment for two consecutive quarters, it surfaces in the performance process regardless of how many new deals they closed.
-
-**Decision needed:** Whether a cARR attainment floor exists, and at what threshold it triggers management action.
+**Decision needed:** Blended single quota or two separate quota lines.
 
 ---
 
-**6. Board and investor reporting readiness** *(CFO)*
+**3. Overage revenue recognition** *(CFO)*
 
-At what level of data maturity and forecast accuracy does cARR become an externally reportable metric — disclosed to investors alongside ARR and NRR? This requires agreement on definition consistency, audit trail, and the minimum number of renewal cohorts needed to validate the metric's predictive accuracy.
+Over-consuming accounts generate `expansion_signal_arr` above their commit. Does Finance recognize that implied overage in the current quarter, or hold it until a contract amendment is signed? This determines whether expansion signal is a pipeline metric or an in-period revenue input.
 
-**Decision needed:** The accuracy and cohort-size thresholds required before cARR can be included in external financial disclosures.
+**Decision needed:** In-period overage recognition vs. deferred to contract amendment.
 
 ---
 
-## 13. Sources
+**4. Multi-year contract ARR basis** *(CFO)*
+
+**v1 default (recommended):** Use Year 1 `annual_commit_dollars` as the ARR basis — it's the value in the contract and the number sales is paid on. Year 2 and 3 are handled at renewal.
+
+**Risk:** Year 1 of a ramp deal (e.g., 33% consumption on a 3-year ramp) can look like disaster even when on plan. Mitigant: flag ramp-structured deals separately; exclude from health tier penalties during the ramp period.
+
+**Decision needed:** Confirm Year 1 basis, or override with blended average annual value. If overriding, the pipeline calculation must change.
+
+---
+
+**5. Phased vs. big-bang rollout** *(VP of Sales)*
+
+Launch cARR across all regions simultaneously, or pilot one region or segment first? A pilot reduces blast radius if the metric needs recalibration but creates a two-tier comp environment that can cause rep attrition in non-pilot regions.
+
+**Decision needed:** Full launch vs. pilot region/segment; if pilot, which region and for how long.
+
+---
+
+### Post-Launch Decisions
+
+**6. Quota relief for ramping accounts** *(VP of Sales)*
+
+New accounts are excluded from cARR for 90 days. Should reps receive a corresponding quota reduction for accounts in the ramp window? Without it, a rep who closes several new logos in a quarter sees attainment suppressed until accounts mature.
+
+**Decision needed:** Whether ramping accounts reduce the quota denominator during the ramp period.
+
+---
+
+**7. Portfolio attainment floor** *(VP of Sales)*
+
+Should sustained low cARR attainment (e.g., below 60% for two consecutive quarters) trigger a performance review, independent of bookings performance?
+
+**Decision needed:** Whether an attainment floor exists, at what threshold, and how it interacts with the PIP process.
+
+---
+
+**8. In-flight comp plan transition** *(VP of Sales + Finance)*
+
+Reps who signed OTE plans before cARR was introduced have contractual expectations. Are those plans honored to year-end, prorated, or renegotiated? This is the highest change-management risk in the rollout.
+
+**Decision needed:** Treatment of existing signed comp plans; legal review required.
+
+---
+
+**9. Board and investor reporting readiness** *(CFO)*
+
+At what point does cARR move from an internal GTM metric to an externally disclosed one? This requires audit trail, definition consistency, and investor alignment on how it differs from reported ARR.
+
+**Decision needed:** Threshold (accuracy, cohort size, audit readiness) for external disclosure; timeline.
+
+---
+
+## 14. Sources
 
 - Metronome — [State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025)
 - Palo Alto Networks — [Introducing Cortex Cloud (Feb 2025)](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)

@@ -179,21 +179,32 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 **Logic:**
 1. For each account, take the **last 3 complete calendar months** of consumption data
 2. Compute `trailing_90d_avg_rate = AVG(consumption_rate)` over those 3 months
-3. Apply health tier classification (see product_spec.md §4)
-4. Flag new accounts: `new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
-5. Compute:
+3. Apply health tier classification (see product_spec.md §5)
+4. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
+5. Compute cARR — **capped at annual commit**:
+   ```sql
+   carr = CASE
+     WHEN is_new_account THEN NULL
+     ELSE ROUND(LEAST(annual_commit_dollars * trailing_90d_avg_rate,
+                      annual_commit_dollars), 2)
+   END
+
+   expansion_signal_arr = CASE
+     WHEN is_new_account THEN NULL
+     ELSE ROUND(GREATEST(
+           annual_commit_dollars * trailing_90d_avg_rate - annual_commit_dollars,
+           0), 2)
+   END
    ```
-   cARR = annual_commit_dollars × trailing_90d_avg_rate   (if not new_account)
-   cARR = NULL                                             (if new_account)
-   ```
-6. Compute `arr_at_risk = annual_commit_dollars - cARR`
+   **Cap rationale:** cARR is capped at the contracted commit to preserve the "% of bookings realized" narrative. Over-consumption flows to `expansion_signal_arr` as a separate upsell pipeline metric.
+6. Compute `arr_at_risk = annual_commit_dollars - carr`
 7. Flag `expansion_flag = TRUE` if `overage_months >= 2`
 8. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
 
 **Edge cases handled:**
 - Spike & Drop → trailing 90-day window smooths spike once it ages out
-- New accounts → excluded from cARR with `new_account` flag
-- Consistent overages → `expansion_flag` surfaced; cARR reflects true consumption
+- New accounts → excluded from cARR with `is_new_account` flag
+- Consistent overages → `expansion_flag` surfaced; excess consumption reported in `expansion_signal_arr`, not inflated into cARR
 
 ---
 
@@ -214,7 +225,32 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-## 4. as_of_date Parameter
+## 4. Metric Correctness Test Cases
+
+These scenarios define the expected cARR output for given inputs. Use them as regression tests during refactors — if cARR changes unexpectedly on any of these, something broke.
+
+| Scenario | ARR | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected cARR | Expected Expansion Signal |
+|---|---|---|---|---|---|---|---|
+| Healthy steady-state | $200K | 0.90 | 0.94 | 0.91 | 0.917 | $183,400 | $0 |
+| Shelfware | $300K | 0.05 | 0.03 | 0.02 | 0.033 | $9,900 | $0 |
+| Inactive | $150K | 0.00 | 0.00 | 0.01 | 0.003 | $450 | $0 |
+| Consistent overage (uncapped) | $80K | 1.35 | 1.40 | 1.42 | 1.390 | **$80,000** (capped) | **$31,200** |
+| At risk — declining | $500K | 0.75 | 0.68 | 0.61 | 0.680 | $340,000 | $0 |
+| Spike & Drop (spike aged out) | $120K | 0.04 | 0.03 | 0.02 | 0.030 | $3,600 | $0 |
+| New account (ramping) | $250K | — | — | — | — | **NULL** | **NULL** |
+| Mid-year expansion (2 active contracts, combined ARR) | $180K | 0.88 | 0.91 | 0.85 | 0.880 | $158,400 | $0 |
+| Just at attainment target | $400K | 0.84 | 0.87 | 0.84 | 0.850 | $340,000 | $0 |
+
+**Key assertions to encode as pipeline tests:**
+- `carr` is never NULL for a non-ramping account with ≥ 1 month of data
+- `carr <= annual_commit_dollars` always (cap holds)
+- `expansion_signal_arr >= 0` always
+- `carr + expansion_signal_arr = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows
+- `arr_at_risk = annual_commit_dollars - carr` for all non-NULL rows
+
+---
+
+## 5. as_of_date Parameter
 
 All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 
@@ -226,7 +262,7 @@ All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 
 ---
 
-## 5. Technology Choices & Rationale
+## 6. Technology Choices & Rationale
 
 | Decision | Chosen | Alternatives Considered | Rationale |
 |---|---|---|---|
@@ -238,7 +274,7 @@ All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 
 ---
 
-## 6. File Structure
+## 7. File Structure
 
 ```
 gtm/
@@ -266,7 +302,7 @@ gtm/
 
 ---
 
-## 7. Running the Pipeline
+## 8. Running the Pipeline
 
 ```bash
 # Authenticate
@@ -299,7 +335,7 @@ streamlit run dashboard/app.py
 
 ---
 
-## 8. Dashboard Implementation
+## 9. Dashboard Implementation
 
 ### Stack
 - **Frontend:** Streamlit (Python) — single-file app (`dashboard/app.py`)
@@ -329,7 +365,7 @@ If `carr_rep_rollup` has no rows for the requested `as_of_date`, the app falls b
 
 ---
 
-## 9. Downstream System Integrations
+## 10. Downstream System Integrations
 
 ### 9.1 Integration Architecture
 
@@ -424,7 +460,7 @@ Key reports enabled by the current data model:
 
 ---
 
-## 10. v2 Roadmap
+## 11. v2 Roadmap
 
 | Enhancement | Effort | Value |
 |---|---|---|
