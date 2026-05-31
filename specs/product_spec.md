@@ -42,32 +42,32 @@ Sales leadership needs a single metric that:
 
 ### 2.1 Definition
 
-**Consumed ARR is the portion of contracted ARR that is backed by actual platform usage.**
+**Consumed ARR is the portion of contracted ACV (Annual Contract Value) that is backed by actual platform usage.**
 
 It answers the question: *"Of the revenue we've booked, how much is the customer actually realizing?"*
 
-> **Naming note:** cARR is an *imputed run-rate*, not recognized revenue. It equals `commit × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. Consider labeling it "cARR (GTM metric)" in any materials shared with investors to prevent confusion with reported ARR.
+> **Naming note:** cARR is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. Consider labeling it "cARR (GTM metric)" in any materials shared with investors to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
 
 ### 2.2 Formula
 
 ```
-cARR               = min(annual_commit_dollars × consumption_rate, annual_commit_dollars)
-expansion_signal_arr = max(annual_commit_dollars × consumption_rate − annual_commit_dollars, 0)
+cARR               = min(ACV × consumption_rate, ACV)
+expansion_signal_arr = max(ACV × consumption_rate − ACV, 0)
 
 consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
 ```
 
 **Where:**
-- `annual_commit_dollars` — the contracted ARR from the account's active contract
+- `ACV` (`annual_commit_dollars`) — the annualized contract value from the account's active contract
 - `monthly_credits_consumed` — sum of Prisma Cloud credits consumed from `daily_usage_logs` for the calendar month
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
-**Cap rationale:** cARR is capped at the contracted commit. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric (`expansion_signal_arr`) that feeds the upsell pipeline, not the attainment calculation.
+**Cap rationale:** cARR is capped at ACV. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric (`expansion_signal_arr`) that feeds the upsell pipeline, not the attainment calculation.
 
 **Example:**
 
-| Account | ARR | Consumption Rate | cARR | Expansion Signal |
+| Account | ACV | Consumption Rate | cARR | Expansion Signal |
 |---|---|---|---|---|
 | Healthy customer | $200K | 92% | $184K | — |
 | Shelfware | $300K | 4% | $12K | — |
@@ -86,10 +86,10 @@ consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthl
 ### 2.4 cARR Attainment Rate
 
 ```
-cARR Attainment = cARR / Committed ARR
+cARR Attainment = cARR / ACV
 ```
 
-This is the headline health ratio for the CFO. A portfolio at 78% attainment means 22% of booked revenue is at risk of non-renewal.
+This is the headline health ratio for the CFO. A portfolio at 78% attainment means 22% of booked ACV is at risk of non-renewal.
 
 ---
 
@@ -104,7 +104,7 @@ cARR is designed to shift incentives at every layer of the GTM organization. The
 | Selling the right-sized deal | Overselling credits the customer won't use directly lowers cARR; reps are incentivized to right-size commits |
 | Fast time-to-value | New accounts ramping to ≥80% consumption within 90 days trigger an activation bonus; slow onboarding costs attainment |
 | Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their cARR |
-| Proactive renewal risk management | Farmers' quota is tied to cARR, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
+| Proactive renewal risk management | Account Managers' quota is tied to cARR, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
 | Expansion from genuine usage | Expansion flag accounts (2+ months >120%) represent organic demand; reps are credited for converting that signal into a larger contract |
 
 **Behaviors to suppress**
@@ -114,9 +114,9 @@ cARR is designed to shift incentives at every layer of the GTM organization. The
 | Overselling / shelfware deals | A $500K deal at 4% consumption contributes only $20K to cARR — the rep's attainment number reflects the shelfware reality |
 | Sandbagging credits at renewal | Renewing flat on a low-consumption account doesn't improve cARR; the rep must drive adoption, not just resign the paper |
 | Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under cARR, onboarding quality is in their comp |
-| Cherry-picking easy renewals | cARR weight for Farmers is 70%; avoiding at-risk accounts lowers their total attainment |
+| Cherry-picking easy renewals | cARR weight for Account Managers is 70%; avoiding at-risk accounts lowers their total attainment |
 
-**Known v1 gaming risk — Farmer credit-burning:** Farmers at 70% cARR weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, deploy Defenders on idle infrastructure, or otherwise burn credits without delivering security value. cARR cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
+**Known v1 gaming risk — Account Manager credit-burning:** Account Managers at 70% cARR weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, deploy Defenders on idle infrastructure, or otherwise burn credits without delivering security value. cARR cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
 
 ---
 
@@ -174,7 +174,7 @@ Tracking both cARR (real-time) and NRR/GRR (at renewal) allows the team to valid
 
 ## 3. Prisma Cloud Credit Pricing Model
 
-Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ARR at the time of deal signing.
+Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ACV at deal signing.
 
 | Edition | List Price | Typical Effective Price | Deal Profile |
 |---|---|---|---|
@@ -265,7 +265,7 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 | **Orphaned Usage** | Usage logs reference an account not in the customer master | Excluded from cARR; surfaced in data quality report |
 | **Out-of-contract Usage** | Usage logged before contract start or after contract end | Excluded from consumption rate calculation |
 | **New Accounts** | Contract start within last 90 days — insufficient consumption history | Excluded from cARR; shown as "Ramping" until 90-day window matures |
-| **Multi-year Contracts** | 2- or 3-year deal term | Annual commit used as-is (already annualized in contract); term stored for renewal forecasting. See §12 for v1 ARR basis decision |
+| **Multi-year Contracts** | 2- or 3-year deal term | ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier. See §12 for v1 ACV basis decision |
 
 ---
 
@@ -273,17 +273,33 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 Modeled on Snowflake's territory-weighted hybrid approach:
 
-| Rep Type | Bookings Weight | cARR Weight | Rationale |
+| Role | Bookings Weight | cARR Weight | Rationale |
 |---|---|---|---|
-| **Hunter** (new logos) | 70% | 30% | Primary job is net new; consumption follows logo |
-| **Farmer** (renewals/expansion) | 30% | 70% | Primary job is value realization and expansion |
-| **Overlay SE** | 0% | 100% | Purely accountable for consumption growth |
+| **Account Executive (AE)** — new logos | 70% | 30% | Primary job is net new; consumption follows logo |
+| **Account Manager (AM)** — renewals/expansion | 30% | 70% | Primary job is value realization and expansion |
+| **Sales Engineer (SE)** — consumption overlay | 0% | 100% | Purely accountable for consumption growth |
 
-**Activation bonus:** Any rep whose new account sustains ≥80% consumption rate through month 6 (not month 3) earns a one-time SPIF. The 6-month tenure requirement is intentional: paying at 90 days creates a Spike & Drop exploit where reps push aggressive onboarding in the window and the customer drops off after the bonus clears. Month 6 requires sustained adoption, not a burst.
+**Activation bonus:** Any AE whose new account sustains ≥80% consumption rate through month 6 (not month 3) earns a one-time SPIF. The 6-month tenure requirement is intentional: paying at 90 days creates a Spike & Drop exploit where reps push aggressive onboarding in the window and the customer drops off after the bonus clears. Month 6 requires sustained adoption, not a burst.
 
-**Incremental cARR (MongoDB model):** Farmers are paid quarterly on incremental cARR above the account's baseline — usage growth driven by sales activity, not organic expansion.
+**Incremental cARR (MongoDB model):** Account Managers are paid quarterly on incremental cARR above the account's baseline — usage growth driven by sales activity, not organic expansion.
 
-**Out of scope for v1:** Compensation design for channel partners, overlay SEs, and CSMs is a separate workstream and is not addressed in this spec. These roles interact with consumption outcomes but require distinct quota structures and attribution rules.
+### 7.1 Multi-Year ACV and Rep Credit
+
+ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The cARR denominator is always the current year's ACV — independent of term length.
+
+Quota credit for multi-year deals includes a **term multiplier** to reward locking in long-term commits:
+
+| Contract Term | ACV Quota Credit Multiplier |
+|---|---|
+| 1 year | 1.00× ACV |
+| 2 years | 1.10× ACV |
+| 3 years | 1.15× ACV |
+
+**How it works:** An AE who closes a 3-year, $120K ACV deal receives $138K in quota credit at signing (1.15×). The cARR metric still uses $120K as the denominator each year — the multiplier is a comp incentive only, not a metric inflation.
+
+**Account ownership through multi-year terms:** The AE who signs a multi-year deal receives the term multiplier credit at signing. From Year 2 onward, the assigned AM earns cARR attainment credit for that account. If the account churns before the committed term ends, a portion of the term multiplier is subject to clawback from the AE. Clawback terms and the Year 1→AM handoff timing require VP of Sales sign-off (see §13 Q10).
+
+**Out of scope for v1:** Compensation design for channel partners and CSMs is a separate workstream and is not addressed in this spec. These roles interact with consumption outcomes but require distinct quota structures and attribution rules.
 
 ---
 
@@ -293,17 +309,17 @@ Modeled on Snowflake's territory-weighted hybrid approach:
 
 cARR enables quota design that reflects territory health, not just last year's bookings:
 
-**Hunter quotas — quality of sale**
+**Account Executive (AE) quotas — quality of sale**
 - Quota includes a cARR ramp component: the new logo must reach a minimum consumption rate (e.g. ≥ 70%) within 90 days of go-live to count as full credit toward attainment
 - This directly prices in onboarding quality and discourages overselling credits a customer won't use
 
-**Farmer quotas — incremental cARR**
+**Account Manager (AM) quotas — incremental cARR**
 - Base quota = maintain current cARR attainment rate across the portfolio
 - Stretch quota = grow total cARR by X% through expansion and improved utilization
-- Farmers are measured on *incremental cARR* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
+- Account Managers are measured on *incremental cARR* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
 
 **Territory sizing and rebalancing**
-- Use `total_carr` per rep to identify overloaded territories (high cARR, low headroom for growth) vs. underloaded ones (low cARR, high arr_at_risk needing intervention)
+- Use `total_carr` per rep to identify overloaded territories (high cARR, low headroom for growth) vs. underloaded ones (low cARR, high ACV at risk needing intervention)
 - Reassign accounts based on cARR capacity, not just account count or ARR — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
 
 ---
@@ -313,7 +329,7 @@ cARR enables quota design that reflects territory health, not just last year's b
 cARR provides two distinct forecasting signals: **renewal risk** (defensive) and **expansion pipeline** (offensive).
 
 **Renewal risk forecast**
-- `arr_at_risk = annual_commit_dollars - cARR` is the dollar value of committed ARR not backed by consumption
+- `arr_at_risk = ACV - cARR` is the dollar value of committed ACV not backed by consumption
 - Accounts with `health_tier IN ('At Risk', 'Shelfware', 'Inactive')` and a renewal within 90–180 days are the highest-priority save plays
 - The org-level `arr_at_risk` sum is the CFO's leading indicator: if it trends above ~15% of total ARR, NRR will compress at the next renewal cycle
 
@@ -361,11 +377,11 @@ This section makes explicit what is and is not in scope for the initial launch o
 - cARR calculation at account, rep, region, and org level
 - Health tier classification (6 tiers) based on trailing 90-day consumption rate
 - `expansion_signal_arr` as a separate metric for over-consuming accounts (cARR itself capped at commit)
-- Hunter / Farmer comp weighting (bookings vs. cARR), with activation bonus at month 6
+- AE / AM comp weighting (bookings vs. cARR), with activation bonus at month 6 and multi-year term multiplier
 - Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
 - Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
 - Data quality framework (11 automated assertions) with orphaned and rogue usage handling
-- Multi-year contract treatment: Year 1 annual commit as the ARR basis *(v1 decision — see §13)*
+- Multi-year contract treatment: Year 1 ACV as the cARR basis *(v1 decision — see §13)*
 
 ### Explicitly out of scope for v1
 
@@ -396,8 +412,8 @@ The cARR dashboard is the primary operational interface for sales leadership. It
 - Which regions are healthy and which are lagging?
 
 **Metrics needed:**
-- Total ARR vs. total cARR and overall attainment rate
-- ARR at risk (committed dollars not backed by consumption)
+- Total ACV vs. total cARR and overall attainment rate
+- ACV at risk (committed dollars not backed by consumption)
 - Expansion pipeline (ARR from accounts consistently over-consuming)
 - cARR attainment and account health mix broken out by region
 - Rep attainment distribution — are outliers pulling the average, or is underperformance broad?
@@ -412,8 +428,8 @@ The cARR dashboard is the primary operational interface for sales leadership. It
 - Which health tiers dominate my region — do I have a shelfware problem or an expansion opportunity?
 
 **Metrics needed:**
-- cARR, ARR, and attainment rate per region, ranked
-- ARR at risk and risk percentage of total ARR
+- cARR, ACV, and attainment rate per region, ranked
+- ACV at risk and risk percentage of total ACV
 - Health tier mix (% of accounts in each tier) per region
 - Expansion pipeline by region
 
@@ -429,7 +445,7 @@ The cARR dashboard is the primary operational interface for sales leadership. It
 
 **Metrics needed:**
 - Rep-level cARR and attainment rate, ranked within region and org
-- ARR at risk per rep
+- ACV at risk per rep
 - Health tier account counts per rep (expansion, healthy, at risk, shelfware, inactive)
 - Expansion opportunity count and pipeline value per rep
 
@@ -445,7 +461,7 @@ The cARR dashboard is the primary operational interface for sales leadership. It
 
 **Metrics needed:**
 - Per-account consumption rate (trailing 90 days), health tier, and cARR
-- ARR at risk per account
+- ACV at risk per account
 - Expansion flag (2+ months over commit) and spike/drop anomaly flag
 - Contract start and end dates for renewal timing context
 
@@ -478,7 +494,7 @@ An important attribution rule: the rep who currently owns the account gets cARR 
 **Primary audience:** Finance, sales reps, sales managers
 
 **Purpose:** Ensure quota attainment and commission calculations reflect consumption performance, not just bookings. Key outcomes:
-- Farmer quota attainment is calculated from cARR, not renewal bookings — a rep who resigns a shelfware account at flat ARR does not receive full attainment credit
+- Account Manager quota attainment is calculated from cARR, not renewal bookings — a rep who resigns a shelfware account at flat ACV does not receive full attainment credit
 - Accelerator and decelerator tiers are triggered by cARR attainment rate, rewarding reps whose portfolios over-consume and penalizing persistent underperformance
 - The activation bonus is paid when a new account reaches ≥80% consumption within 90 days of go-live — directly incentivizing onboarding quality
 - Expansion SPIFs are tied to accounts with sustained over-consumption, rewarding reps for converting organic demand signals into new contracts
@@ -544,13 +560,13 @@ Over-consuming accounts generate `expansion_signal_arr` above their commit. Does
 
 ---
 
-**4. Multi-year contract ARR basis** *(CFO)*
+**4. Multi-year ACV basis** *(CFO)*
 
-**v1 default (recommended):** Use Year 1 `annual_commit_dollars` as the ARR basis — it's the value in the contract and the number sales is paid on. Year 2 and 3 are handled at renewal.
+**v1 default (recommended):** Use Year 1 ACV (`annual_commit_dollars`) as the cARR denominator — it's the value in the contract and the number sales is paid on. Year 2 and 3 are handled at renewal.
 
 **Risk:** Year 1 of a ramp deal (e.g., 33% consumption on a 3-year ramp) can look like disaster even when on plan. Mitigant: flag ramp-structured deals separately; exclude from health tier penalties during the ramp period.
 
-**Decision needed:** Confirm Year 1 basis, or override with blended average annual value. If overriding, the pipeline calculation must change.
+**Decision needed:** Confirm Year 1 ACV basis, or override with blended average annual value. If overriding, the pipeline calculation must change.
 
 ---
 
@@ -593,6 +609,19 @@ Reps who signed OTE plans before cARR was introduced have contractual expectatio
 At what point does cARR move from an internal GTM metric to an externally disclosed one? This requires audit trail, definition consistency, and investor alignment on how it differs from reported ARR.
 
 **Decision needed:** Threshold (accuracy, cohort size, audit readiness) for external disclosure; timeline.
+
+---
+
+**10. Multi-year account ownership and clawback** *(VP of Sales)*
+
+The AE who closes a multi-year deal receives a term multiplier on quota credit at signing (§7.1). From Year 2 onward, the account transitions to an AM for cARR attainment. Two sub-decisions needed:
+
+- **Handoff timing:** Does the AE-to-AM transition happen at contract signing, at the start of Year 2, or at a defined onboarding milestone?
+- **Clawback terms:** If the account churns before the committed term ends, what portion of the term multiplier is recovered from the AE, over what window?
+
+Without a defined clawback, the term multiplier creates an incentive for AEs to sign long-term deals without accountability for early churn. Without a clear handoff timing, both the AE and AM may assume the other is managing the account.
+
+**Decision needed:** AE-to-AM handoff trigger; clawback percentage and recovery window; whether clawback applies differently to voluntary churn vs. involuntary (e.g., customer acquired).
 
 ---
 

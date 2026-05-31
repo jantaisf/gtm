@@ -194,10 +194,10 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
     expansion_signal     = rep_df["total_expansion_signal_arr"].sum() if "total_expansion_signal_arr" in rep_df.columns else 0
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total ARR",              fmt_m(total_arr))
+    c1.metric("Total ACV",              fmt_m(total_arr))
     c2.metric("Total cARR",             fmt_m(total_carr))
     c3.metric("cARR Attainment",        fmt_pct(att_rate))
-    c4.metric("ARR at Risk",            fmt_m(total_risk),
+    c4.metric("ACV at Risk",            fmt_m(total_risk),
               delta=f"-{fmt_m(total_risk)}", delta_color="inverse")
     c5.metric("Expansion Signal ARR",   fmt_m(expansion_signal),
               delta=fmt_m(expansion_signal), delta_color="normal",
@@ -221,7 +221,7 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
         fig.add_bar(
             x=region_df["region"],
             y=region_df["total_arr"],
-            name="ARR",
+            name="ACV",
             marker_color="#e2e8f0",
             text=[fmt_m(v) for v in region_df["total_arr"]],
             textposition="outside",
@@ -336,14 +336,14 @@ def page_region(rep_df: pd.DataFrame):
         "accounts_expansion", "accounts_at_risk", "expansion_arr_pipeline",
     ]].copy()
     display.columns = [
-        "Region", "Reps", "Accounts", "ARR", "cARR",
-        "Attainment", "ARR at Risk", "Risk %",
+        "Region", "Reps", "Accounts", "ACV", "cARR",
+        "Attainment", "ACV at Risk", "Risk %",
         "Expansion Accts", "At-Risk Accts", "Expansion Pipeline",
     ]
-    display["ARR"]               = display["ARR"].apply(fmt_m)
+    display["ACV"]               = display["ACV"].apply(fmt_m)
     display["cARR"]              = display["cARR"].apply(fmt_m)
     display["Attainment"]        = display["Attainment"].apply(fmt_pct)
-    display["ARR at Risk"]       = display["ARR at Risk"].apply(fmt_m)
+    display["ACV at Risk"]       = display["ACV at Risk"].apply(fmt_m)
     display["Risk %"]            = display["Risk %"].apply(fmt_pct)
     display["Expansion Pipeline"]= display["Expansion Pipeline"].apply(fmt_m)
 
@@ -418,7 +418,7 @@ def page_reps(rep_df: pd.DataFrame, region: str):
     fig.add_bar(
         y=chart_df["rep_name"],
         x=chart_df["total_arr"],
-        name="ARR",
+        name="ACV",
         orientation="h",
         marker_color="#e2e8f0",
     )
@@ -460,12 +460,12 @@ def page_reps(rep_df: pd.DataFrame, region: str):
     base_labels = [
         "Org#", "Rgn#", "Rep", "Region", "Segment",
         "Accts", "Ramping", "Mature",
-        "ARR", "cARR", "Attainment",
-        "At Risk $", "Exp Opps", "Exp Pipeline",
+        "ACV", "cARR", "Attainment",
+        "ACV at Risk", "Exp Opps", "Exp Pipeline",
     ]
     extra_labels = ["Exp Signal ARR"] if extra_cols else []
     tbl.columns = base_labels + extra_labels + ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive"]
-    for col in ["ARR", "cARR", "At Risk $", "Exp Pipeline"] + (["Exp Signal ARR"] if extra_labels else []):
+    for col in ["ACV", "cARR", "ACV at Risk", "Exp Pipeline"] + (["Exp Signal ARR"] if extra_labels else []):
         tbl[col] = tbl[col].apply(fmt_m)
     tbl["Attainment"] = tbl["Attainment"].apply(fmt_pct)
 
@@ -507,7 +507,7 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
             "health_tier":           True,
         },
         labels={
-            "annual_commit_dollars":  "Annual Commit ($)",
+            "annual_commit_dollars":  "ACV ($)",
             "trailing_90d_avg_rate":  "Consumption Rate (90d avg)",
         },
         height=400,
@@ -530,15 +530,15 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
     exp_signal_labels = ["Exp Signal"] if exp_signal_cols else []
     tbl.columns = (
         ["Account", "Rep", "Region", "Health",
-         "ARR", "Cons Rate", "cARR"]
+         "ACV", "Cons Rate", "cARR"]
         + exp_signal_labels
-        + ["ARR at Risk",
+        + ["ACV at Risk",
            "Months Data", "Expansion?", "Spike/Drop?", "Ramping?",
            "Contract Start", "Contract End"]
     )
-    tbl["ARR"]        = tbl["ARR"].apply(fmt_m)
-    tbl["cARR"]       = tbl["cARR"].apply(fmt_m)
-    tbl["ARR at Risk"]= tbl["ARR at Risk"].apply(fmt_m)
+    tbl["ACV"]          = tbl["ACV"].apply(fmt_m)
+    tbl["cARR"]         = tbl["cARR"].apply(fmt_m)
+    tbl["ACV at Risk"]  = tbl["ACV at Risk"].apply(fmt_m)
     if exp_signal_labels:
         tbl["Exp Signal"] = tbl["Exp Signal"].apply(fmt_m)
     tbl["Cons Rate"]  = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")

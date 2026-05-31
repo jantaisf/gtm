@@ -229,7 +229,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 These scenarios define the expected cARR output for given inputs. Use them as regression tests during refactors — if cARR changes unexpectedly on any of these, something broke.
 
-| Scenario | ARR | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected cARR | Expected Expansion Signal |
+| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected cARR | Expected Expansion Signal |
 |---|---|---|---|---|---|---|---|
 | Healthy steady-state | $200K | 0.90 | 0.94 | 0.91 | 0.917 | $183,400 | $0 |
 | Shelfware | $300K | 0.05 | 0.03 | 0.02 | 0.033 | $9,900 | $0 |
@@ -391,7 +391,7 @@ All exports read from the two output tables: `carr_account` (account-level) and 
 |---|---|---|---|
 | `health_tier` | Account | `Health_Tier__c` | Picklist: Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
 | `carr_attainment_rate` | Account | `cARR_Attainment__c` | Number (%) — drives renewal forecast category |
-| `arr_at_risk` | Account | `ARR_at_Risk__c` | Currency — adjusts renewal opportunity amount |
+| `arr_at_risk` | Account | `ACV_at_Risk__c` | Currency — adjusts renewal opportunity amount |
 | `expansion_flag = TRUE` | Opportunity (auto-create) | Stage = `Expansion Identified` | Creates new opp on Account if none exists in stage |
 | `is_spike_drop = TRUE` | Account | `Spike_Drop_Flag__c` | Checkbox — triggers CS save plan task |
 | `employee_id` | Account | `Owner` (current) | Routes to current account owner for quota |
@@ -408,7 +408,7 @@ All exports read from the two output tables: `carr_account` (account-level) and 
 |---|---|
 | `total_carr` | Farmer quota attainment numerator |
 | `carr_attainment_rate` | Accelerator / decelerator tier lookup |
-| `total_arr` | Quota denominator for attainment % |
+| `total_arr` | ACV quota denominator for attainment % |
 | `expansion_arr_pipeline` | Expansion SPIF eligibility flag |
 
 **Activation bonus** (requires `gtm.carr_account`):
