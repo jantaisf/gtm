@@ -56,7 +56,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 ┌─────────────────────────┐
 │   Dashboard              │
 │   Streamlit + Plotly     │
-│   (Phase 2 Part 4)       │
+│   (dashboard/app.py)     │
 └─────────────────────────┘
 ```
 
