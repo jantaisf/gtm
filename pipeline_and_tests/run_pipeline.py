@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Phase 2 Part 2: cARR Pipeline Runner
+Phase 2 Part 2: cACV Pipeline Runner
 
 Executes 5 SQL transformation steps in order against BigQuery,
-producing the full derived table chain from raw tables to carr_rep_rollup.
+producing the full derived table chain from raw tables to cacv_rep_rollup.
 
 Dataset layout:
     raw      — source tables (sales_reps, accounts, contracts, daily_usage_logs)
     staging  — stg_active_contracts, stg_monthly_consumption
-    gtm      — dim_dates, carr_account, carr_rep_rollup
+    gtm      — dim_dates, cacv_account, cacv_rep_rollup
 
 Steps:
     0  dim_dates               Calendar + PANW fiscal dimension (2000–2030)
     1  stg_active_contracts    Resolve active contracts per account
     2  stg_monthly_consumption Aggregate monthly usage; exclude orphaned/rogue logs
-    3  carr_account            Account-level cARR + health tiers
-    4  carr_rep_rollup         Rep + region cARR rollup
+    3  cacv_account            Account-level cACV + health tiers
+    4  cacv_rep_rollup         Rep + region cACV rollup
 
 Usage:
     python3 run_pipeline.py
@@ -46,8 +46,8 @@ PIPELINE_STEPS = [
     ("00_dim_dates.sql",               "gtm",     "dim_dates",               "Build calendar dimension (2000-01-01 → today, incl. PANW fiscal calendar)"),
     ("01_stg_active_contracts.sql",    "staging", "stg_active_contracts",    "Resolve active contracts (handles mid-year expansions)"),
     ("02_stg_monthly_consumption.sql", "staging", "stg_monthly_consumption", "Aggregate monthly usage (excludes orphaned + rogue logs)"),
-    ("03_carr_account.sql",            "gtm",     "carr_account",            "Compute account-level cARR + health tiers"),
-    ("04_carr_rep_rollup.sql",         "gtm",     "carr_rep_rollup",         "Roll up cARR to rep + region level"),
+    ("03_cacv_account.sql",            "gtm",     "cacv_account",            "Compute account-level cACV + health tiers"),
+    ("04_cacv_rep_rollup.sql",         "gtm",     "cacv_rep_rollup",         "Roll up cACV to rep + region level"),
 ]
 
 
@@ -94,7 +94,7 @@ def execute_step(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run cARR pipeline")
+    parser = argparse.ArgumentParser(description="Run cACV pipeline")
     parser.add_argument(
         "--as-of-date", metavar="YYYY-MM-DD", default=str(date.today()),
         help="Evaluation date (default: today)",
@@ -111,7 +111,7 @@ def main():
 
     client = None if args.dry_run else bigquery.Client(project=GCP_PROJECT)
 
-    print(f"\n── cARR Pipeline ───────────────────────────────────────────────")
+    print(f"\n── cACV Pipeline ───────────────────────────────────────────────")
     print(f"   Project    : {GCP_PROJECT}")
     print(f"   Datasets   : raw → staging → gtm")
     print(f"   As-of date : {args.as_of_date}")

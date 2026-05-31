@@ -12,7 +12,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-# Technical Spec: cARR Data Pipeline
+# Technical Spec: cACV Data Pipeline
 ## Prisma Cloud Consumed ARR — End-to-End Architecture
 
 **Version:** 1.0
@@ -48,8 +48,8 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 ┌─────────────────────────┐
 │   Metric Layer           │
 │                          │
-│  · carr_account          │  cARR per account + health tier
-│  · carr_rep_rollup       │  cARR per rep + region
+│  · cacv_account          │  cACV per account + health tier
+│  · cacv_rep_rollup       │  cACV per rep + region
 └──────────┬──────────────┘
            │ Python BigQuery client
            ▼
@@ -109,8 +109,8 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 |---|---|
 | `stg_active_contracts` | One row per account — canonical active contract + summed credits |
 | `stg_monthly_consumption` | One row per account per month — clean usage vs. allowance |
-| `carr_account` | Account-level cARR, consumption rate, health tier, flags |
-| `carr_rep_rollup` | Rep + region-level cARR rollup for dashboard and comp |
+| `cacv_account` | Account-level cACV, consumption rate, health tier, flags |
+| `cacv_rep_rollup` | Rep + region-level cACV rollup for dashboard and comp |
 
 ---
 
@@ -145,7 +145,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
    - Monthly credits = **SUM** of `included_monthly_compute_credits` across all active contracts
    - Primary contract = earliest `start_date` (used for reference fields and comp attribution)
    - Set `has_expansion = TRUE`
-4. Join to `accounts` to carry `employee_id`, `company_name`, `industry`
+4. Join to `accounts` to cacvy `employee_id`, `company_name`, `industry`
 
 **Edge cases handled:**
 - Mid-year expansions → both ARR and credits summed across all active contracts
@@ -172,64 +172,64 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-### Step 3 — `carr_account`
+### Step 3 — `cacv_account`
 
-**Purpose:** Compute account-level cARR using trailing 90-day consumption rate.
+**Purpose:** Compute account-level cACV using trailing 90-day consumption rate.
 
 **Logic:**
 1. For each account, take the **last 3 complete calendar months** of consumption data
 2. Compute `trailing_90d_avg_rate = AVG(consumption_rate)` over those 3 months
 3. Apply health tier classification (see product_spec.md §5)
 4. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
-5. Compute cARR — **capped at annual commit**:
+5. Compute cACV — **capped at annual commit**:
    ```sql
-   carr = CASE
+   cacv = CASE
      WHEN is_new_account THEN NULL
      ELSE ROUND(LEAST(annual_commit_dollars * trailing_90d_avg_rate,
                       annual_commit_dollars), 2)
    END
 
-   expansion_signal_arr = CASE
+   expansion_signal_acv = CASE
      WHEN is_new_account THEN NULL
      ELSE ROUND(GREATEST(
            annual_commit_dollars * trailing_90d_avg_rate - annual_commit_dollars,
            0), 2)
    END
    ```
-   **Cap rationale:** cARR is capped at the contracted commit to preserve the "% of bookings realized" narrative. Over-consumption flows to `expansion_signal_arr` as a separate upsell pipeline metric.
-6. Compute `arr_at_risk = annual_commit_dollars - carr`
+   **Cap rationale:** cACV is capped at the contracted commit to preserve the "% of bookings realized" narrative. Over-consumption flows to `expansion_signal_acv` as a separate upsell pipeline metric.
+6. Compute `acv_at_risk = annual_commit_dollars - cacv`
 7. Flag `expansion_flag = TRUE` if `overage_months >= 2`
 8. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
 
 **Edge cases handled:**
 - Spike & Drop → trailing 90-day window smooths spike once it ages out
-- New accounts → excluded from cARR with `is_new_account` flag
-- Consistent overages → `expansion_flag` surfaced; excess consumption reported in `expansion_signal_arr`, not inflated into cARR
+- New accounts → excluded from cACV with `is_new_account` flag
+- Consistent overages → `expansion_flag` surfaced; excess consumption reported in `expansion_signal_acv`, not inflated into cACV
 
 ---
 
-### Step 4 — `carr_rep_rollup`
+### Step 4 — `cacv_rep_rollup`
 
-**Purpose:** Aggregate account cARR to rep and region level for dashboard and compensation.
+**Purpose:** Aggregate account cACV to rep and region level for dashboard and compensation.
 
 **Logic:**
-1. Join `carr_account` to `sales_reps` on `employee_id`
+1. Join `cacv_account` to `sales_reps` on `employee_id`
 2. Aggregate per rep:
-   - `total_arr` = SUM of `annual_commit_dollars`
-   - `total_carr` = SUM of `cARR` (excludes new_account NULLs)
-   - `carr_attainment_rate` = `total_carr / total_arr`
+   - `total_acv` = SUM of `annual_commit_dollars`
+   - `total_cacv` = SUM of `cACV` (excludes new_account NULLs)
+   - `cacv_attainment_rate` = `total_cacv / total_acv`
    - Health tier counts: `accounts_expansion`, `accounts_healthy`, `accounts_at_risk`, `accounts_shelfware`, `accounts_inactive`, `accounts_ramping`
    - `expansion_opportunities` = count of `expansion_flag = TRUE`
-   - `arr_at_risk` = SUM of `arr_at_risk`
+   - `acv_at_risk` = SUM of `acv_at_risk`
 3. Add `region_rank` and `org_rank` window functions for leaderboard
 
 ---
 
 ## 4. Metric Correctness Test Cases
 
-These scenarios define the expected cARR output for given inputs. Use them as regression tests during refactors — if cARR changes unexpectedly on any of these, something broke.
+These scenarios define the expected cACV output for given inputs. Use them as regression tests during refactors — if cACV changes unexpectedly on any of these, something broke.
 
-| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected cARR | Expected Expansion Signal |
+| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected cACV | Expected Expansion Signal |
 |---|---|---|---|---|---|---|---|
 | Healthy steady-state | $200K | 0.90 | 0.94 | 0.91 | 0.917 | $183,400 | $0 |
 | Shelfware | $300K | 0.05 | 0.03 | 0.02 | 0.033 | $9,900 | $0 |
@@ -242,11 +242,11 @@ These scenarios define the expected cARR output for given inputs. Use them as re
 | Just at attainment target | $400K | 0.84 | 0.87 | 0.84 | 0.850 | $340,000 | $0 |
 
 **Key assertions to encode as pipeline tests:**
-- `carr` is never NULL for a non-ramping account with ≥ 1 month of data
-- `carr <= annual_commit_dollars` always (cap holds)
-- `expansion_signal_arr >= 0` always
-- `carr + expansion_signal_arr = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows
-- `arr_at_risk = annual_commit_dollars - carr` for all non-NULL rows
+- `cacv` is never NULL for a non-ramping account with ≥ 1 month of data
+- `cacv <= annual_commit_dollars` always (cap holds)
+- `expansion_signal_acv >= 0` always
+- `cacv + expansion_signal_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows
+- `acv_at_risk = annual_commit_dollars - cacv` for all non-NULL rows
 
 ---
 
@@ -258,7 +258,7 @@ All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 - The synthetic dataset covers Jan 2024 → today. Run with `--as-of-date 2025-06-30` to simulate a mid-year snapshot.
 - Enables point-in-time analysis and backtesting of the metric.
 - `stg_active_contracts` uses `as_of_date` to determine which contracts are active.
-- `carr_account` uses `as_of_date` to define the trailing 90-day window and new account threshold.
+- `cacv_account` uses `as_of_date` to define the trailing 90-day window and new account threshold.
 
 ---
 
@@ -290,8 +290,8 @@ gtm/
 │   │   ├── 00_dim_dates.sql             # Calendar + PANW fiscal dimension (2000–2030)
 │   │   ├── 01_stg_active_contracts.sql  # Resolve active contracts per account
 │   │   ├── 02_stg_monthly_consumption.sql
-│   │   ├── 03_carr_account.sql
-│   │   └── 04_carr_rep_rollup.sql
+│   │   ├── 03_cacv_account.sql
+│   │   └── 04_cacv_rep_rollup.sql
 │   ├── run_pipeline.py           # Executes all 5 SQL steps (steps 0–4)
 │   └── dq_tests.py              # Automated data quality assertions (11 tests)
 ├── dashboard/
@@ -348,10 +348,10 @@ streamlit run dashboard/app.py
 ```
 BigQuery                    Streamlit App
 ──────────────────────────────────────────────────────
-gtm.carr_rep_rollup    →    load_rep_rollup(as_of_date)   → sidebar rep list, all rep-level charts
-gtm.carr_account       →    load_accounts(as_of_date,      → account scatter, account detail table
+gtm.cacv_rep_rollup    →    load_rep_rollup(as_of_date)   → sidebar rep list, all rep-level charts
+gtm.cacv_account       →    load_accounts(as_of_date,      → account scatter, account detail table
                                 region, employee_id)
-gtm.carr_rep_rollup    →    load_available_dates()         → as-of-date selector in sidebar
+gtm.cacv_rep_rollup    →    load_available_dates()         → as-of-date selector in sidebar
 raw.sales_reps         →    joined inside load_accounts()  → rep_name, region, segment on account rows
 ```
 
@@ -361,7 +361,7 @@ raw.sales_reps         →    joined inside load_accounts()  → rep_name, regio
 - `get_bq_client`: `@st.cache_resource` — single client instance per session (no reconnect overhead)
 
 ### Fallback Behavior
-If `carr_rep_rollup` has no rows for the requested `as_of_date`, the app falls back to the latest available data (`ORDER BY calculated_at DESC`). `load_accounts` similarly falls back to a full table scan with in-memory filtering if the date-filtered query returns nothing.
+If `cacv_rep_rollup` has no rows for the requested `as_of_date`, the app falls back to the latest available data (`ORDER BY calculated_at DESC`). `load_accounts` similarly falls back to a full table scan with in-memory filtering if the date-filtered query returns nothing.
 
 ---
 
@@ -378,20 +378,20 @@ BigQuery (gtm dataset)
         └─── On-demand ──────► BI layer                (Board reporting, cohort analysis)
 ```
 
-All exports read from the two output tables: `carr_account` (account-level) and `carr_rep_rollup` (rep-level).
+All exports read from the two output tables: `cacv_account` (account-level) and `cacv_rep_rollup` (rep-level).
 
 ---
 
 ### 9.2 Salesforce CRM
 
 **Sync:** Nightly batch via BigQuery → Salesforce REST API (or Salesforce Connect external object)
-**Source table:** `gtm.carr_account`
+**Source table:** `gtm.cacv_account`
 
 | BQ Field | Salesforce Object | Salesforce Field | Notes |
 |---|---|---|---|
 | `health_tier` | Account | `Health_Tier__c` | Picklist: Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
-| `carr_attainment_rate` | Account | `cARR_Attainment__c` | Number (%) — drives renewal forecast category |
-| `arr_at_risk` | Account | `ACV_at_Risk__c` | Currency — adjusts renewal opportunity amount |
+| `cacv_attainment_rate` | Account | `cACV_Attainment__c` | Number (%) — drives renewal forecast category |
+| `acv_at_risk` | Account | `ACV_at_Risk__c` | Currency — adjusts renewal opportunity amount |
 | `expansion_flag = TRUE` | Opportunity (auto-create) | Stage = `Expansion Identified` | Creates new opp on Account if none exists in stage |
 | `is_spike_drop = TRUE` | Account | `Spike_Drop_Flag__c` | Checkbox — triggers CS save plan task |
 | `employee_id` | Account | `Owner` (current) | Routes to current account owner for quota |
@@ -402,20 +402,20 @@ All exports read from the two output tables: `carr_account` (account-level) and 
 ### 9.3 Compensation Platform (e.g., Xactly, CaptivateIQ)
 
 **Sync:** Monthly close via BigQuery scheduled export → CSV/SFTP or direct API
-**Source table:** `gtm.carr_rep_rollup`
+**Source table:** `gtm.cacv_rep_rollup`
 
 | BQ Field | Comp Use |
 |---|---|
-| `total_carr` | Farmer quota attainment numerator |
-| `carr_attainment_rate` | Accelerator / decelerator tier lookup |
-| `total_arr` | ACV quota denominator for attainment % |
+| `total_cacv` | Farmer quota attainment numerator |
+| `cacv_attainment_rate` | Accelerator / decelerator tier lookup |
+| `total_acv` | ACV quota denominator for attainment % |
 | `expansion_arr_pipeline` | Expansion SPIF eligibility flag |
 
-**Activation bonus** (requires `gtm.carr_account`):
+**Activation bonus** (requires `gtm.cacv_account`):
 ```sql
 -- Accounts that hit ≥80% consumption within 90 days of contract start
-SELECT employee_id, account_id, company_name, carr_attainment_rate
-FROM gtm.carr_account
+SELECT employee_id, account_id, company_name, cacv_attainment_rate
+FROM gtm.cacv_account
 WHERE is_new_account = FALSE                             -- just aged out of ramping
   AND contract_start_date >= DATE_SUB(as_of_date, INTERVAL 180 DAY)
   AND trailing_90d_avg_rate >= 0.80
@@ -426,7 +426,7 @@ WHERE is_new_account = FALSE                             -- just aged out of ram
 ### 9.4 Customer Success Platform (e.g., Gainsight, Totango)
 
 **Sync:** Daily via BigQuery → CS platform API
-**Source table:** `gtm.carr_account`
+**Source table:** `gtm.cacv_account`
 
 | Health Tier | CS Score Range | Automated Action |
 |---|---|---|
@@ -446,17 +446,17 @@ Key field mapping:
 
 ### 9.5 BI / Board Reporting (e.g., Tableau, Looker)
 
-**Source tables:** `gtm.carr_rep_rollup`, `gtm.carr_account`, `gtm.dim_dates`
+**Source tables:** `gtm.cacv_rep_rollup`, `gtm.cacv_account`, `gtm.dim_dates`
 
 Key reports enabled by the current data model:
 
 | Report | Tables Used | Key Fields |
 |---|---|---|
-| Board NRR forecast | `carr_rep_rollup` | `total_carr / total_arr` org-wide as NRR leading indicator |
-| Renewal risk register | `carr_account` | `arr_at_risk`, `contract_end_date`, `health_tier` |
-| Expansion pipeline | `carr_account` | `expansion_flag`, `annual_commit_dollars`, `rep_name` |
-| Cohort churn analysis | `carr_account` + `dim_dates` | Attainment by `fiscal_year_quarter` of contract start |
-| QBR regional pack | `carr_rep_rollup` | `region`, `total_arr`, `total_carr`, `accounts_at_risk` |
+| Board NRR forecast | `cacv_rep_rollup` | `total_cacv / total_acv` org-wide as NRR leading indicator |
+| Renewal risk register | `cacv_account` | `acv_at_risk`, `contract_end_date`, `health_tier` |
+| Expansion pipeline | `cacv_account` | `expansion_flag`, `annual_commit_dollars`, `rep_name` |
+| Cohort churn analysis | `cacv_account` + `dim_dates` | Attainment by `fiscal_year_quarter` of contract start |
+| QBR regional pack | `cacv_rep_rollup` | `region`, `total_acv`, `total_cacv`, `accounts_at_risk` |
 
 ---
 
@@ -466,6 +466,6 @@ Key reports enabled by the current data model:
 |---|---|---|
 | Port SQL to dbt | Medium | Version-controlled lineage, automated tests, docs site |
 | ML churn prediction | High | Predict which At Risk accounts churn at renewal |
-| Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time cARR |
+| Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time cACV |
 | Cohort-based multiplier calibration | Medium | Validate health tier thresholds against actual churn cohorts |
 | Feature-depth weighting | Medium | Weight credits by product tier (base NGFW vs. advanced security add-ons) |

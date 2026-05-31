@@ -1,8 +1,8 @@
 """
-Phase 2 Part 4: cARR Executive Dashboard
+Phase 2 Part 4: cACV Executive Dashboard
 
-Streamlit app connected to BigQuery carr_account and carr_rep_rollup tables.
-Allows executives to explore Consumed ARR (cARR) performance by Region and Rep.
+Streamlit app connected to BigQuery cacv_account and cacv_rep_rollup tables.
+Allows executives to explore Consumed ARR (cACV) performance by Region and Rep.
 
 Run:
     streamlit run app.py
@@ -27,7 +27,7 @@ from typing import Optional
 GCP_PROJECT = "openclaw-gateway-491103"
 DS_RAW      = f"`{GCP_PROJECT}.raw`"
 DS_GTM      = f"`{GCP_PROJECT}.gtm`"
-DS          = DS_GTM   # modelled tables (carr_account, carr_rep_rollup)
+DS          = DS_GTM   # modelled tables (cacv_account, cacv_rep_rollup)
 
 HEALTH_COLORS = {
     "Expansion": "#10b981",   # emerald
@@ -39,7 +39,7 @@ HEALTH_COLORS = {
 }
 
 st.set_page_config(
-    page_title="cARR Executive Dashboard",
+    page_title="cACV Executive Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -63,13 +63,13 @@ def load_rep_rollup(as_of_date: str) -> pd.DataFrame:
     # Try exact date match first; fall back to latest available data
     sql = f"""
     SELECT *
-    FROM {DS}.carr_rep_rollup
+    FROM {DS}.cacv_rep_rollup
     WHERE DATE(as_of_date) = DATE '{as_of_date}'
     """
     df = get_bq_client().query(sql).to_dataframe()
     if not df.empty:
         return df
-    sql_latest = f"SELECT * FROM {DS}.carr_rep_rollup ORDER BY calculated_at DESC LIMIT 1000"
+    sql_latest = f"SELECT * FROM {DS}.cacv_rep_rollup ORDER BY calculated_at DESC LIMIT 1000"
     return get_bq_client().query(sql_latest).to_dataframe()
 
 
@@ -81,7 +81,7 @@ def load_accounts(as_of_date: str, region: Optional[str] = None, employee_id: Op
         sr.name    AS rep_name,
         sr.region,
         sr.segment
-    FROM {DS}.carr_account ca
+    FROM {DS}.cacv_account ca
     JOIN {DS_RAW}.sales_reps sr ON sr.employee_id = ca.employee_id
     WHERE DATE(ca.as_of_date) = DATE '{as_of_date}'
     """
@@ -94,7 +94,7 @@ def load_accounts(as_of_date: str, region: Optional[str] = None, employee_id: Op
     except Exception:
         sql_latest = f"""
         SELECT ca.*, sr.name AS rep_name, sr.region, sr.segment
-        FROM {DS}.carr_account ca
+        FROM {DS}.cacv_account ca
         JOIN {DS_RAW}.sales_reps sr ON sr.employee_id = ca.employee_id
         """
         df = get_bq_client().query(sql_latest).to_dataframe()
@@ -109,7 +109,7 @@ def load_accounts(as_of_date: str, region: Optional[str] = None, employee_id: Op
 def load_available_dates() -> list[str]:
     sql = f"""
     SELECT DISTINCT DATE(as_of_date) AS d
-    FROM {DS}.carr_rep_rollup
+    FROM {DS}.cacv_rep_rollup
     ORDER BY 1 DESC
     LIMIT 30
     """
@@ -187,16 +187,16 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
     st.header("Portfolio Overview")
 
     # rep_df is already filtered by region/rep from main()
-    total_arr            = rep_df["total_arr"].sum()
-    total_carr           = rep_df["total_carr"].sum()
-    total_risk           = rep_df["total_arr_at_risk"].sum()
-    att_rate             = total_carr / total_arr if total_arr else 0
-    expansion_signal     = rep_df["total_expansion_signal_arr"].sum() if "total_expansion_signal_arr" in rep_df.columns else 0
+    total_acv            = rep_df["total_acv"].sum()
+    total_cacv           = rep_df["total_cacv"].sum()
+    total_risk           = rep_df["total_acv_at_risk"].sum()
+    att_rate             = total_cacv / total_acv if total_acv else 0
+    expansion_signal     = rep_df["total_expansion_signal_acv"].sum() if "total_expansion_signal_acv" in rep_df.columns else 0
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total ACV",              fmt_m(total_arr))
-    c2.metric("Total cARR",             fmt_m(total_carr))
-    c3.metric("cARR Attainment",        fmt_pct(att_rate))
+    c1.metric("Total ACV",              fmt_m(total_acv))
+    c2.metric("Total cACV",             fmt_m(total_cacv))
+    c3.metric("cACV Attainment",        fmt_pct(att_rate))
     c4.metric("ACV at Risk",            fmt_m(total_risk),
               delta=f"-{fmt_m(total_risk)}", delta_color="inverse")
     c5.metric("Expansion Signal ARR",   fmt_m(expansion_signal),
@@ -207,31 +207,31 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
 
     col_left, col_right = st.columns(2)
 
-    # cARR by Region waterfall-style bar
+    # cACV by Region waterfall-style bar
     with col_left:
-        st.subheader("cARR by Region")
+        st.subheader("cACV by Region")
         region_df = (
             rep_df.groupby("region", as_index=False)
-            .agg(total_arr=("total_arr", "sum"), total_carr=("total_carr", "sum"))
+            .agg(total_acv=("total_acv", "sum"), total_cacv=("total_cacv", "sum"))
         )
-        region_df["attainment"] = region_df["total_carr"] / region_df["total_arr"]
-        region_df = region_df.sort_values("total_carr", ascending=False)
+        region_df["attainment"] = region_df["total_cacv"] / region_df["total_acv"]
+        region_df = region_df.sort_values("total_cacv", ascending=False)
 
         fig = go.Figure()
         fig.add_bar(
             x=region_df["region"],
-            y=region_df["total_arr"],
+            y=region_df["total_acv"],
             name="ACV",
             marker_color="#e2e8f0",
-            text=[fmt_m(v) for v in region_df["total_arr"]],
+            text=[fmt_m(v) for v in region_df["total_acv"]],
             textposition="outside",
         )
         fig.add_bar(
             x=region_df["region"],
-            y=region_df["total_carr"],
-            name="cARR",
+            y=region_df["total_cacv"],
+            name="cACV",
             marker_color="#3b82f6",
-            text=[f"{fmt_m(v)}<br>{fmt_pct(r)}" for v, r in zip(region_df["total_carr"], region_df["attainment"])],
+            text=[f"{fmt_m(v)}<br>{fmt_pct(r)}" for v, r in zip(region_df["total_cacv"], region_df["attainment"])],
             textposition="inside",
             textfont_color="white",
         )
@@ -270,29 +270,29 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
         st.plotly_chart(fig2, use_container_width=True)
 
     # Attainment scatter
-    st.subheader("cARR Attainment vs. ARR — by Rep")
+    st.subheader("cACV Attainment vs. ARR — by Rep")
     scatter_df = rep_df.copy()
-    scatter_df["attainment_pct"] = scatter_df["carr_attainment_rate"].fillna(0) * 100
-    scatter_df["bubble_size"] = (scatter_df["total_arr"] / scatter_df["total_arr"].max() * 40).clip(lower=5)
+    scatter_df["attainment_pct"] = scatter_df["cacv_attainment_rate"].fillna(0) * 100
+    scatter_df["bubble_size"] = (scatter_df["total_acv"] / scatter_df["total_acv"].max() * 40).clip(lower=5)
 
     fig3 = px.scatter(
         scatter_df,
-        x="total_arr",
+        x="total_acv",
         y="attainment_pct",
         size="bubble_size",
         color="region",
         hover_name="rep_name",
         hover_data={
-            "total_arr":        ":.3s",
-            "total_carr":       ":.3s",
+            "total_acv":        ":.3s",
+            "total_cacv":       ":.3s",
             "attainment_pct":   ":.1f",
             "total_accounts":   True,
             "accounts_at_risk": True,
             "bubble_size":      False,
         },
         labels={
-            "total_arr":      "Total ARR ($)",
-            "attainment_pct": "cARR Attainment (%)",
+            "total_acv":      "Total ARR ($)",
+            "attainment_pct": "cACV Attainment (%)",
             "region":         "Region",
         },
         height=380,
@@ -315,33 +315,33 @@ def page_region(rep_df: pd.DataFrame):
         .agg(
             reps=("employee_id", "count"),
             total_accounts=("total_accounts", "sum"),
-            total_arr=("total_arr", "sum"),
-            total_carr=("total_carr", "sum"),
-            total_arr_at_risk=("total_arr_at_risk", "sum"),
+            total_acv=("total_acv", "sum"),
+            total_cacv=("total_cacv", "sum"),
+            total_acv_at_risk=("total_acv_at_risk", "sum"),
             ramping_accounts=("ramping_accounts", "sum"),
             accounts_expansion=("accounts_expansion", "sum"),
             accounts_at_risk=("accounts_at_risk", "sum"),
-            expansion_arr_pipeline=("expansion_arr_pipeline", "sum"),
+            expansion_acv_pipeline=("expansion_acv_pipeline", "sum"),
             spike_drop_accounts=("spike_drop_accounts", "sum"),
         )
     )
-    region_agg["att_rate"] = region_agg["total_carr"] / region_agg["total_arr"]
-    region_agg["risk_pct"] = region_agg["total_arr_at_risk"] / region_agg["total_arr"]
-    region_agg = region_agg.sort_values("total_carr", ascending=False)
+    region_agg["att_rate"] = region_agg["total_cacv"] / region_agg["total_acv"]
+    region_agg["risk_pct"] = region_agg["total_acv_at_risk"] / region_agg["total_acv"]
+    region_agg = region_agg.sort_values("total_cacv", ascending=False)
 
     # Summary table
     display = region_agg[[
-        "region", "reps", "total_accounts", "total_arr", "total_carr",
-        "att_rate", "total_arr_at_risk", "risk_pct",
-        "accounts_expansion", "accounts_at_risk", "expansion_arr_pipeline",
+        "region", "reps", "total_accounts", "total_acv", "total_cacv",
+        "att_rate", "total_acv_at_risk", "risk_pct",
+        "accounts_expansion", "accounts_at_risk", "expansion_acv_pipeline",
     ]].copy()
     display.columns = [
-        "Region", "Reps", "Accounts", "ACV", "cARR",
+        "Region", "Reps", "Accounts", "ACV", "cACV",
         "Attainment", "ACV at Risk", "Risk %",
         "Expansion Accts", "At-Risk Accts", "Expansion Pipeline",
     ]
     display["ACV"]               = display["ACV"].apply(fmt_m)
-    display["cARR"]              = display["cARR"].apply(fmt_m)
+    display["cACV"]              = display["cACV"].apply(fmt_m)
     display["Attainment"]        = display["Attainment"].apply(fmt_pct)
     display["ACV at Risk"]       = display["ACV at Risk"].apply(fmt_m)
     display["Risk %"]            = display["Risk %"].apply(fmt_pct)
@@ -394,7 +394,7 @@ def page_reps(rep_df: pd.DataFrame, region: str):
     st.header("Rep Leaderboard")
 
     # rep_df is already filtered by region/rep from main()
-    filtered = rep_df.sort_values("total_carr", ascending=False).reset_index(drop=True)
+    filtered = rep_df.sort_values("total_cacv", ascending=False).reset_index(drop=True)
 
     # Top/bottom callouts
     c1, c2 = st.columns(2)
@@ -403,33 +403,33 @@ def page_reps(rep_df: pd.DataFrame, region: str):
         bot = filtered.iloc[-1]
         with c1:
             st.success(f"**#1 {top['rep_name']}** ({top['region']})  \n"
-                       f"cARR: **{fmt_m(top['total_carr'])}** · Attainment: **{fmt_pct(top['carr_attainment_rate'])}**")
+                       f"cACV: **{fmt_m(top['total_cacv'])}** · Attainment: **{fmt_pct(top['cacv_attainment_rate'])}**")
         with c2:
-            att = bot['carr_attainment_rate']
-            msg = f"**{bot['rep_name']}** ({bot['region']})  \ncARR: **{fmt_m(bot['total_carr'])}** · Attainment: **{fmt_pct(att)}**"
+            att = bot['cacv_attainment_rate']
+            msg = f"**{bot['rep_name']}** ({bot['region']})  \ncACV: **{fmt_m(bot['total_cacv'])}** · Attainment: **{fmt_pct(att)}**"
             if pd.notna(att) and att < 0.6:
                 st.error(msg)
             else:
                 st.info(msg)
 
     # Horizontal bar chart ranked
-    chart_df = filtered.nlargest(20, "total_carr")
+    chart_df = filtered.nlargest(20, "total_cacv")
     fig = go.Figure()
     fig.add_bar(
         y=chart_df["rep_name"],
-        x=chart_df["total_arr"],
+        x=chart_df["total_acv"],
         name="ACV",
         orientation="h",
         marker_color="#e2e8f0",
     )
     fig.add_bar(
         y=chart_df["rep_name"],
-        x=chart_df["total_carr"],
-        name="cARR",
+        x=chart_df["total_cacv"],
+        name="cACV",
         orientation="h",
         marker_color="#3b82f6",
         text=[f"{fmt_m(v)}  {fmt_pct(r)}" for v, r in
-              zip(chart_df["total_carr"], chart_df["carr_attainment_rate"])],
+              zip(chart_df["total_cacv"], chart_df["cacv_attainment_rate"])],
         textposition="inside",
         textfont_color="white",
     )
@@ -447,12 +447,12 @@ def page_reps(rep_df: pd.DataFrame, region: str):
 
     # Detailed table
     st.subheader("Full Rep Table")
-    extra_cols = ["total_expansion_signal_arr"] if "total_expansion_signal_arr" in filtered.columns else []
+    extra_cols = ["total_expansion_signal_acv"] if "total_expansion_signal_acv" in filtered.columns else []
     tbl = filtered[[
         "org_rank", "region_rank", "rep_name", "region", "segment",
         "total_accounts", "ramping_accounts", "mature_accounts",
-        "total_arr", "total_carr", "carr_attainment_rate",
-        "total_arr_at_risk", "expansion_opportunities", "expansion_arr_pipeline",
+        "total_acv", "total_cacv", "cacv_attainment_rate",
+        "total_acv_at_risk", "expansion_opportunities", "expansion_acv_pipeline",
     ] + extra_cols + [
         "accounts_expansion", "accounts_healthy", "accounts_at_risk",
         "accounts_shelfware", "accounts_inactive",
@@ -460,12 +460,12 @@ def page_reps(rep_df: pd.DataFrame, region: str):
     base_labels = [
         "Org#", "Rgn#", "Rep", "Region", "Segment",
         "Accts", "Ramping", "Mature",
-        "ACV", "cARR", "Attainment",
+        "ACV", "cACV", "Attainment",
         "ACV at Risk", "Exp Opps", "Exp Pipeline",
     ]
     extra_labels = ["Exp Signal ARR"] if extra_cols else []
     tbl.columns = base_labels + extra_labels + ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive"]
-    for col in ["ACV", "cARR", "ACV at Risk", "Exp Pipeline"] + (["Exp Signal ARR"] if extra_labels else []):
+    for col in ["ACV", "cACV", "ACV at Risk", "Exp Pipeline"] + (["Exp Signal ARR"] if extra_labels else []):
         tbl[col] = tbl[col].apply(fmt_m)
     tbl["Attainment"] = tbl["Attainment"].apply(fmt_pct)
 
@@ -502,7 +502,7 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
         hover_data={
             "annual_commit_dollars": ":.3s",
             "trailing_90d_avg_rate": ":.2f",
-            "carr":                  ":.3s",
+            "cacv":                  ":.3s",
             "rep_name":              True,
             "health_tier":           True,
         },
@@ -518,26 +518,26 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
     st.plotly_chart(fig, use_container_width=True)
 
     # Account table
-    exp_signal_cols = ["expansion_signal_arr"] if "expansion_signal_arr" in view.columns else []
+    exp_signal_cols = ["expansion_signal_acv"] if "expansion_signal_acv" in view.columns else []
     tbl = view[[
         "company_name", "rep_name", "region", "health_tier",
-        "annual_commit_dollars", "trailing_90d_avg_rate", "carr",
+        "annual_commit_dollars", "trailing_90d_avg_rate", "cacv",
     ] + exp_signal_cols + [
-        "arr_at_risk",
+        "acv_at_risk",
         "months_of_data", "expansion_flag", "is_spike_drop", "is_new_account",
         "contract_start_date", "contract_end_date",
     ]].copy()
     exp_signal_labels = ["Exp Signal"] if exp_signal_cols else []
     tbl.columns = (
         ["Account", "Rep", "Region", "Health",
-         "ACV", "Cons Rate", "cARR"]
+         "ACV", "Cons Rate", "cACV"]
         + exp_signal_labels
         + ["ACV at Risk",
            "Months Data", "Expansion?", "Spike/Drop?", "Ramping?",
            "Contract Start", "Contract End"]
     )
     tbl["ACV"]          = tbl["ACV"].apply(fmt_m)
-    tbl["cARR"]         = tbl["cARR"].apply(fmt_m)
+    tbl["cACV"]         = tbl["cACV"].apply(fmt_m)
     tbl["ACV at Risk"]  = tbl["ACV at Risk"].apply(fmt_m)
     if exp_signal_labels:
         tbl["Exp Signal"] = tbl["Exp Signal"].apply(fmt_m)
@@ -563,7 +563,7 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.title("Prisma Cloud cARR Executive Dashboard")
+    st.title("Prisma Cloud cACV Executive Dashboard")
     st.caption("Consumed Annual Recurring Revenue · Prisma Cloud · Powered by BigQuery")
 
     # Load rep data first (needed for sidebar)

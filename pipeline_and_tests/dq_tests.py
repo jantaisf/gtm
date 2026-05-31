@@ -3,7 +3,7 @@
 Phase 2 Part 3: Automated Data Quality Tests
 
 Runs assertions against BigQuery raw tables to catch data anomalies
-before they corrupt the cARR metric calculation.
+before they corrupt the cACV metric calculation.
 
 Tests:
     [ERROR]   test_null_primary_keys          — NULL PKs in any table
@@ -212,7 +212,7 @@ def test_orphaned_usage(client, **_) -> DQResult:
         severity="WARNING",
         passed=(total == 0),
         row_count=total,
-        detail=f"{total} orphaned log rows across {len(rows)} unknown account_ids — excluded from cARR",
+        detail=f"{total} orphaned log rows across {len(rows)} unknown account_ids — excluded from cACV",
         sample_rows=rows[:5],
     )
 
@@ -237,7 +237,7 @@ def test_out_of_contract_usage(client, **_) -> DQResult:
         severity="WARNING",
         passed=(count == 0),
         row_count=count,
-        detail=f"{count} log rows with usage outside all contract windows — excluded from cARR",
+        detail=f"{count} log rows with usage outside all contract windows — excluded from cACV",
     )
 
 
@@ -351,7 +351,7 @@ def test_new_account_rate(client, as_of_date: str, **_) -> DQResult:
         row_count=int(r.get("ramping_accounts") or 0),
         detail=(
             f"Ramping accounts: {rate:.1%} "
-            f"({r.get('ramping_accounts')} of {r.get('active_accounts')}) — excluded from cARR"
+            f"({r.get('ramping_accounts')} of {r.get('active_accounts')}) — excluded from cACV"
         ),
         sample_rows=rows,
     )
@@ -379,7 +379,7 @@ SEV_ICON = {"ERROR": "✗", "WARNING": "⚠", "INFO": "ℹ"}
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run cARR data quality tests")
+    parser = argparse.ArgumentParser(description="Run cACV data quality tests")
     parser.add_argument(
         "--as-of-date", metavar="YYYY-MM-DD", default=str(date.today()),
         help="Evaluation date (default: today)",

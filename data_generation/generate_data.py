@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Phase 1: Synthetic B2B SaaS Data Generator
-Prisma Cloud GTM — cARR North Star Metric
+Prisma Cloud GTM — cACV North Star Metric
 
 Generates four relational tables covering 12 months of data (2024):
   - sales_reps       ~50 rows
@@ -66,7 +66,7 @@ N_CONTRACTS = 1_200          # ~1,000 base + expansions + extras
 
 # Accounts whose contract started within this many days of today will be flagged
 # as `new_account = TRUE` in the Phase 2 metric pipeline and excluded from
-# cARR calculations (insufficient consumption history for trailing 90-day rate).
+# cACV calculations (insufficient consumption history for trailing 90-day rate).
 NEW_ACCOUNT_THRESHOLD_DAYS = 90
 
 # ── Edge case fractions ───────────────────────────────────────────────────────

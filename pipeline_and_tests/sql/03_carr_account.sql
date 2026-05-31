@@ -1,22 +1,22 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 03_carr_account.sql
--- Computes account-level Consumed ARR (cARR).
+-- 03_cacv_account.sql
+-- Computes account-level Consumed ARR (cACV).
 --
 -- Formula (product_spec.md §2.2):
---   cARR               = MIN(annual_commit × trailing_90d_avg_rate, annual_commit)
---   expansion_signal_arr = MAX(annual_commit × trailing_90d_avg_rate − annual_commit, 0)
+--   cACV               = MIN(annual_commit × trailing_90d_avg_rate, annual_commit)
+--   expansion_signal_acv = MAX(annual_commit × trailing_90d_avg_rate − annual_commit, 0)
 --
--- cARR is capped at the annual commit. Over-consumption flows to
--- expansion_signal_arr as a separate upsell pipeline metric.
+-- cACV is capped at the annual commit. Over-consumption flows to
+-- expansion_signal_acv as a separate upsell pipeline metric.
 --
 -- Edge cases handled:
---   · New accounts (<90 days): excluded from cARR, flagged as ramping.
+--   · New accounts (<90 days): excluded from cACV, flagged as ramping.
 --   · Spike & Drop: trailing 90-day window smooths spike once it ages out.
---   · Shelfware: 0 consumption rate → near-zero cARR.
---   · Consistent Overages: cARR capped at commit; surplus in expansion_signal_arr.
+--   · Shelfware: 0 consumption rate → near-zero cACV.
+--   · Consistent Overages: cACV capped at commit; surplus in expansion_signal_acv.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE OR REPLACE TABLE `openclaw-gateway-491103.gtm.carr_account` AS
+CREATE OR REPLACE TABLE `openclaw-gateway-491103.gtm.cacv_account` AS
 
 WITH
 
@@ -119,14 +119,14 @@ SELECT
     ELSE hc.health_tier
   END AS health_tier,
 
-  -- cARR: NULL for new accounts; capped at annual_commit for all others
+  -- cACV: NULL for new accounts; capped at annual_commit for all others
   CASE
     WHEN ac.contract_start_date >= DATE_SUB({as_of_date}, INTERVAL 90 DAY)
     THEN NULL
     ELSE ROUND(
       LEAST(ac.annual_commit_dollars * hc.trailing_90d_avg_rate, ac.annual_commit_dollars), 2
     )
-  END AS carr,
+  END AS cacv,
 
   -- Expansion signal: over-consumption above commit (upsell pipeline metric)
   CASE
@@ -135,7 +135,7 @@ SELECT
     ELSE ROUND(
       GREATEST(ac.annual_commit_dollars * hc.trailing_90d_avg_rate - ac.annual_commit_dollars, 0), 2
     )
-  END AS expansion_signal_arr,
+  END AS expansion_signal_acv,
 
   -- ARR at risk = committed dollars not backed by consumption
   CASE
@@ -145,7 +145,7 @@ SELECT
       ac.annual_commit_dollars
       - LEAST(ac.annual_commit_dollars * hc.trailing_90d_avg_rate, ac.annual_commit_dollars), 2
     )
-  END AS arr_at_risk,
+  END AS acv_at_risk,
 
   {as_of_date}        AS as_of_date,
   CURRENT_TIMESTAMP() AS calculated_at
