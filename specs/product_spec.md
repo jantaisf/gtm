@@ -12,8 +12,10 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-# Product Spec: Consumed ARR (cARR)
+# Product Spec: cARR — Consumed Annual Run-Rate
 ## North Star Metric for Prisma Cloud GTM — Hybrid Consumption Model
+
+> **Terminology:** Throughout this spec, **ACV** (Annual Contract Value) refers to the contracted annual commitment. **cARR** (Consumed Annual Run-Rate) is the portion of ACV backed by actual platform usage. The two are distinct: ACV is what was sold; cARR is what is being realized.
 
 **Version:** 1.0
 **Owner:** Principal PM, Analytics & AI
