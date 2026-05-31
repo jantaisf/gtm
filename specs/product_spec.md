@@ -472,11 +472,55 @@ An important attribution rule: the rep who currently owns the account gets cARR 
 
 ## 12. Open Questions for Executive Alignment
 
-1. **Territory weighting:** Does the VP Sales accept the 70/30 → 30/70 Hunter/Farmer split, or does the current team structure require a different breakdown?
-2. **Overage recognition:** When cARR exceeds ARR (consumption_rate > 1.0), does finance recognize overage revenue in the same period or defer to contract renewal?
-3. **Multi-year contract ARR basis:** For 2- and 3-year contracts, should `annual_commit_dollars` be the Year 1 value or the average annual value across the full term?
-4. **Ramping threshold:** Is 90 days the right window for new account exclusion, or should it align with PANW's standard customer onboarding SLA?
-5. **Calibration timeline:** The multiplier tiers and attainment targets above are starting points. When will we have sufficient renewal cohort data to validate these against actual churn outcomes?
+The following decisions require VP of Sales and/or CFO sign-off before cARR can be operationalized for compensation and reporting.
+
+---
+
+**1. Comp transition timeline and grandfathering** *(VP of Sales)*
+
+How quickly do we shift rep compensation from bookings-weighted to cARR-weighted — and do we grandfather any existing OTE plans for reps mid-cycle? A hard cutover protects metric integrity but creates morale risk; a phased transition reduces disruption but delays the behavioral change.
+
+**Decision needed:** Rollout timeline (next fiscal year vs. phased over 2 years) and whether current plans are protected through their existing term.
+
+---
+
+**2. Overage revenue recognition** *(CFO)*
+
+When a customer consistently exceeds their credit commit, cARR will exceed their contracted ARR. Does Finance recognize the implied overage revenue in the current quarter, or hold it until a formal contract amendment is signed? This affects both the cARR number reps are measured on and the financial statements.
+
+**Decision needed:** Whether over-consumption translates to in-period revenue recognition or deferred expansion bookings.
+
+---
+
+**3. Multi-year contract ARR basis** *(CFO)*
+
+For 2- and 3-year deals, the annual commit can be calculated as the Year 1 value (lower, biased toward new logos) or the average annual value across the full term (higher, more representative of long-term commitment). The choice affects quota fairness, cARR magnitude, and how multi-year deals are incentivized vs. annual renewals.
+
+**Decision needed:** Whether annual commit is Year 1 only or average annual value across the full contract term.
+
+---
+
+**4. Quota relief for ramping accounts** *(VP of Sales)*
+
+New accounts are excluded from cARR for their first 90 days. Should reps receive quota relief — a temporary reduction in their cARR target — for accounts in this window? Without relief, a rep who closes several new logos in a quarter will see their attainment artificially suppressed until those accounts mature.
+
+**Decision needed:** Whether ramping accounts reduce the rep's cARR quota denominator for the duration of the ramp period.
+
+---
+
+**5. Minimum portfolio attainment floor** *(VP of Sales)*
+
+Should there be a floor below which sustained low cARR attainment triggers a formal performance review, independent of bookings performance? For example: if a rep's portfolio falls below 60% cARR attainment for two consecutive quarters, it surfaces in the performance process regardless of how many new deals they closed.
+
+**Decision needed:** Whether a cARR attainment floor exists, and at what threshold it triggers management action.
+
+---
+
+**6. Board and investor reporting readiness** *(CFO)*
+
+At what level of data maturity and forecast accuracy does cARR become an externally reportable metric — disclosed to investors alongside ARR and NRR? This requires agreement on definition consistency, audit trail, and the minimum number of renewal cohorts needed to validate the metric's predictive accuracy.
+
+**Decision needed:** The accuracy and cohort-size thresholds required before cARR can be included in external financial disclosures.
 
 ---
 
