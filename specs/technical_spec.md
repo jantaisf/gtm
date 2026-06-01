@@ -177,8 +177,10 @@ Measurable events and metrics at the lowest useful grain.
 | `contract_id` | STRING | Foreign Key → dim_contracts — primary active contract |
 | `as_of_date` | DATE | Foreign Key → dim_dates |
 | `annual_commit_dollars` | INTEGER | Degenerate dimension — ACV at snapshot time |
-| `trailing_90d_avg_rate` | FLOAT | Consumption rate over last 3 complete months |
-| `cacv` | FLOAT | `MIN(ACV × rate, ACV)`; NULL if ramping |
+| `trailing_7d_avg_rate` | FLOAT | Consumption rate — 7-day trailing avg (last 7 days of daily usage ÷ daily credit allowance); weekly monitoring only |
+| `trailing_30d_avg_rate` | FLOAT | Consumption rate — 30-day trailing avg (last 30 days of daily usage ÷ monthly credit allowance); monthly monitoring only |
+| `trailing_90d_avg_rate` | FLOAT | Consumption rate — 90-day trailing avg (last 3 complete calendar months); **comp basis** |
+| `cacv` | FLOAT | `ACV × trailing_90d_avg_rate`; NULL if ramping. Always uses 90d rate — see §2.2.1 |
 | `expansion_signal_acv` | FLOAT | Consumption Overage: `MAX(Consumption ACV − ACV, 0)`; NULL if ramping |
 | `acv_at_risk` | FLOAT | `ACV − Consumption ACV`; NULL if ramping |
 | `health_tier` | STRING | Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
@@ -433,21 +435,39 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 
 ### Step 4 — `gold.fact_cacv_snapshot`
 
-**Purpose:** Compute account-level Consumption ACV using the trailing 90-day consumption rate and write the fact table.
+**Purpose:** Compute account-level Consumption ACV (using 90-day rate for comp) and all three monitoring rates, then write the fact table.
 
-**Reads from:** `silver.active_contracts`, `silver.monthly_consumption`, `gold.dim_dates`
+**Reads from:** `silver.active_contracts`, `silver.monthly_consumption`, `gold.dim_dates`, `bronze.daily_usage_logs`
 
 **Logic:**
-1. For each account, take the **last 3 complete calendar months** of consumption data from `silver.monthly_consumption`
-2. Compute `trailing_90d_avg_rate = AVG(consumption_rate)` over those 3 months
-3. Apply health tier classification (see product_spec.md §5)
-4. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
-5. Compute Consumption ACV — **capped at annual commit**:
+
+1. **7-day rate** — from raw daily usage logs:
+   ```sql
+   trailing_7d_avg_rate =
+     SUM(daily_credits_consumed, last 7 days) /
+     (7.0 / 30.0 * included_monthly_compute_credits)
+   ```
+   Reads `bronze.daily_usage_logs` directly; not aggregated through `silver.monthly_consumption`.
+
+2. **30-day rate** — from raw daily usage logs:
+   ```sql
+   trailing_30d_avg_rate =
+     SUM(daily_credits_consumed, last 30 days) / included_monthly_compute_credits
+   ```
+
+3. **90-day rate** — from pre-aggregated monthly data (existing logic):
+   ```sql
+   trailing_90d_avg_rate = AVG(monthly_consumption_rate, last 3 complete calendar months)
+   ```
+   Uses `silver.monthly_consumption` — the same edge-case-guarded aggregation as before. This is the only rate used to compute `cacv` and health tiers (see product_spec.md §2.2.1).
+
+4. Apply health tier classification using `trailing_90d_avg_rate` (see product_spec.md §5).
+5. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
+6. Compute Consumption ACV — **always uses 90-day rate**:
    ```sql
    cacv = CASE
      WHEN is_new_account THEN NULL
-     ELSE ROUND(LEAST(annual_commit_dollars * trailing_90d_avg_rate,
-                      annual_commit_dollars), 2)
+     ELSE ROUND(annual_commit_dollars * trailing_90d_avg_rate, 2)
    END
 
    -- Consumption Overage
@@ -458,15 +478,18 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
            0), 2)
    END
    ```
-   Over-consumption above the contracted commit is reported separately as Consumption Overage (`expansion_signal_acv`).
-6. Compute `acv_at_risk = annual_commit_dollars - cacv`
-7. Flag `expansion_flag = TRUE` if `overage_months >= 2`
-8. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
+   Over-consumption above the contracted commit is reported separately as Consumption Overage (`expansion_signal_acv`). `cacv` and `expansion_signal_acv` use `trailing_90d_avg_rate` exclusively — comp integrity requires this.
+
+7. Compute `acv_at_risk = annual_commit_dollars - cacv`
+8. Flag `expansion_flag = TRUE` if `overage_months >= 2`
+9. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
 
 **Edge cases handled:**
-- Spike & Drop → trailing 90-day window smooths spike once it ages out
-- New accounts → excluded from Consumption ACV with `is_new_account` flag
+- Spike & Drop → trailing 90-day window smooths spike once it ages out; 7d/30d rates will reflect the drop immediately (useful early-warning signal)
+- New accounts → excluded from Consumption ACV with `is_new_account` flag; 7d/30d rates still populated for activation monitoring
 - Consistent overages → `expansion_flag` surfaced; Consumption Overage reported in `expansion_signal_acv`
+
+> **Dashboard note:** The 7-day and 30-day rates are exposed as monitoring columns in `vw_account_detail`. The dashboard rate window selector switches which column is displayed for consumption rate fields — Consumption ACV values never change regardless of the selected window.
 
 ---
 
@@ -482,7 +505,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 - Rep name, region, segment from `dim_reps`
 
 **`vw_account_detail`** — one row per account, joining all four dim tables:
-- All `fact_cacv_snapshot` metric columns
+- All `fact_cacv_snapshot` metric columns, including all three rate columns: `trailing_7d_avg_rate`, `trailing_30d_avg_rate`, `trailing_90d_avg_rate`
 - Account name, industry from `dim_accounts`
 - Rep name, region, segment from `dim_reps`
 - Contract term, type, start/end dates from `dim_contracts`

@@ -327,6 +327,13 @@ def persona_callout(audience: str, questions: list[str], accent: str = "#3b82f6"
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Rate window options — label → (column name, short label for chart axes)
+RATE_WINDOWS = {
+    "90-day · quarterly (default)": ("trailing_90d_avg_rate", "90d"),
+    "30-day · monthly":             ("trailing_30d_avg_rate", "30d"),
+    "7-day  · weekly":              ("trailing_7d_avg_rate",  "7d"),
+}
+
 def render_sidebar(rep_df: pd.DataFrame):
     st.sidebar.markdown(
         '<p style="color:#f1f5f9;font-size:1rem;font-weight:700;letter-spacing:-0.01em;margin-bottom:0.1rem;">Prisma Cloud</p>'
@@ -344,12 +351,22 @@ def render_sidebar(rep_df: pd.DataFrame):
     if rep_name != "All":
         row = rep_pool[rep_pool["rep_name"] == rep_name]
         employee_id = row["employee_id"].iloc[0] if not row.empty else None
+
+    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
+    rate_window_label = st.sidebar.selectbox(
+        "Cons Rate Window",
+        options=list(RATE_WINDOWS.keys()),
+        index=0,
+        help="Controls the consumption rate shown in charts and tables. Consumption ACV always uses 90-day for comp.",
+    )
+    rate_col, window_label = RATE_WINDOWS[rate_window_label]
+
     st.sidebar.markdown("<hr>", unsafe_allow_html=True)
     if _is_demo():
         st.sidebar.markdown('<p style="color:#475569;font-size:0.72rem;">📊 Demo mode · cached snapshot<br>Connect BigQuery for live data</p>', unsafe_allow_html=True)
     else:
         st.sidebar.markdown(f'<p style="color:#475569;font-size:0.72rem;">Project: {GCP_PROJECT}<br>Datasets: raw · staging · gtm</p>', unsafe_allow_html=True)
-    return as_of_date, region, rep_name, employee_id
+    return as_of_date, region, rep_name, employee_id, rate_col, window_label
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -659,7 +676,8 @@ def page_reps(rep_df: pd.DataFrame):
 # Tab 4: Renewal Risk  —  CFO · CS Leadership
 # ─────────────────────────────────────────────────────────────────────────────
 
-def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str):
+def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str,
+                      rate_col: str = "trailing_90d_avg_rate", window_label: str = "90d"):
     persona_callout(
         "CFO · CS Leadership",
         [
@@ -744,15 +762,17 @@ def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str):
 
     # Renewal risk table
     st.markdown('<div class="section-header">Accounts Requiring Intervention</div>', unsafe_allow_html=True)
+    # Gracefully fall back to 90d rate if the selected window column isn't in this snapshot
+    _rate_col = rate_col if rate_col in at_risk.columns else "trailing_90d_avg_rate"
     tbl = at_risk.sort_values("acv_at_risk", ascending=False)[[
         "company_name","rep_name","region","health_tier",
-        "annual_commit_dollars","trailing_90d_avg_rate","acv_at_risk",
+        "annual_commit_dollars", _rate_col, "acv_at_risk",
         "contract_end_date","days_to_renewal",
     ]].copy()
-    tbl.columns = ["Account","Rep","Region","Health","ACV","Cons Rate","ACV at Risk","Renews","Days Left"]
+    tbl.columns = ["Account","Rep","Region","Health","ACV",f"Cons Rate ({window_label})","ACV at Risk","Renews","Days Left"]
     tbl["ACV"]        = tbl["ACV"].apply(fmt_m)
     tbl["ACV at Risk"]= tbl["ACV at Risk"].apply(fmt_m)
-    tbl["Cons Rate"]  = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
+    tbl[f"Cons Rate ({window_label})"] = tbl[f"Cons Rate ({window_label})"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
     color_map = {"At Risk":"#fef3c7","Shelfware":"#ffedd5","Inactive":"#fee2e2",
                  "Healthy":"#dbeafe","Expansion":"#d1fae5","Ramping":"#ede9fe"}
     styled = tbl.style.map(lambda v: f"background-color: {color_map.get(v,'')}", subset=["Health"])
@@ -763,7 +783,8 @@ def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str):
 # Tab 5: Expansion & Activation  —  AEs · Sales Managers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def page_expansion_activation(acct_df: pd.DataFrame):
+def page_expansion_activation(acct_df: pd.DataFrame,
+                               rate_col: str = "trailing_90d_avg_rate", window_label: str = "90d"):
     persona_callout(
         "Account Executives · Sales Managers",
         [
@@ -785,12 +806,14 @@ def page_expansion_activation(acct_df: pd.DataFrame):
                "high-confidence upsell candidates for AEs.")
 
     exp_signal_total = exp_df["expansion_signal_acv"].sum() if "expansion_signal_acv" in exp_df.columns else 0
+    _rate_col_exp = rate_col if rate_col in exp_df.columns else "trailing_90d_avg_rate"
     c1, c2, c3 = st.columns(3)
     c1.markdown(kpi_card("Flagged Accounts",    str(len(exp_df)),
                           sub="Sustained >120% consumption", accent="#10b981"), unsafe_allow_html=True)
     c2.markdown(kpi_card("Consumption Overage", fmt_m(exp_signal_total),
                           sub="Consumption above committed ACV", sub_cls="pos", accent="#10b981"), unsafe_allow_html=True)
-    c3.markdown(kpi_card("Avg Consumption Rate", fmt_pct(exp_df["trailing_90d_avg_rate"].mean()) if not exp_df.empty else "—",
+    c3.markdown(kpi_card(f"Avg Consumption Rate ({window_label})",
+                          fmt_pct(exp_df[_rate_col_exp].mean()) if not exp_df.empty else "—",
                           sub="Across flagged accounts", accent="#10b981"), unsafe_allow_html=True)
 
     if exp_df.empty:
@@ -798,13 +821,14 @@ def page_expansion_activation(acct_df: pd.DataFrame):
     else:
         tbl = exp_df.sort_values("expansion_signal_acv", ascending=False)[[
             "company_name","rep_name","region",
-            "annual_commit_dollars","trailing_90d_avg_rate","cacv","expansion_signal_acv","acv_at_risk",
+            "annual_commit_dollars", _rate_col_exp, "cacv","expansion_signal_acv","acv_at_risk",
             "contract_end_date",
         ]].copy()
-        tbl.columns = ["Account","Rep","Region","ACV","Cons Rate","Consumption ACV","Consumption Overage","ACV at Risk","Contract End"]
+        rate_header = f"Cons Rate ({window_label})"
+        tbl.columns = ["Account","Rep","Region","ACV", rate_header,"Consumption ACV","Consumption Overage","ACV at Risk","Contract End"]
         for col in ["ACV","Consumption ACV","Consumption Overage","ACV at Risk"]:
             tbl[col] = tbl[col].apply(fmt_m)
-        tbl["Cons Rate"] = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
+        tbl[rate_header] = tbl[rate_header].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
         st.dataframe(tbl, use_container_width=True, hide_index=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -882,7 +906,8 @@ def page_expansion_activation(acct_df: pd.DataFrame):
 # Tab 6: Account Detail  —  CS Leads · AEs
 # ─────────────────────────────────────────────────────────────────────────────
 
-def page_accounts(acct_df: pd.DataFrame, rep_name: str):
+def page_accounts(acct_df: pd.DataFrame, rep_name: str,
+                  rate_col: str = "trailing_90d_avg_rate", window_label: str = "90d"):
     persona_callout(
         "CS Leads · Account Executives",
         [
@@ -902,15 +927,24 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
     sel_tier = st.selectbox("Filter by health tier", tiers, key="acct_tier_filter")
     view     = acct_df if sel_tier == "All" else acct_df[acct_df["health_tier"] == sel_tier]
 
+    _rate_col_acct = rate_col if rate_col in view.columns else "trailing_90d_avg_rate"
+    if window_label != "90d":
+        st.info(
+            f"**Rate window: {window_label}.** "
+            "Health tiers and Consumption ACV are always calculated from the 90-day rate. "
+            f"The {window_label} rate shown here is for monitoring — an account may look Healthy "
+            "by 90d but show a low recent rate, signalling an early-warning trend."
+        )
     fig = px.scatter(
-        view.dropna(subset=["trailing_90d_avg_rate"]),
-        x="annual_commit_dollars", y="trailing_90d_avg_rate",
+        view.dropna(subset=[_rate_col_acct]),
+        x="annual_commit_dollars", y=_rate_col_acct,
         color="health_tier", color_discrete_map=HEALTH_COLORS,
         size="annual_commit_dollars", size_max=20,
         hover_name="company_name",
-        hover_data={"annual_commit_dollars":":.3s","trailing_90d_avg_rate":":.2f",
+        hover_data={"annual_commit_dollars":":.3s", _rate_col_acct:":.2f",
                     "cacv":":.3s","rep_name":True,"health_tier":True},
-        labels={"annual_commit_dollars":"ACV ($)","trailing_90d_avg_rate":"Consumption Rate (90-day avg)"},
+        labels={"annual_commit_dollars":"ACV ($)",
+                _rate_col_acct: f"Consumption Rate ({window_label})"},
         opacity=0.80, height=380,
     )
     fig.add_hline(y=1.0, line_dash="dash", line_color="#94a3b8", line_width=1,
@@ -926,18 +960,19 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
 
     exp_cols   = ["expansion_signal_acv"] if "expansion_signal_acv" in view.columns else []
     exp_labels = ["Consumption Overage"] if exp_cols else []
+    rate_header = f"Cons Rate ({window_label})"
     tbl = view[["company_name","rep_name","region","health_tier",
-                "annual_commit_dollars","trailing_90d_avg_rate","cacv"]
+                "annual_commit_dollars", _rate_col_acct, "cacv"]
                + exp_cols
                + ["acv_at_risk","months_of_data",
                   "expansion_flag","is_spike_drop","is_new_account",
                   "contract_start_date","contract_end_date"]].copy()
-    tbl.columns = (["Account","Rep","Region","Health","ACV","Cons Rate","Consumption ACV"]
+    tbl.columns = (["Account","Rep","Region","Health","ACV", rate_header, "Consumption ACV"]
                    + exp_labels
                    + ["ACV at Risk","Months","Expansion?","Spike/Drop?","Ramping?","Start","End"])
     for col in ["ACV","Consumption ACV","ACV at Risk"] + exp_labels:
         tbl[col] = tbl[col].apply(fmt_m)
-    tbl["Cons Rate"] = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
+    tbl[rate_header] = tbl[rate_header].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
     color_map = {"Expansion":"#d1fae5","Healthy":"#dbeafe","At Risk":"#fef3c7",
                  "Shelfware":"#ffedd5","Inactive":"#fee2e2","Ramping":"#ede9fe"}
     styled = tbl.style.map(lambda v: f"background-color: {color_map.get(v,'')}", subset=["Health"])
@@ -1149,7 +1184,7 @@ def main():
         st.warning("No data found. Run `python3 pipeline_and_tests/run_pipeline.py` to populate.")
         st.stop()
 
-    as_of_date, region, rep_name, employee_id = render_sidebar(rep_df_full)
+    as_of_date, region, rep_name, employee_id, rate_col, window_label = render_sidebar(rep_df_full)
 
     rep_df      = load_rep_rollup(as_of_date)
     rep_df_view = rep_df.copy()
@@ -1172,9 +1207,9 @@ def main():
     with tab_ov:   page_overview(rep_df_view, acct_df)
     with tab_rgn:  page_region(rep_df, acct_df_full)
     with tab_rep:  page_reps(rep_df_view)
-    with tab_rnw:  page_renewal_risk(acct_df_full, as_of_date)
-    with tab_exp:  page_expansion_activation(acct_df_full)
-    with tab_acct: page_accounts(acct_df, rep_name)
+    with tab_rnw:  page_renewal_risk(acct_df_full, as_of_date, rate_col, window_label)
+    with tab_exp:  page_expansion_activation(acct_df_full, rate_col, window_label)
+    with tab_acct: page_accounts(acct_df, rep_name, rate_col, window_label)
     with tab_dq:   page_data_health(acct_df_full, rep_df, as_of_date)
 
 

@@ -55,18 +55,30 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 ### 2.2 Formula
 
 ```
-Consumption ACV   = ACV × consumption_rate
+Consumption ACV     = ACV × consumption_rate(W)
 
 Consumption Overage = MAX(Consumption ACV − ACV, 0)
 
-consumption_rate  = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
+consumption_rate(W) = trailing_W_avg(monthly_credits_consumed / included_monthly_compute_credits)
 ```
 
 **Where:**
 - `ACV` (`annual_commit_dollars`) — the annualized contract value from the account's active contract
 - `monthly_credits_consumed` — sum of Prisma Cloud credits consumed from `daily_usage_logs` for the calendar month
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
-- `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
+- `W` — lookback window; see table below. **For compensation and quota attainment, W is always 90 days.**
+
+#### 2.2.1 Standard Reporting Windows
+
+The formula is intentionally window-agnostic. Three standard values of W are supported and stored in the pipeline:
+
+| Window | Label | Use case | Characteristic |
+|---|---|---|---|
+| **7 days** | Weekly monitoring | AE / CS daily ops, early-warning alerts | Most responsive; noisier — single-week anomalies (holidays, migrations) can distort |
+| **30 days** | Monthly review | MBR, monthly ops cadence | Balance of recency and stability |
+| **90 days** | Quarterly · **comp default** | QBR, quota attainment, exec reporting, board metrics | Smooths seasonal variance; aligned to PANW quarterly comp cycle |
+
+> **Window and comp integrity:** Consumption ACV for quota attainment and compensation always uses W=90 days. This is a policy requirement — shorter windows are gameable (a rep could coach a customer to spike credit burn in the final week of a quarter) and are more easily distorted by one-off events like migration weekends or holiday shutdowns. The 7-day and 30-day rates are stored alongside the 90-day rate for monitoring purposes and are explicitly labeled when surfaced in the dashboard or in reporting. Any report citing a non-90d Consumption ACV must carry a disclosure note.
 
 **Consumption Overage** is a derived metric — the portion of consumption above the contracted commit. It is always zero for accounts consuming at or below 100%, and positive for over-consuming accounts. Note that above-commit usage is billed at the PAYG list rate, so Consumption Overage underestimates the actual incremental revenue from overage; it is best treated as a demand signal rather than a revenue figure.
 
