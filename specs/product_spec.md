@@ -178,11 +178,11 @@ Tracking both cACV (real-time) and NRR/GRR (at renewal) allows the team to valid
 
 Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ACV at deal signing.
 
-| Edition | List Price | Typical Effective Price | Deal Profile |
-|---|---|---|---|
-| **Business Edition** | $90/credit/yr | $90/credit/yr | Mid-Market, 1-year term, no volume discount |
-| **Enterprise Edition** | $180/credit/yr | ~$126/credit/yr | Enterprise, 2–3 year platform deal, ~30% discount |
-| **Overage (PAYG)** | $90/credit/yr | $90/credit/yr | Above-commit usage billed at Business list rate |
+| Edition | Deal Profile | Pricing |
+|---|---|---|
+| **Business Edition** | Mid-Market, 1-year term, no volume discount | Contact PANW sales |
+| **Enterprise Edition** | Enterprise, 2–3 year platform deal, ~30% volume discount typical | Contact PANW sales |
+| **Overage (PAYG)** | Above-commit usage billed at Business list rate | Contact PANW sales |
 
 **Credit consumption by workload type** (Enterprise Edition):
 
@@ -195,10 +195,9 @@ Credits are the unit of value in every Prisma Cloud contract. The monthly credit
 | Serverless function (Lambda, Azure Functions) | 1 credit per 6 functions |
 
 **Sources:**
-- **Credit consumption by workload type:** Prisma Cloud Compute Edition admin guide, Licensing section — [docs.prismacloud.io](https://docs.prismacloud.io/en/compute-edition/30/admin-guide/licensing/licensing) *(requires login for full content)*.
-- **List pricing ($90 / $180 per credit/yr):** Palo Alto Networks does not publicly disclose credit list prices. Authoritative figures are available in the PANW Partner Portal — [partners.paloaltonetworks.com](https://partners.paloaltonetworks.com) *(requires partner login)*. Figures shown here are directional estimates; verify against the partner portal or your PANW account team before use in financial models.
+- **Credit consumption by workload type:** Prisma Cloud Compute Edition admin guide, Licensing section — [docs.prismacloud.io](https://docs.prismacloud.io/en/compute-edition/30/admin-guide/licensing/licensing).
+- **Credit-based licensing model and Business / Enterprise tier structure:** Corroborated by user reviews on [PeerSpot](https://www.peerspot.com/products/prisma-cloud-by-palo-alto-networks-pricing). List pricing not publicly disclosed by PANW — contact your account team or the [PANW Partner Portal](https://partners.paloaltonetworks.com) for current rates.
 - **~30% Enterprise discount:** Consistent with multi-year platform deal structures reported by Dell'Oro Group (see §14 Sources).
-- **Credit-based licensing model and Business / Enterprise tier structure** independently corroborated by user reviews on [PeerSpot](https://www.peerspot.com/products/prisma-cloud-by-palo-alto-networks-pricing).
 
 ---
 
