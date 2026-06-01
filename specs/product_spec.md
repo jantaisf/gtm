@@ -194,7 +194,10 @@ Credits are the unit of value in every Prisma Cloud contract. The monthly credit
 | Serverless container (Fargate, Cloud Run) | 1 credit per container |
 | Serverless function (Lambda, Azure Functions) | 1 credit per 6 functions |
 
-*Source: Prisma Cloud Enterprise Edition licensing guide (PANW partner spec). Official list price not publicly published; figures from third-party research.*
+**Sources:**
+- **Credit consumption by workload type:** Prisma Cloud Compute Edition admin guide, Licensing section — [docs.prismacloud.io](https://docs.prismacloud.io/en/compute-edition/30/admin-guide/licensing/licensing). Rates are published in the public documentation and subject to change with product releases.
+- **List pricing ($90 / $180 per credit/yr):** Palo Alto Networks does not publicly disclose list prices for Prisma Cloud credits. Figures are derived from PANW partner program materials and corroborated by third-party channel research. Treat as directional estimates; confirm with your PANW account team or partner portal before use in financial models.
+- **~30% Enterprise discount:** Consistent with multi-year platform deal structures reported by Dell'Oro Group (see §14 Sources).
 
 ---
 
