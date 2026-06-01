@@ -55,8 +55,9 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 ### 2.2 Formula
 
 ```
-Consumption ACV      = MIN(ACV × consumption_rate, ACV)
-Expansion Signal ACV = MAX(ACV × consumption_rate − ACV, 0)
+Consumption ACV      = ACV × consumption_rate
+
+Expansion Signal ACV = MAX(Consumption ACV − ACV, 0)
 
 consumption_rate     = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
 ```
@@ -67,7 +68,9 @@ consumption_rate     = trailing_90d_avg(monthly_credits_consumed / included_mont
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
-**Cap rationale:** Consumption ACV is capped at ACV. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric — expansion signal dollars — that feeds the upsell pipeline, not the attainment calculation.
+**Expansion Signal ACV** is a derived metric — the portion of consumption above the contracted commit. It is always zero for accounts consuming at or below 100%, and positive for over-consuming accounts. Note that above-commit usage is billed at the PAYG list rate, so Expansion Signal ACV underestimates the actual incremental revenue from overage; it is best treated as a demand signal rather than a revenue figure.
+
+> **Open question — quota cap:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at ACV so that over-consuming accounts do not inflate a rep's attainment above 100%. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §13 Q11.
 
 **Example:**
 
@@ -75,7 +78,7 @@ consumption_rate     = trailing_90d_avg(monthly_credits_consumed / included_mont
 |---|---|---|---|---|
 | Healthy customer | $200K | 92% | $184K | — |
 | Shelfware | $300K | 4% | $12K | — |
-| Overage (expansion signal) | $80K | 138% | $80K | $30K |
+| Overage (expansion signal) | $80K | 138% | $110K | $30K |
 | New account (<90 days) | $150K | — | Excluded (ramping) | — |
 
 ### 2.3 Aggregation Levels
@@ -610,6 +613,7 @@ The following decisions require VP of Sales and/or CFO sign-off before Consumpti
 8. **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
 9. **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of Consumption ACV?
 10. **Multi-year account ownership and clawback** *(VP of Sales)* — When does the AE-to-AM handoff occur, and what portion of the term multiplier is clawed back if the account churns before term end?
+11. **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number. Decision required before comp platform integration.
 
 ---
 
