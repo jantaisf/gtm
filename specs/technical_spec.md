@@ -72,6 +72,8 @@ The pipeline follows a **medallion architecture** (Bronze → Silver → Gold) w
 
 ## 2. BigQuery Schema
 
+> **Schema naming note:** The schema names `bronze`, `silver`, and `gold` are used throughout this spec to represent the three medallion architecture layers — raw ingestion, cleaned/conformed, and business-ready metrics respectively. These are conceptual labels for a prototype. PANW's actual BigQuery dataset names (e.g. `raw`, `staging`, `analytics`, or environment-prefixed variants like `prod_gtm`) would be substituted at implementation time in line with PANW's existing data platform naming conventions.
+
 ### Bronze — Raw Source Tables
 
 As-landed data. No transforms applied. Pipeline reads from here; nothing writes back.
