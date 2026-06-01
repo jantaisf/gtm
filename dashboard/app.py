@@ -268,6 +268,23 @@ def persona_callout(audience: str, questions: list[str], accent: str = "#3b82f6"
     )
 
 
+def insight_block(headline: str, bullets: list[str], cta: str,
+                  bg: str = "#fffbeb", border: str = "#fcd34d", text: str = "#92400e") -> None:
+    """Render a styled narrative insight / recommended-action block."""
+    bullets_html = "".join(f'<li style="margin-bottom:0.28rem;">{b}</li>' for b in bullets)
+    st.markdown(
+        f'<div style="background:{bg};border:1px solid {border};border-left:4px solid {border};'
+        f'border-radius:10px;padding:0.9rem 1.25rem;margin:0.75rem 0 1.25rem;">'
+        f'<div style="font-size:0.875rem;font-weight:700;color:{text};margin-bottom:0.5rem;">{headline}</div>'
+        f'<ul style="margin:0 0 0.6rem 1.1rem;padding:0;font-size:0.82rem;color:#374151;">'
+        f'{bullets_html}'
+        f'</ul>'
+        f'<div style="font-size:0.78rem;color:{text};font-weight:600;opacity:0.9;">→ {cta}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
@@ -318,7 +335,7 @@ def render_sidebar(rep_df: pd.DataFrame):
 # Tab 1: Portfolio Overview  —  VP of Sales · CFO
 # ─────────────────────────────────────────────────────────────────────────────
 
-def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
+def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, as_of_date_str: str = ""):
     persona_callout(
         "VP of Sales · CFO",
         [
@@ -357,6 +374,87 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
         accent="#10b981",
         help_text="MAX(Consumption ACV − ACV, 0) — upsell demand signal",
     ), unsafe_allow_html=True)
+
+    # ── Portfolio Narrative ──────────────────────────────────────────────────
+    try:
+        as_of = date.fromisoformat(as_of_date_str)
+    except Exception:
+        as_of = date.today()
+
+    gap_dollars = max(0.0, total_acv * 0.85 - total_cacv)
+
+    # Lagging region
+    rdf_r = rep_df.groupby("region", as_index=False).agg(
+        r_acv=("total_acv", "sum"), r_cacv=("total_cacv", "sum"))
+    rdf_r["att"] = rdf_r["r_cacv"] / rdf_r["r_acv"].where(rdf_r["r_acv"] > 0, other=1)
+    lagging_reg = rdf_r.sort_values("att").iloc[0] if not rdf_r.empty else None
+
+    # At-risk renewals in next 90 days
+    near_risk_count, near_risk_acv = 0, 0.0
+    if not acct_df.empty and "contract_end_date" in acct_df.columns:
+        adf = acct_df.copy()
+        adf["contract_end_date"] = pd.to_datetime(adf["contract_end_date"]).dt.date
+        adf["_dtr"] = adf["contract_end_date"].apply(lambda d: (d - as_of).days)
+        near_risk = adf[
+            (adf["_dtr"] >= 0) & (adf["_dtr"] <= 90) &
+            (adf["health_tier"].isin(["At Risk", "Shelfware", "Inactive"]))
+        ]
+        near_risk_count = len(near_risk)
+        near_risk_acv   = float(near_risk["acv_at_risk"].sum())
+
+    # Expansion accounts
+    expansion_accts = int(acct_df["expansion_flag"].sum()) if "expansion_flag" in acct_df.columns and not acct_df.empty else 0
+
+    # Build bullets
+    bullets = []
+    if att_rate < 0.85:
+        bullets.append(
+            f"<b>Gap to 85% target: {fmt_m(gap_dollars)}</b> — this is contracted ACV not yet backed by usage"
+        )
+    else:
+        bullets.append(f"Portfolio is <b>{fmt_pct(att_rate - 0.85)} above</b> the 85% attainment target")
+
+    if lagging_reg is not None:
+        diff = att_rate - float(lagging_reg["att"])
+        bullets.append(
+            f"Weakest region: <b>{lagging_reg['region']}</b> at {fmt_pct(lagging_reg['att'])} — "
+            f"{fmt_pct(abs(diff))} below the portfolio average"
+            if diff > 0.005 else
+            f"Regions are closely bunched around {fmt_pct(att_rate)} attainment"
+        )
+
+    if near_risk_count > 0:
+        bullets.append(
+            f"<b>{near_risk_count} at-risk account{'s' if near_risk_count > 1 else ''} renew in the next 90 days</b> "
+            f"— {fmt_m(near_risk_acv)} exposed. See Renewal Risk tab for owner-level detail."
+        )
+    else:
+        bullets.append("No at-risk accounts renewing in the next 90 days — near-term renewal exposure is low")
+
+    if expansion_accts > 0:
+        bullets.append(
+            f"<b>{expansion_accts} account{'s' if expansion_accts > 1 else ''} consuming above committed ACV</b> "
+            f"— {fmt_m(expansion_signal)} in Consumption Overage. See Expansion & Activation tab for the call list."
+        )
+
+    # Tone & CTA based on attainment
+    if att_rate < 0.70:
+        hl   = f"🔴 Portfolio is {fmt_pct(0.85 - att_rate)} below the 85% target — intervention required"
+        cta  = ("Run executive CS save plays on near-term at-risk renewals. "
+                "Open the Renewal Risk tab to see exactly which accounts need action this week.")
+        bg, border, txt = "#fef2f2", "#fca5a5", "#991b1b"
+    elif att_rate < 0.85:
+        hl   = f"🟡 Portfolio is {fmt_pct(0.85 - att_rate)} below the 85% target — on watch"
+        cta  = ("Open the Renewal Risk tab to prioritise CS outreach on expiring at-risk accounts. "
+                "Check By Rep to identify where manager coaching can close the gap before next renewal cycle.")
+        bg, border, txt = "#fffbeb", "#fcd34d", "#92400e"
+    else:
+        hl   = f"🟢 Portfolio above the 85% target at {fmt_pct(att_rate)} — healthy"
+        cta  = ("Portfolio is on track. Shift focus to the Expansion & Activation tab "
+                "to convert Consumption Overage accounts into upsell pipeline.")
+        bg, border, txt = "#f0fdf4", "#86efac", "#14532d"
+
+    insight_block(hl, bullets, cta, bg=bg, border=border, text=txt)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -432,6 +530,29 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
             showlegend=False, margin=dict(t=20, b=20, l=20, r=20), height=300,
         ))
         st.plotly_chart(fig2, use_container_width=True)
+
+        # Health tier legend
+        with st.expander("Understanding health tiers — what each colour means", expanded=False):
+            tier_defs = [
+                ("Expansion",  "#10b981", "≥ 100% consumption", "Customer is consuming above their committed ACV. High-confidence expansion candidate — AE should schedule an upsell conversation now."),
+                ("Healthy",    "#3b82f6", "70–99% consumption",  "Strong platform adoption. Renewal very likely. No immediate action required; standard QBR cadence."),
+                ("At Risk",    "#f59e0b", "40–69% consumption",  "Under-utilising the platform. At risk of downsell or churn at renewal. CS should run an activation play within 30 days."),
+                ("Shelfware",  "#f97316", "2–39% consumption",   "Mostly unused. High churn probability. Requires an executive CS save play and executive sponsor engagement."),
+                ("Inactive",   "#ef4444", "~0% consumption",     "Platform unused for an extended period. Renewal at serious risk. Escalate to VP level; may need a revised contract structure."),
+                ("Ramping",    "#8b5cf6", "New account (<90 days)", "Too early to classify. Excluded from Consumption ACV until the 90-day history window matures. AE should focus on onboarding and activation."),
+            ]
+            for tier, color, rate_desc, explanation in tier_defs:
+                st.markdown(
+                    f'<div style="display:flex;align-items:flex-start;gap:0.75rem;'
+                    f'padding:0.55rem 0;border-bottom:1px solid #f1f5f9;">'
+                    f'<div style="width:12px;height:12px;border-radius:50%;background:{color};'
+                    f'margin-top:3px;flex-shrink:0;"></div>'
+                    f'<div><span style="font-size:0.82rem;font-weight:600;color:#0f172a;">{tier}</span>'
+                    f'<span style="font-size:0.75rem;color:#94a3b8;margin-left:0.5rem;">{rate_desc}</span><br>'
+                    f'<span style="font-size:0.78rem;color:#64748b;">{explanation}</span></div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
     st.markdown('<div class="section-header">Consumption ACV Attainment vs. ACV — by Rep</div>', unsafe_allow_html=True)
     sdf = rep_df.copy()
@@ -578,6 +699,32 @@ def page_reps(rep_df: pd.DataFrame):
             else:
                 st.info(body)
 
+    # ── Coaching Priorities ──────────────────────────────────────────────────
+    below_target = filtered[filtered["cacv_attainment_rate"].notna() &
+                            (filtered["cacv_attainment_rate"] < 0.85)]
+    if not below_target.empty:
+        bottom3 = below_target.nsmallest(min(3, len(below_target)), "cacv_attainment_rate")
+        bullets = []
+        for _, row in bottom3.iterrows():
+            gap = max(0.0, float(row["total_acv"]) * 0.85 - float(row["total_cacv"]))
+            at_risk_accts = int(row.get("accounts_at_risk", 0))
+            bullets.append(
+                f"<b>{row['rep_name']}</b> ({row['region']}) — "
+                f"{fmt_pct(row['cacv_attainment_rate'])} attainment, "
+                f"<b>{fmt_m(gap)} gap to target</b>"
+                + (f", {at_risk_accts} at-risk account{'s' if at_risk_accts != 1 else ''}" if at_risk_accts > 0 else "")
+            )
+        n_below = len(below_target)
+        pct_below = n_below / len(filtered)
+        insight_block(
+            f"🎯 {n_below} of {len(filtered)} reps ({fmt_pct(pct_below)}) are below the 85% attainment target",
+            bullets,
+            "Review the at-risk accounts under each rep in the Account Detail tab. "
+            "Reps with a large dollar gap typically have a few high-ACV shelfware accounts "
+            "that need a CS activation play rather than a sales motion.",
+            bg="#fffbeb", border="#fcd34d", text="#92400e",
+        )
+
     st.markdown("<br>", unsafe_allow_html=True)
     chart_df = filtered.nlargest(20, "total_cacv")
     fig = go.Figure()
@@ -652,6 +799,34 @@ def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str,
     risk_tiers = ["At Risk", "Shelfware", "Inactive"]
     upcoming   = df[(df["days_to_renewal"] >= 0) & (df["days_to_renewal"] <= max_days)].copy()
     at_risk    = upcoming[upcoming["health_tier"].isin(risk_tiers)]
+
+    # ── Immediate Action List ─────────────────────────────────────────────────
+    urgent = at_risk[at_risk["days_to_renewal"] <= 30].sort_values("acv_at_risk", ascending=False)
+    if not urgent.empty:
+        bullets = []
+        for _, row in urgent.head(5).iterrows():
+            rep_label = f" · {row['rep_name']}" if "rep_name" in row and pd.notna(row.get("rep_name")) else ""
+            bullets.append(
+                f"<b>{row['company_name']}</b>{rep_label} — "
+                f"{fmt_m(row['acv_at_risk'])} at risk · <b>{row['health_tier']}</b> · "
+                f"renews in <b>{int(row['days_to_renewal'])} days</b>"
+            )
+        if len(urgent) > 5:
+            bullets.append(f"<i>+ {len(urgent) - 5} more accounts expiring in ≤ 30 days</i>")
+        insight_block(
+            f"🚨 {len(urgent)} at-risk account{'s' if len(urgent) > 1 else ''} renew in the next 30 days",
+            bullets,
+            "These accounts should be in active CS save plays today. "
+            "Escalate any Inactive accounts to VP level — a standard activation play is unlikely to move the needle "
+            "inside a 30-day window.",
+            bg="#fef2f2", border="#fca5a5", text="#991b1b",
+        )
+    elif not at_risk.empty:
+        st.info(
+            f"✓ No at-risk accounts renewing in the next 30 days. "
+            f"{len(at_risk)} at-risk accounts have renewals in the 31–{max_days}-day window — "
+            "review the table below to plan CS outreach before they enter the urgent window."
+        )
 
     # KPI row
     c1, c2, c3, c4 = st.columns(4)
@@ -747,6 +922,45 @@ def page_expansion_activation(acct_df: pd.DataFrame,
     exp_df  = acct_df[acct_df["expansion_flag"] == True].copy()
     ramp_df = acct_df[acct_df["is_new_account"] == True].copy()
     ramp_df["rate"] = ramp_df["trailing_90d_avg_rate"].fillna(0)
+
+    # ── Expansion narrative ───────────────────────────────────────────────────
+    if not exp_df.empty:
+        _exp_rate_col = "trailing_90d_avg_rate" if "trailing_90d_avg_rate" in exp_df.columns else None
+        top_exp = exp_df.sort_values("expansion_signal_acv", ascending=False).head(3)
+        bullets = []
+        for _, row in top_exp.iterrows():
+            rate_str = (f" · consuming at {fmt_pct(row[_exp_rate_col])} of commit"
+                        if _exp_rate_col and pd.notna(row.get(_exp_rate_col)) else "")
+            rep_str  = f" (owned by {row['rep_name']})" if "rep_name" in row and pd.notna(row.get("rep_name")) else ""
+            bullets.append(
+                f"<b>{row['company_name']}</b>{rep_str} — "
+                f"{fmt_m(row['expansion_signal_acv'])} Consumption Overage{rate_str}"
+            )
+        lagging_ramps = int((ramp_df["rate"] < 0.20).sum()) if not ramp_df.empty else 0
+        if lagging_ramps > 0:
+            bullets.append(
+                f"{lagging_ramps} ramping account{'s' if lagging_ramps > 1 else ''} below 20% consumption pace — "
+                "onboarding intervention needed to protect the activation bonus"
+            )
+        insight_block(
+            f"📈 {len(exp_df)} accounts are over-consuming — {fmt_m(exp_df['expansion_signal_acv'].sum())} in upsell signal",
+            bullets,
+            "AEs should schedule expansion conversations with the top Consumption Overage accounts this week. "
+            "These customers have already demonstrated willingness to consume — "
+            "the commercial conversation is about right-sizing the contract, not proving value.",
+            bg="#f0fdf4", border="#86efac", text="#14532d",
+        )
+    elif not ramp_df.empty:
+        lagging_ramps = int((ramp_df["rate"] < 0.20).sum())
+        if lagging_ramps > 0:
+            insight_block(
+                f"⚠️ No expansion signals yet — but {lagging_ramps} ramping account{'s' if lagging_ramps > 1 else ''} need activation attention",
+                [f"{lagging_ramps} new account{'s' if lagging_ramps > 1 else ''} below 20% consumption pace — "
+                 "at risk of missing the 6-month activation window"],
+                "Run onboarding plays on lagging ramp accounts now. "
+                "Accounts that miss the activation threshold rarely recover to Healthy tier.",
+                bg="#fffbeb", border="#fcd34d", text="#92400e",
+            )
 
     # ── Section 1: Expansion Pipeline ──────────────────────────────────────
     st.markdown('<div class="section-header">Expansion Pipeline</div>', unsafe_allow_html=True)
@@ -1187,7 +1401,7 @@ def main():
         "📋  Data Health",
     ])
 
-    with tab_ov:   page_overview(rep_df_view, acct_df)
+    with tab_ov:   page_overview(rep_df_view, acct_df, as_of_date)
     with tab_rgn:  page_region(rep_df, acct_df_full)
     with tab_rep:  page_reps(rep_df_view)
     with tab_rnw:  page_renewal_risk(acct_df_full, as_of_date, rate_col, window_label)
