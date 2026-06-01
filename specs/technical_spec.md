@@ -25,48 +25,58 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ## 1. Architecture Overview
 
+The pipeline follows a **medallion architecture** (Bronze → Silver → Gold) with a **star schema** at the Gold layer. A semantic layer sits above Gold, joining dimension and fact tables into denormalized views — so downstream consumers (dashboard, BI tools, Salesforce) see a single flat table, while the underlying model retains the scalability and flexibility of a proper star schema.
+
 ```
-┌─────────────────────────┐
-│   Phase 1: Raw Data      │
-│   BigQuery Dataset: gtm  │
-│                          │
-│  · sales_reps            │
-│  · accounts              │
-│  · contracts             │
-│  · daily_usage_logs      │
-└──────────┬──────────────┘
-           │ SQL transforms
-           ▼
-┌─────────────────────────┐
-│   Staging Layer          │
-│                          │
-│  · stg_active_contracts  │  Resolves overlapping contracts,
-│  · stg_monthly_consumption│  cleans orphaned/rogue usage
-└──────────┬──────────────┘
-           │
-           ▼
-┌─────────────────────────┐
-│   Metric Layer           │
-│                          │
-│  · cacv_account          │  cACV per account + health tier
-│  · cacv_rep_rollup       │  cACV per rep + region
-└──────────┬──────────────┘
-           │ Python BigQuery client
-           ▼
-┌─────────────────────────┐
-│   Dashboard              │
-│   Streamlit + Plotly     │
-│   (dashboard/app.py)     │
-└─────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  BRONZE  ·  raw source tables, as-landed, no transforms       │
+│                                                              │
+│  bronze.sales_reps    bronze.accounts                        │
+│  bronze.contracts     bronze.daily_usage_logs                │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ SQL: clean, conform, resolve edge cases
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  SILVER  ·  cleaned, conformed, edge cases resolved           │
+│                                                              │
+│  silver.active_contracts   silver.monthly_consumption        │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ SQL: build dimensions + calculate metrics
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  GOLD  ·  star schema — dimension tables + fact table         │
+│                                                              │
+│  gold.dim_dates       gold.dim_accounts                      │
+│  gold.dim_reps        gold.dim_contracts                     │
+│                                                              │
+│  gold.fact_cacv_snapshot  (account × as_of_date grain)       │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ semantic layer: JOIN dims + fact into
+                            │ denormalized views for each consumer
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  SEMANTIC LAYER  ·  denormalized — one wide table per use case│
+│                                                              │
+│  gold.vw_rep_portfolio   (dashboard + comp platform)         │
+│  gold.vw_account_detail  (CS platform + Salesforce)          │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ Python BigQuery client
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  CONSUMERS                                                   │
+│  Streamlit Dashboard · Salesforce · Comp Platform · BI layer │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 2. BigQuery Schema
 
-### Raw Tables (Phase 1 output)
+### Bronze — Raw Source Tables
 
-#### `sales_reps`
+As-landed data. No transforms applied. Pipeline reads from here; nothing writes back.
+
+#### `bronze.sales_reps`
 | Column | Type | Notes |
 |---|---|---|
 | `employee_id` | STRING | PK — UUID |
@@ -74,28 +84,28 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 | `region` | STRING | Northeast / Southeast / Midwest / West / International |
 | `segment` | STRING | Enterprise / Mid-Market |
 
-#### `accounts`
+#### `bronze.accounts`
 | Column | Type | Notes |
 |---|---|---|
 | `account_id` | STRING | PK — UUID |
 | `company_name` | STRING | |
 | `industry` | STRING | |
-| `employee_id` | STRING | FK → sales_reps.employee_id (current account owner; may differ from signing owner after reassignment) |
+| `employee_id` | STRING | FK → dim_reps.employee_id (current owner; may differ from signing owner after reassignment) |
 
-#### `contracts`
+#### `bronze.contracts`
 | Column | Type | Notes |
 |---|---|---|
 | `contract_id` | STRING | PK — UUID |
-| `account_id` | STRING | FK → accounts.account_id |
-| `owner_id` | STRING | FK → sales_reps.employee_id — rep who owned the account at signing |
+| `account_id` | STRING | FK → bronze.accounts.account_id |
+| `owner_id` | STRING | FK → dim_reps.employee_id — rep who owned the account at signing |
 | `start_date` | DATE | |
 | `end_date` | DATE | Inclusive: `start_date + contract_term_months - 1 day` (e.g. 2026-01-01 + 12mo → 2026-12-31) |
 | `annual_commit_dollars` | INTEGER | ACV — annualized contract value |
-| `included_monthly_compute_credits` | INTEGER | Monthly credit allowance (Option A: use-it-or-lose-it per month) |
+| `included_monthly_compute_credits` | INTEGER | Monthly credit allowance (use-it-or-lose-it per month) |
 | `contract_term_months` | INTEGER | 12 / 24 / 36 — Enterprise skews multi-year |
 | `contract_type` | STRING | `base` / `expansion` / `renewal` / `additional` |
 
-#### `daily_usage_logs`
+#### `bronze.daily_usage_logs`
 | Column | Type | Notes |
 |---|---|---|
 | `log_id` | STRING | PK — format `LOG-NNNNNNN` |
@@ -103,14 +113,100 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 | `date` | DATE | May fall outside contract window (rogue usage edge case) |
 | `compute_credits_consumed` | FLOAT | Daily credit burn |
 
-### Derived Tables (Pipeline output)
+---
 
-| Table | Description |
-|---|---|
-| `stg_active_contracts` | One row per account — canonical active contract + summed credits |
-| `stg_monthly_consumption` | One row per account per month — clean usage vs. allowance |
-| `cacv_account` | Account-level cACV, consumption rate, health tier, flags |
-| `cacv_rep_rollup` | Rep + region-level cACV rollup for dashboard and comp |
+### Silver — Cleaned and Conformed Tables
+
+Edge cases resolved. One canonical row per grain. No business metrics yet.
+
+| Table | Grain | What it does |
+|---|---|---|
+| `silver.active_contracts` | One row per account | Resolves overlapping contracts; sums credits for mid-year expansions |
+| `silver.monthly_consumption` | One row per account × month | Aggregates daily usage; applies orphan + rogue usage guards; zero-fills months with no logs |
+
+---
+
+### Gold — Dimension Tables
+
+Descriptive attributes. Stable, slowly changing. Written once per pipeline run.
+
+#### `gold.dim_dates`
+Calendar + PANW fiscal calendar spine, 2000-01-01 → 2030-12-31. See Step 0 for column list.
+
+#### `gold.dim_accounts`
+| Column | Type | Notes |
+|---|---|---|
+| `account_id` | STRING | PK |
+| `company_name` | STRING | |
+| `industry` | STRING | |
+
+#### `gold.dim_reps`
+| Column | Type | Notes |
+|---|---|---|
+| `employee_id` | STRING | PK |
+| `name` | STRING | |
+| `region` | STRING | |
+| `segment` | STRING | Enterprise / Mid-Market |
+
+#### `gold.dim_contracts`
+| Column | Type | Notes |
+|---|---|---|
+| `contract_id` | STRING | PK |
+| `account_id` | STRING | FK → dim_accounts |
+| `signing_owner_id` | STRING | FK → dim_reps — rep at signing; preserved for comp attribution after reassignment |
+| `start_date` | DATE | |
+| `end_date` | DATE | |
+| `annual_commit_dollars` | INTEGER | |
+| `included_monthly_compute_credits` | INTEGER | |
+| `contract_term_months` | INTEGER | |
+| `contract_type` | STRING | |
+
+---
+
+### Gold — Fact Table
+
+Measurable events and metrics at the lowest useful grain.
+
+#### `gold.fact_cacv_snapshot`
+**Grain:** one row per `account_id × as_of_date`. This is the single source of truth for all cACV metrics.
+
+| Column | Type | Notes |
+|---|---|---|
+| `account_id` | STRING | FK → dim_accounts |
+| `employee_id` | STRING | FK → dim_reps — current account owner |
+| `contract_id` | STRING | FK → dim_contracts — primary active contract |
+| `as_of_date` | DATE | FK → dim_dates |
+| `annual_commit_dollars` | INTEGER | Degenerate dimension — ACV at snapshot time |
+| `trailing_90d_avg_rate` | FLOAT | Consumption rate over last 3 complete months |
+| `cacv` | FLOAT | `MIN(ACV × rate, ACV)`; NULL if ramping |
+| `expansion_signal_acv` | FLOAT | `MAX(ACV × rate − ACV, 0)`; NULL if ramping |
+| `acv_at_risk` | FLOAT | `ACV − cACV`; NULL if ramping |
+| `health_tier` | STRING | Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
+| `is_new_account` | BOOLEAN | Contract start within last 90 days |
+| `expansion_flag` | BOOLEAN | 2+ consecutive months >120% consumption |
+| `is_spike_drop` | BOOLEAN | High historical peak, now near-zero |
+| `has_expansion` | BOOLEAN | Multiple active contracts (mid-year expansion) |
+| `months_of_data` | INTEGER | Months of consumption history available |
+| `calculated_at` | TIMESTAMP | Pipeline run timestamp |
+
+---
+
+### Gold — Semantic Layer Views
+
+The star schema is designed to be **queried through views, not directly**. Each view joins `fact_cacv_snapshot` to the relevant dimensions and pre-selects the columns needed by a specific consumer. To downstream users — the dashboard, Salesforce, the comp platform, BI tools — the data appears as a single denormalized table with no joins required.
+
+This pattern provides:
+- **Storage efficiency** — dimension attributes (rep name, region, company name) stored once in dim tables, not repeated in every fact row
+- **Slowly Changing Dimension support** — if a rep's territory is reassigned or an account is renamed, the dim table is updated once; historical fact rows are unaffected, preserving audit history
+- **BI tool compatibility** — Looker LookML, Tableau, and dbt all model natively against star schemas; the views expose a flat surface while the underlying joins remain maintainable
+- **Blast-radius isolation** — adding a column to `dim_reps` (e.g., `hire_date`, `manager_id`) requires no changes to `fact_cacv_snapshot`
+- **dbt-ready lineage** — `dim_*` and `fact_*` are first-class dbt model types; the view layer maps directly to dbt exposures
+- **Aggregation correctness** — grain is explicit in the fact table; rollup views aggregate from a clean grain rather than pre-aggregated rows, eliminating double-counting risk
+
+| View | Consumer | What it flattens |
+|---|---|---|
+| `gold.vw_rep_portfolio` | Dashboard Tab 2–3, comp platform | `fact_cacv_snapshot` + `dim_reps` aggregated to rep level |
+| `gold.vw_account_detail` | Dashboard Tab 4, CS platform, Salesforce | `fact_cacv_snapshot` + `dim_accounts` + `dim_reps` + `dim_contracts` |
 
 ---
 
@@ -133,33 +229,37 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-### Step 1 — `stg_active_contracts`
+### Step 1 — `silver.active_contracts`
 
 **Purpose:** Resolve which contract(s) are active per account and produce a single canonical row.
+
+**Reads from:** `bronze.contracts`, `bronze.accounts`
 
 **Logic:**
 1. Filter contracts where `as_of_date BETWEEN start_date AND end_date`
 2. Exclude malformed contracts where `end_date < start_date`
 3. For accounts with multiple active contracts (mid-year expansions):
-   - ARR = **SUM** of `annual_commit_dollars` across all active contracts
+   - ACV = **SUM** of `annual_commit_dollars` across all active contracts
    - Monthly credits = **SUM** of `included_monthly_compute_credits` across all active contracts
    - Primary contract = earliest `start_date` (used for reference fields and comp attribution)
    - Set `has_expansion = TRUE`
-4. Join to `accounts` to cacvy `employee_id`, `company_name`, `industry`
+4. Join to `bronze.accounts` to carry `employee_id`, `company_name`, `industry`
 
 **Edge cases handled:**
-- Mid-year expansions → both ARR and credits summed across all active contracts
+- Mid-year expansions → both ACV and credits summed across all active contracts
 - Malformed contracts → excluded via `end_date >= start_date` guard
 
 ---
 
-### Step 2 — `stg_monthly_consumption`
+### Step 2 — `silver.monthly_consumption`
 
 **Purpose:** Aggregate daily usage to monthly totals per account, with edge case filtering.
 
+**Reads from:** `bronze.daily_usage_logs`, `bronze.accounts`, `bronze.contracts`
+
 **Logic:**
-1. **Orphan guard:** `INNER JOIN accounts` — logs with unknown `account_id` are excluded
-2. **Rogue usage guard:** `JOIN contracts ON date BETWEEN start_date AND end_date` — out-of-window logs excluded
+1. **Orphan guard:** `INNER JOIN bronze.accounts` — logs with unknown `account_id` are excluded
+2. **Rogue usage guard:** `JOIN bronze.contracts ON date BETWEEN start_date AND end_date` — out-of-window logs excluded
 3. Aggregate: `SUM(compute_credits_consumed)` grouped by `account_id`, `DATE_TRUNC(date, MONTH)`
 4. **Shelfware guard:** `LEFT JOIN` from contract months — accounts with zero logs get `credits_consumed = 0`
 5. Compute `consumption_rate = credits_consumed / included_monthly_compute_credits` (cap at 2.0 to limit outlier distortion)
@@ -172,12 +272,27 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-### Step 3 — `cacv_account`
+### Step 3 — `gold.dim_accounts`, `gold.dim_reps`, `gold.dim_contracts`
 
-**Purpose:** Compute account-level cACV using trailing 90-day consumption rate.
+**Purpose:** Populate dimension tables from Bronze sources. Run before the fact table step.
 
 **Logic:**
-1. For each account, take the **last 3 complete calendar months** of consumption data
+- `dim_accounts` — distinct `account_id`, `company_name`, `industry` from `bronze.accounts`
+- `dim_reps` — distinct `employee_id`, `name`, `region`, `segment` from `bronze.sales_reps`
+- `dim_contracts` — full contract record from `bronze.contracts`, with `signing_owner_id` preserved separately from the current `employee_id` on the account
+
+> **SCD note (v1):** Dimensions are replaced on each pipeline run (Type 1 SCD — overwrite). Territory reassignments and account renames take effect immediately. v2 can introduce Type 2 SCD (add `valid_from` / `valid_to`) to preserve history if audit requirements demand it.
+
+---
+
+### Step 4 — `gold.fact_cacv_snapshot`
+
+**Purpose:** Compute account-level cACV using the trailing 90-day consumption rate and write the fact table.
+
+**Reads from:** `silver.active_contracts`, `silver.monthly_consumption`, `gold.dim_dates`
+
+**Logic:**
+1. For each account, take the **last 3 complete calendar months** of consumption data from `silver.monthly_consumption`
 2. Compute `trailing_90d_avg_rate = AVG(consumption_rate)` over those 3 months
 3. Apply health tier classification (see product_spec.md §5)
 4. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
@@ -208,20 +323,22 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-### Step 4 — `cacv_rep_rollup`
+### Step 5 — `gold.vw_rep_portfolio`, `gold.vw_account_detail`
 
-**Purpose:** Aggregate account cACV to rep and region level for dashboard and compensation.
+**Purpose:** Build semantic layer views that join `fact_cacv_snapshot` to dimension tables, presenting a denormalized surface to all downstream consumers.
 
-**Logic:**
-1. Join `cacv_account` to `sales_reps` on `employee_id`
-2. Aggregate per rep:
-   - `total_acv` = SUM of `annual_commit_dollars`
-   - `total_cacv` = SUM of `cACV` (excludes new_account NULLs)
-   - `cacv_attainment_rate` = `total_cacv / total_acv`
-   - Health tier counts: `accounts_expansion`, `accounts_healthy`, `accounts_at_risk`, `accounts_shelfware`, `accounts_inactive`, `accounts_ramping`
-   - `expansion_opportunities` = count of `expansion_flag = TRUE`
-   - `acv_at_risk` = SUM of `acv_at_risk`
-3. Add `region_rank` and `org_rank` window functions for leaderboard
+**`vw_rep_portfolio`** — aggregates `fact_cacv_snapshot` to rep level, joining `dim_reps`:
+- `total_acv`, `total_cacv`, `cacv_attainment_rate`
+- Health tier account counts: `accounts_expansion`, `accounts_healthy`, `accounts_at_risk`, `accounts_shelfware`, `accounts_inactive`, `accounts_ramping`
+- `expansion_opportunities`, `total_acv_at_risk`, `total_expansion_signal_acv`
+- `region_rank` and `org_rank` window functions for leaderboard
+- Rep name, region, segment from `dim_reps`
+
+**`vw_account_detail`** — one row per account, joining all four dim tables:
+- All `fact_cacv_snapshot` metric columns
+- Account name, industry from `dim_accounts`
+- Rep name, region, segment from `dim_reps`
+- Contract term, type, start/end dates from `dim_contracts`
 
 ---
 
@@ -311,14 +428,14 @@ gcloud auth application-default login
 # (Re-)generate synthetic data and upload to BigQuery
 python3 data_generation/generate_data.py --upload
 
-# Run full 5-step pipeline (uses today as as_of_date)
+# Run full pipeline — Bronze (unchanged) → Silver → Gold dims → Gold fact → Semantic views
 python3 pipeline_and_tests/run_pipeline.py
 
 # Run against a specific historical snapshot
 python3 pipeline_and_tests/run_pipeline.py --as-of-date 2025-06-30
 
-# Run only a single step (0 = dim_dates, 1 = stg_active_contracts, …)
-python3 pipeline_and_tests/run_pipeline.py --step 3
+# Run only a single step (0 = dim_dates, 1 = silver.active_contracts, …, 5 = semantic views)
+python3 pipeline_and_tests/run_pipeline.py --step 4
 
 # Dry-run: print SQL without executing
 python3 pipeline_and_tests/run_pipeline.py --dry-run
@@ -370,22 +487,22 @@ If `cacv_rep_rollup` has no rows for the requested `as_of_date`, the app falls b
 ### 9.1 Integration Architecture
 
 ```
-BigQuery (gtm dataset)
+BigQuery (gold dataset — semantic layer views)
         │
-        ├─── Nightly export ──► Salesforce CRM        (Account health + expansion signals)
-        ├─── Monthly export ──► Compensation platform  (Rep attainment for quota/commission)
-        ├─── Daily export ───► CS platform             (Health scores + playbook triggers)
-        └─── On-demand ──────► BI layer                (Board reporting, cohort analysis)
+        ├─── Nightly export ──► Salesforce CRM        (vw_account_detail)
+        ├─── Monthly export ──► Compensation platform  (vw_rep_portfolio)
+        ├─── Daily export ───► CS platform             (vw_account_detail)
+        └─── On-demand ──────► BI layer                (fact_cacv_snapshot + dim_* directly)
 ```
 
-All exports read from the two output tables: `cacv_account` (account-level) and `cacv_rep_rollup` (rep-level).
+All operational exports read from the semantic layer views — `vw_account_detail` for account-level consumers, `vw_rep_portfolio` for rep-level consumers. The BI layer queries the underlying `fact_cacv_snapshot` and dim tables directly for maximum aggregation flexibility.
 
 ---
 
 ### 9.2 Salesforce CRM
 
 **Sync:** Nightly batch via BigQuery → Salesforce REST API (or Salesforce Connect external object)
-**Source table:** `gtm.cacv_account`
+**Source:** `gold.vw_account_detail`
 
 | BQ Field | Salesforce Object | Salesforce Field | Notes |
 |---|---|---|---|
@@ -402,7 +519,7 @@ All exports read from the two output tables: `cacv_account` (account-level) and 
 ### 9.3 Compensation Platform (e.g., Xactly, CaptivateIQ)
 
 **Sync:** Monthly close via BigQuery scheduled export → CSV/SFTP or direct API
-**Source table:** `gtm.cacv_rep_rollup`
+**Source:** `gold.vw_rep_portfolio`
 
 | BQ Field | Comp Use |
 |---|---|
@@ -411,14 +528,15 @@ All exports read from the two output tables: `cacv_account` (account-level) and 
 | `total_acv` | ACV quota denominator for attainment % |
 | `expansion_arr_pipeline` | Expansion SPIF eligibility flag |
 
-**Activation bonus** (requires `gtm.cacv_account`):
+**Activation bonus** (requires `gold.fact_cacv_snapshot` joined to `gold.vw_account_detail`):
 ```sql
 -- Accounts that hit ≥80% consumption within 90 days of contract start
-SELECT employee_id, account_id, company_name, cacv_attainment_rate
-FROM gtm.cacv_account
-WHERE is_new_account = FALSE                             -- just aged out of ramping
-  AND contract_start_date >= DATE_SUB(as_of_date, INTERVAL 180 DAY)
-  AND trailing_90d_avg_rate >= 0.80
+SELECT f.employee_id, f.account_id, a.company_name, f.trailing_90d_avg_rate
+FROM gold.fact_cacv_snapshot f
+JOIN gold.dim_accounts a USING (account_id)
+WHERE f.is_new_account = FALSE                           -- just aged out of ramping
+  AND f.as_of_date = @as_of_date
+  AND f.trailing_90d_avg_rate >= 0.80
 ```
 
 ---
@@ -426,7 +544,7 @@ WHERE is_new_account = FALSE                             -- just aged out of ram
 ### 9.4 Customer Success Platform (e.g., Gainsight, Totango)
 
 **Sync:** Daily via BigQuery → CS platform API
-**Source table:** `gtm.cacv_account`
+**Source:** `gold.vw_account_detail`
 
 | Health Tier | CS Score Range | Automated Action |
 |---|---|---|
@@ -437,26 +555,26 @@ WHERE is_new_account = FALSE                             -- just aged out of ram
 | Inactive | 0–19 | Immediate save plan; escalate to VP CS |
 | Ramping | N/A | Onboarding playbook; 90-day activation tracking |
 
-Key field mapping:
+Key field mapping from `gold.vw_account_detail`:
 - `trailing_90d_avg_rate` → CS health score (normalized 0–100)
 - `months_of_data` → data confidence indicator (low if < 2)
-- `zero_usage_months` → trigger for proactive outreach if ≥ 2 consecutive
+- `is_zero_usage_month` (from `silver.monthly_consumption`) → trigger for proactive outreach if ≥ 2 consecutive months flagged
 
 ---
 
 ### 9.5 BI / Board Reporting (e.g., Tableau, Looker)
 
-**Source tables:** `gtm.cacv_rep_rollup`, `gtm.cacv_account`, `gtm.dim_dates`
+**Source:** `gold.fact_cacv_snapshot` + `gold.dim_*` directly — the BI layer bypasses the semantic layer views and joins at will, enabling any aggregation not pre-built into the views.
 
 Key reports enabled by the current data model:
 
-| Report | Tables Used | Key Fields |
+| Report | Source | Key Fields |
 |---|---|---|
-| Board NRR forecast | `cacv_rep_rollup` | `total_cacv / total_acv` org-wide as NRR leading indicator |
-| Renewal risk register | `cacv_account` | `acv_at_risk`, `contract_end_date`, `health_tier` |
-| Expansion pipeline | `cacv_account` | `expansion_flag`, `annual_commit_dollars`, `rep_name` |
-| Cohort churn analysis | `cacv_account` + `dim_dates` | Attainment by `fiscal_year_quarter` of contract start |
-| QBR regional pack | `cacv_rep_rollup` | `region`, `total_acv`, `total_cacv`, `accounts_at_risk` |
+| Board NRR forecast | `vw_rep_portfolio` | `total_cacv / total_acv` org-wide as NRR leading indicator |
+| Renewal risk register | `fact_cacv_snapshot` + `dim_contracts` | `acv_at_risk`, `contract_end_date`, `health_tier` |
+| Expansion pipeline | `fact_cacv_snapshot` + `dim_accounts` + `dim_reps` | `expansion_flag`, `annual_commit_dollars`, rep name |
+| Cohort churn analysis | `fact_cacv_snapshot` + `dim_dates` | Attainment by `fiscal_year_quarter` of contract start |
+| QBR regional pack | `vw_rep_portfolio` | `region`, `total_acv`, `total_cacv`, `accounts_at_risk` |
 
 ---
 
@@ -464,8 +582,10 @@ Key reports enabled by the current data model:
 
 | Enhancement | Effort | Value |
 |---|---|---|
-| Port SQL to dbt | Medium | Version-controlled lineage, automated tests, docs site |
-| ML churn prediction | High | Predict which At Risk accounts churn at renewal |
-| Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time cACV |
-| Cohort-based multiplier calibration | Medium | Validate health tier thresholds against actual churn cohorts |
+| Port SQL to dbt | Medium | Dims and facts become first-class dbt models with built-in lineage, tests, and a docs site |
+| `fact_cacv_monthly` grain table | Medium | Add a monthly-grain fact table (account × month) enabling cohort curves, trend analysis, and any time-series BI report currently blocked by the snapshot grain |
+| SCD Type 2 on dim tables | Medium | Add `valid_from` / `valid_to` to `dim_reps` and `dim_contracts` — preserves history of territory reassignments and contract amendments without rewriting fact data |
+| ML churn prediction | High | Predict which At Risk accounts churn at renewal, trained on `fact_cacv_monthly` cohort history |
+| Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time cACV; semantic layer views remain unchanged |
+| Cohort-based multiplier calibration | Medium | Validate health tier thresholds against actual churn cohorts using `fact_cacv_monthly` + renewal outcomes |
 | Feature-depth weighting | Medium | Weight credits by product tier (base NGFW vs. advanced security add-ons) |
