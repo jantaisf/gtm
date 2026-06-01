@@ -299,42 +299,117 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 > **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. Consumption ACV comp reform is the thesis of this spec.
 
-### 7.0 Role Split
+### 7.0 Role Definitions and Rules of Engagement
+
+#### 7.0.1 Role Mandates
+
+Two distinct roles own the GTM motion for Prisma Cloud accounts. The division is intentional — a single rep owning both acquisition and long-term consumption creates conflicting incentives: close fast vs. close right.
+
+**Account Executive (AE) — Responsible for acquiring new business**
+
+The AE's mandate is to acquire net-new logos and set them up for long-term consumption success. They are accountable for:
+
+- Identifying, prospecting, and closing new Prisma Cloud accounts
+- Right-sizing the initial credit commit — avoiding oversell that creates shelfware from day one
+- Driving early platform activation through the 90-day ramp window
+- Coordinating the CS and AM handoff before the holding period ends
+
+The AE is not accountable for long-term retention after the holding period. Consumption accountability is specific to the accounts they close, measured through the activation bonus and their 30% Consumption ACV OTE weight.
+
+**Account Manager (AM) — Responsible for growing existing business**
+
+The AM's mandate is to maximize the long-term value of existing accounts through consumption growth, renewals, and expansion. They are accountable for:
+
+- Maintaining and growing portfolio Consumption ACV attainment
+- Renewing accounts at or above current ACV
+- Surfacing Consumption Overage signals and coordinating upsell with AEs
+- Executing save plans on At Risk, Shelfware, and Inactive accounts
+
+The AM is not accountable for closing net-new logos. Their bookings accountability is limited to renewals and expansions within their existing portfolio.
+
+**Sales Engineer (SE) — Responsible for driving platform consumption**
+
+The SE is the technical overlay — responsible for workload instrumentation, onboarding acceleration, and identifying underutilized capabilities that would raise the consumption rate. Their OTE is 100% tied to consumption outcomes.
+
+---
+
+#### 7.0.2 How Each Role Spends Their Time
+
+**Account Executive — indicative weekly allocation**
+
+| Activity | ~% of Time | What This Looks Like |
+|---|---|---|
+| Pipeline development and new logo pursuit | 45% | Prospecting, SDR coordination, outbound, pipeline reviews |
+| Active deal management | 35% | Discovery, demos, POC oversight, negotiation, close |
+| Post-close activation (within holding period) | 15% | Onboarding coordination, ramp consumption monitoring, activation bonus tracking |
+| Internal / CRM / forecasting | 5% | Salesforce hygiene, forecast calls, comp platform |
+
+**Account Manager — indicative weekly allocation**
+
+| Activity | ~% of Time | What This Looks Like |
+|---|---|---|
+| Portfolio health management | 35% | Consumption monitoring, health tier review, proactive outreach on At Risk accounts |
+| Renewal pipeline management | 25% | Accounts renewing within 180 days — qualification, negotiation, save plays |
+| Expansion surfacing and upsell coordination | 20% | Identifying Consumption Overage signals, briefing AEs on upsell candidates, QBR prep |
+| Executive relationship management | 15% | QBRs, executive sponsor alignment, CS escalation support |
+| Internal / CRM / forecasting | 5% | Salesforce hygiene, forecast calls, comp platform |
+
+---
+
+#### 7.0.3 Account Ownership and Rules of Engagement
+
+**New logo:** AE owns from initial contact through close and the full holding period.
+
+**Holding period:** After signing, the AE retains primary ownership and all expansion credit for:
+
+| Segment | Holding Period |
+|---|---|
+| Mid-Market (ACV < $250K or 1-year term) | 6 months post-close |
+| Enterprise (ACV ≥ $250K or multi-year term) | 12 months post-close |
+
+The holding period floor is the average time for a Prisma Cloud deployment to reach full instrumentation. Handing off before the customer is live increases early churn risk and breaks the relationship continuity built during the sales cycle. During the holding period, the AM shadows the account — attending QBRs, reviewing consumption data, building executive relationships — but does not carry the account on their quota until formal handoff.
+
+**Handoff:** At the end of the holding period, the AE transfers ownership to the AM. This requires a joint handoff call (AE + AM + customer executive sponsor), transfer of discovery notes, deal history, open commitments, and any red flags from the sales cycle, and Salesforce ownership updated.
+
+**Post-handoff expansion:** Once an account is AM-owned, the AM surfaces the opportunity; the AE is brought in to close it. Bookings credit goes to the AE on the expansion deal; the AM earns the Expansion Signal SPIF for surfacing it (§7.2 Mechanism 2).
+
+**Renewal:** AM-owned. The original closing AE receives a residual of 1–2% of ACV on named account renewals — consistent with enterprise SaaS benchmarks — but the renewal is the AM's quota responsibility.
+
+**Poaching protection:** AEs cannot prospect into an account on an AM's quota book. If a net-new subsidiary or business unit of an AM-owned account is identified as a new opportunity, the AE and AM co-own the pursuit and split bookings credit at a ratio agreed by their shared manager.
+
+**Ownership model rationale:** This framework uses a dedicated AM layer to own renewals and expansion while AEs focus exclusively on new logos. This is the right choice for Prisma Cloud at this stage: contract complexity is high (multi-year platform deals with credit structures), competitive intensity at renewal is meaningful (Wiz, CrowdStrike, Microsoft Sentinel are all active), and the CS team does not yet have the commercial capacity to own complex renewal negotiations independently. *(ClientSuccess, [Who Should Own SaaS Renewals](https://www.clientsuccess.com/resources/who-should-own-saas-renewals))*
+
+---
+
+#### 7.0.4 OTE Split
 
 | Role | Bookings Weight | Consumption ACV Weight | Rationale |
 |---|---|---|---|
-| **Account Executive (AE)** — new logos | 70% | 30% | Primary job is net new; consumption follows logo |
-| **Account Manager (AM)** — renewals/expansion | 30% | 70% | Primary job is value realization and expansion |
-| **Sales Engineer (SE)** — consumption overlay | 0% | 100% | Purely accountable for consumption growth |
+| **Account Executive (AE)** | 70% | 30% | Primary responsibility is acquiring new business; consumption accountability is for the accounts they close |
+| **Account Manager (AM)** | 30% | 70% | Primary responsibility is growing existing business; measured on portfolio health and retention |
+| **Sales Engineer (SE)** | 0% | 100% | Purely accountable for consumption growth; no quota on bookings |
 
-The 70/30 AE split establishes a consumption floor — it penalizes shelfware at the portfolio level — but is not sufficient on its own to change deal-by-deal behavior. The mechanisms below are where the incentive sharpens.
+> **Snowflake precedent:** Snowflake uses an identical split — 70% bookings / 30% consumption for new logo AEs, shifting to 30% bookings / 70% consumption for AMs managing mature territories. The weights in this spec match that benchmark directly. *(Snowflake, [Sales Compensation in a Consumption Pricing World](https://www.snowflake.com/en/blog/sales-compensation-in-a-consumption-pricing-world/))*
+
+---
 
 ### 7.1 AE Incentive Mechanisms
 
-**Mechanism 1 — Bookings commission accelerator (primary lever)**
+The primary incentive lever is the **70/30 OTE split defined in §7.0** — 30% of an AE's variable comp is tied directly to Consumption ACV attainment across their held accounts. A rep whose portfolio sits at 50% consumption attainment has lost half of their consumption OTE. No separate multiplier is needed; the weight does the work.
 
-The AE's bookings commission rate floats based on portfolio Consumption ACV attainment. This makes Consumption ACV a multiplier on the thing AEs care most about — their bookings payout:
+Two mechanisms sharpen the edges:
 
-| Portfolio Consumption ACV Attainment | Bookings Commission Rate |
-|---|---|
-| Below 60% | 0.85× (penalized) |
-| 60–80% | 1.00× (standard) |
-| 80–100% | 1.10× (accelerated) |
-| Above 100% | 1.20× (accelerated) |
+**Mechanism 1 — Activation bonus at month 6 (Enterprise: month 9)**
 
-*Example impact:* A $300K ACV deal at the 1.20× rate vs. 0.85× rate is a $105K difference in quota credit — large enough to materially change behavior across a portfolio.
+Any AE whose new account sustains ≥80% consumption rate through month 6 earns a one-time SPIF. The 6-month requirement prevents Spike & Drop gaming — paying at 90 days rewards a burst of onboarding activity that may not last. Month 6 requires sustained adoption.
 
-**Mechanism 2 — Activation bonus at month 6 (Enterprise: month 9)**
+**Exception for Enterprise accounts (ACV ≥ $250K or contract term ≥ 2 years):** the evaluation window extends to month 9. Large enterprise deployments span multiple cloud providers, business units, and compliance domains — full instrumentation takes longer. A month 6 check-in is still required for coaching, but the SPIF is earned at month 9 if ≥80% is sustained at that point.
 
-Any AE whose new account sustains ≥80% consumption rate through month 6 earns a one-time SPIF. The 6-month requirement prevents Spike & Drop gaming: paying at 90 days incentivizes a burst of onboarding activity followed by drop-off. Month 6 requires sustained adoption.
+**Mechanism 2 — Portfolio floor**
 
-**Exception for Enterprise accounts (ACV ≥ $250K or contract term ≥ 2 years):** the evaluation window extends to month 9. Large enterprise deployments — spanning multiple cloud providers, business units, or compliance domains — require longer to fully instrument. The month 6 check-in milestone is still required for coaching, but the SPIF is earned at month 9 if ≥80% is sustained at that point.
+An AE cannot earn above 100% OTE if portfolio Consumption ACV attainment is below 60%. Prevents a rep from focusing exclusively on new logos while leaving a book full of shelfware unattended.
 
-**Mechanism 3 — Portfolio overachievement floor (with inherited-territory carve-out)**
-
-An AE cannot earn above 100% OTE if portfolio Consumption ACV attainment is below 60%. Prevents a rep from chasing new logos while leaving a book full of shelfware unattended.
-
-**Carve-out for inherited territories:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio Consumption ACV from their inherited baseline, not the absolute attainment level. This prevents the floor from penalizing a rep for their predecessor's shelfware. The carve-out period requires VP of Sales sign-off to activate and is tracked separately in the compensation platform.
+**Inherited-territory carve-out:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio Consumption ACV from their inherited baseline, not the absolute attainment level. Requires VP of Sales sign-off to activate; tracked separately in the compensation platform.
 
 ### 7.2 AM Incentive Mechanisms
 
@@ -361,7 +436,7 @@ Quota credit for multi-year deals uses a **term multiplier** — meaningful ince
 | 3 years | 1.35× ACV | 55% less than TCV |
 | 5 years | 1.50× ACV | 70% less than TCV |
 
-*Why not full TCV?* A 3-year $300K ACV deal at full TCV gives 128.6% of a $700K bookings quota on a single customer — the AE has no reason to find another logo. At 1.35× ACV, the same deal gives 57.9%, keeping the AE hunting while rewarding the multi-year commit. *(Modeled in `comp_model.xlsx`.)*
+*Why not full TCV?* A 3-year $300K ACV deal at full TCV gives 128.6% of a $700K bookings quota on a single customer — the AE has no reason to pursue new logos. At 1.35× ACV, the same deal gives 57.9%, keeping the AE focused on new business while rewarding the multi-year commit. *(Modeled in `comp_model.xlsx`.)*
 
 **Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns Consumption ACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §13 Q10).
 
@@ -369,14 +444,15 @@ Quota credit for multi-year deals uses a **term multiplier** — meaningful ince
 
 | Mechanism | v1 | v2 |
 |---|---|---|
-| Role split (70/30 AE, 30/70 AM) | ✓ | — |
+| Role definitions and rules of engagement (§7.0) | ✓ | — |
+| OTE split (70/30 AE, 30/70 AM) | ✓ | — |
 | Term multiplier | ✓ | — |
-| Activation bonus (month 6) | ✓ | — |
-| Portfolio overachievement floor | ✓ | — |
-| Bookings commission accelerator | — | ✓ (requires 2+ quarters of clean Consumption ACV data) |
-| Expansion signal bonus | — | ✓ |
+| Activation bonus (month 6 / month 9) | ✓ | — |
+| Portfolio floor (60% attainment gate) | ✓ | — |
+| Expansion signal bonus for AMs | ✓ | — |
+| Territory profile differentiation (greenfield vs. mature weighting) | — | ✓ (adjust OTE split based on territory maturity after 2+ quarters of data) |
 
-The accelerator and expansion bonus are the sharpest tools but require Consumption ACV data to be trusted as a comp modifier — that confidence comes after v1 runs for 2 quarters.
+v1 establishes the foundational structure — clean role separation, the OTE split as the primary behavioral lever, and the two AE mechanisms that reward activation and prevent portfolio neglect. v2 introduces territory-level weighting refinements once there is sufficient Consumption ACV history to segment territories by maturity.
 
 **Out of scope:** Compensation design for channel partners and CSMs is a separate workstream not addressed in this spec.
 
