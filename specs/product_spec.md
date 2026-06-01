@@ -207,10 +207,9 @@ Credits are the unit of value in every Prisma Cloud contract. The monthly credit
 
 Consumption-based pricing is rapidly becoming the enterprise software standard, not an edge case:
 
-- **67% of SaaS companies** now offer some form of usage-based pricing, up from 35% in 2020 — nearly doubling in five years. Among the largest software companies, 77% have incorporated consumption elements into their revenue model. *(Metronome, State of Usage-Based Pricing 2025)*
-- **31% of companies** have adopted hybrid models that blend a committed subscription with a consumption overlay — exactly the structure Prisma Cloud uses. *(Metronome, 2025)*
-- **SAP** announced in 2025 it is moving away from per-user and subscription pricing toward AI consumption-based billing as AI agents automate core enterprise workflows. *(erp.today, 2025)*
-- **Salesforce** Einstein 1 now combines suite licensing with consumption credits for AI actions, signaling the shift even in legacy SaaS. *(Constellation Research, 2025)*
+- **85% of software companies** now offer some form of usage-based pricing. Among the largest software companies, 77% have incorporated consumption elements into their revenue model. *([Metronome, State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025))*
+- **SAP** announced in 2025 it is moving away from per-user and subscription pricing toward AI consumption-based billing as AI agents automate core enterprise workflows. CEO Christian Klein: *"It would be foolish to still charge subscription base, because AI is so powerful that it will automate a lot of tasks."* *([erp.today, 2025](https://erp.today/sap-shifts-to-ai-consumption-pricing-as-agents-threaten-saas-revenue-model/))*
+- **Salesforce** CEO Marc Benioff: *"We have per-user products which are for humans. And we have consumption products, they are for agents and robots."* — signaling the shift even in legacy SaaS. *([Metronome, State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025))*
 
 **Within cybersecurity specifically:**
 
@@ -220,7 +219,7 @@ Consumption-based pricing is rapidly becoming the enterprise software standard, 
 | Lacework | Workload-hours | Usage-based CNAPP; scales with cloud footprint |
 | CrowdStrike | Endpoints + flex credits | Seat base + flex consumption for AI/XDR modules |
 | Wiz | Cloud workloads | Workload-count pricing tied to environment size |
-| **PANW Prisma Cloud / Cortex Cloud** | Compute credits | **Hybrid — committed ARR + consumption overlay** |
+| **[PANW Prisma Cloud / Cortex Cloud](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)** | Compute credits | **Hybrid — committed ACV + consumption overlay** |
 
 PANW's credit model sits at the sophisticated end of this spectrum: unlike pure per-seat models it reflects *realized* security coverage, and unlike pure PAYG it provides revenue predictability for both the customer and PANW.
 
@@ -228,11 +227,11 @@ PANW's credit model sits at the sophisticated end of this spectrum: unlike pure 
 
 | Company | Consumption Unit | Equivalent Metric |
 |---|---|---|
-| Snowflake | Credits | Consumed Revenue = credits used × price/credit |
-| Databricks | DBUs | Consumed ARR = annualized trailing DBU usage |
-| MongoDB | Queries/ops | Incremental ARR above usage baseline |
-| OpenAI / Anthropic | Tokens | Revenue recognized on actual token consumption |
-| **PANW Prisma Cloud** | Prisma Cloud Credits | **cACV = annual_commit × consumption_rate** |
+| [Snowflake](https://www.snowflake.com/en/data-cloud/pricing-options/) | Credits | Consumed Revenue = credits used × price/credit |
+| [Databricks](https://www.databricks.com/product/pricing) | DBUs | Consumed ACV = annualized trailing DBU usage |
+| [MongoDB](https://www.mongodb.com/pricing) | Queries/ops | Incremental ACV above usage baseline |
+| [OpenAI](https://openai.com/api/pricing/) / [Anthropic](https://www.anthropic.com/pricing) | Tokens | Revenue recognized on actual token consumption |
+| **[PANW Prisma Cloud](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)** | Prisma Cloud Credits | **cACV = ACV × consumption_rate** |
 
 **Snowflake precedent on compensation weighting:**
 - New/greenfield reps: 70% bookings / 30% consumption
@@ -636,6 +635,10 @@ Without a defined clawback, the term multiplier creates an incentive for AEs to 
 - Palo Alto Networks — [Introducing Cortex Cloud (Feb 2025)](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)
 - Palo Alto Networks — [Cortex Cloud Press Release](https://www.paloaltonetworks.com/company/press/2025/palo-alto-networks-introduces-cortex-cloud--the-future-of-real-time-cloud-security)
 - erp.today — [SAP Shifts to AI Consumption Pricing (2025)](https://erp.today/sap-shifts-to-ai-consumption-pricing-as-agents-threaten-saas-revenue-model/)
-- Constellation Research — [Enterprise Software 2025: Three Big Shifts](https://www.constellationr.com/blog-news/insights/enterprise-software-2025-three-big-shifts-watch)
 - Dell'Oro Group — [The Shift from Prisma Cloud to Cortex Cloud](https://www.delloro.com/palo-alto-networks-reboots-cnapp-the-shift-from-prisma-cloud-to-cortex-cloud/)
 - SiliconANGLE — [Cortex Cloud 2.0 and AgentiX (Oct 2025)](https://siliconangle.com/2025/10/28/palo-alto-networks-introduces-prisma-airs-2-0-cortex-cloud-2-0-agentix-secure-agentic-enterprise/)
+- Snowflake — [Pricing Options](https://www.snowflake.com/en/data-cloud/pricing-options/)
+- Databricks — [Pricing](https://www.databricks.com/product/pricing)
+- MongoDB — [Pricing](https://www.mongodb.com/pricing)
+- PeerSpot — [Prisma Cloud Pricing Reviews](https://www.peerspot.com/products/prisma-cloud-by-palo-alto-networks-pricing)
+- Prisma Cloud — [Compute Edition Licensing Guide](https://docs.prismacloud.io/en/compute-edition/30/admin-guide/licensing/licensing)
