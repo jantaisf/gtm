@@ -65,7 +65,7 @@ consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthl
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
-**Cap rationale:** cACV is capped at ACV. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric (`expansion_signal_acv`) that feeds the upsell pipeline, not the attainment calculation.
+**Cap rationale:** cACV is capped at ACV. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric — expansion signal dollars — that feeds the upsell pipeline, not the attainment calculation.
 
 **Example:**
 
@@ -150,7 +150,7 @@ GRR = (Beginning ARR - Churned ARR - Contraction ARR) / Beginning ARR
 
 - GRR strips out expansion, isolating pure churn and downsell risk
 - Accounts in Shelfware or Inactive tier with renewals within 180 days are the primary GRR risk pool
-- `acv_at_risk` (sum across at-risk tier accounts) is the GRR exposure number the CFO monitors
+- ACV at risk (sum across at-risk tier accounts) is the GRR exposure number the CFO monitors
 
 **Logo Churn Rate**
 
@@ -159,7 +159,7 @@ Logo Churn = Accounts lost at renewal / Total accounts up for renewal
 ```
 
 - A secondary signal for CS prioritization — high cACV attainment should correlate with low logo churn
-- Spike & Drop accounts (`is_spike_drop = TRUE`) are the highest-risk cohort for logo churn; they consumed heavily at onboarding but have since gone dark
+- Spike & Drop accounts (those flagged for a spike-and-drop consumption pattern) are the highest-risk cohort for logo churn; they consumed heavily at onboarding but have since gone dark
 
 **The leading/lagging relationship**
 
@@ -322,7 +322,7 @@ Account Managers are paid quarterly on cACV attainment across their portfolio, n
 
 **Mechanism 2 — Expansion signal bonus**
 
-When an account enters `expansion_signal_acv > 0` territory (consumption consistently above 100% of ACV), the AM earns a SPIF for surfacing the upsell opportunity — independent of whether the AE closes the expansion deal. This creates a direct financial incentive to flag over-consuming accounts proactively rather than waiting for the AE to notice.
+When an account starts generating over-consumption signal (consuming consistently above 100% of committed ACV), the AM earns a SPIF for surfacing the upsell opportunity — independent of whether the AE closes the expansion deal. This creates a direct financial incentive to flag over-consuming accounts proactively rather than waiting for the AE to notice.
 
 *Rationale:* The expansion signal is the AM's most valuable output after retention. Without a bonus, AMs have no incentive to surface it — the upside goes to the AE who closes the upsell.
 
@@ -376,7 +376,7 @@ cACV enables quota design that reflects territory health, not just last year's b
 - Account Managers are measured on *incremental cACV* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
 
 **Territory sizing and rebalancing**
-- Use `total_cacv` per rep to identify overloaded territories (high cACV, low headroom for growth) vs. underloaded ones (low cACV, high ACV at risk needing intervention)
+- Use total cACV per rep to identify overloaded territories (high cACV, low headroom for growth) vs. underloaded ones (low cACV, high ACV at risk needing intervention)
 - Reassign accounts based on cACV capacity, not just account count or ARR — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
 
 ---
@@ -386,13 +386,13 @@ cACV enables quota design that reflects territory health, not just last year's b
 cACV provides two distinct forecasting signals: **renewal risk** (defensive) and **expansion pipeline** (offensive).
 
 **Renewal risk forecast**
-- `acv_at_risk = ACV - cACV` is the dollar value of committed ACV not backed by consumption
-- Accounts with `health_tier IN ('At Risk', 'Shelfware', 'Inactive')` and a renewal within 90–180 days are the highest-priority save plays
-- The org-level `acv_at_risk` sum is the CFO's leading indicator: if it trends above ~15% of total ARR, NRR will compress at the next renewal cycle
+- ACV at risk (ACV minus cACV) is the dollar value of committed ACV not backed by consumption
+- Accounts in the At Risk, Shelfware, or Inactive health tiers with a renewal within 90–180 days are the highest-priority save plays
+- The org-level ACV at risk total is the CFO's leading indicator: if it trends above ~15% of total ACV, NRR will compress at the next renewal cycle
 
 **Expansion pipeline forecast**
-- Accounts with `expansion_flag = TRUE` (2+ consecutive months >120% consumption) have proven demand beyond their current commit — these are high-confidence upsell candidates
-- `expansion_arr_pipeline` (sum of ARR for flagged accounts) quantifies the near-term expansion opportunity the team should be working
+- Accounts flagged for expansion (2+ consecutive months >120% consumption) have proven demand beyond their current commit — these are high-confidence upsell candidates
+- Expansion pipeline value (sum of ACV for flagged accounts) quantifies the near-term expansion opportunity the team should be working
 
 **NRR prediction**
 - Trailing cACV attainment rate is a leading indicator of net revenue retention at renewal:
@@ -433,7 +433,7 @@ This section makes explicit what is and is not in scope for the initial launch o
 
 - cACV calculation at account, rep, region, and org level
 - Health tier classification (6 tiers) based on trailing 90-day consumption rate
-- `expansion_signal_acv` as a separate metric for over-consuming accounts (cACV itself capped at commit)
+- Expansion signal dollars as a separate metric for over-consuming accounts (cACV itself capped at commit)
 - AE / AM comp weighting (bookings vs. cACV), with activation bonus at month 6 and multi-year term multiplier
 - Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
 - Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
@@ -611,7 +611,7 @@ Do reps carry a single blended attainment number (bookings + cACV weighted), or 
 
 **3. Overage revenue recognition** *(CFO)*
 
-Over-consuming accounts generate `expansion_signal_acv` above their commit. Does Finance recognize that implied overage in the current quarter, or hold it until a contract amendment is signed? This determines whether expansion signal is a pipeline metric or an in-period revenue input.
+Over-consuming accounts generate expansion signal dollars above their commit. Does Finance recognize that implied overage in the current quarter, or hold it until a contract amendment is signed? This determines whether expansion signal is a pipeline metric or an in-period revenue input.
 
 **Decision needed:** In-period overage recognition vs. deferred to contract amendment.
 
