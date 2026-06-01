@@ -15,7 +15,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 # Product Spec: Consumption ACV
 ## North Star Metric for Prisma Cloud GTM — Hybrid Consumption Model
 
-> **Terminology:** Throughout this spec, **ACV** (Annual Contract Value) refers to the contracted annual commitment. **Consumption ACV** (Consumed ACV) is the portion of ACV backed by actual platform usage. The two are distinct: ACV is what was sold; Consumption ACV is what is being realized.
+> **Terminology:** Throughout this spec, **ACV** (Annual Contract Value) refers to the contracted annual commitment. **Consumption ACV** (Consumed ACV) is the portion of ACV backed by actual platform usage. The two are distinct: ACV is what was sold; Consumption ACV is what is being consumed.
 
 **Version:** 1.0
 **Owner:** Principal PM, Analytics & AI
