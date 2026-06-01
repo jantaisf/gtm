@@ -587,98 +587,18 @@ An important attribution rule: the rep who currently owns the account gets cACV 
 
 ## 13. Open Questions for Executive Alignment
 
-The following decisions require VP of Sales and/or CFO sign-off before cACV can be operationalized. They are grouped by whether they block v1 launch or can be resolved post-launch.
+The following decisions require VP of Sales and/or CFO sign-off before cACV can be operationalized.
 
----
-
-### v1-Blocking Decisions
-
-**1. Comp go-live timing** *(VP of Sales)*
-
-Do we launch cACV-weighted comp in the same fiscal year as the metric, or shadow-track for 1–2 quarters first before paying on it? Shadow-tracking reduces risk but delays behavioral change. Paying immediately requires reps to trust the metric before it has a track record.
-
-**Decision needed:** Same-year comp launch vs. shadow-tracking period; if shadow-tracking, how long and what triggers the switch.
-
----
-
-**2. Single vs. dual quota** *(VP of Sales)*
-
-Do reps carry a single blended attainment number (bookings + cACV weighted), or two separate quotas (one bookings, one cACV)? A single blended number is simpler but allows reps to trade off one against the other. Dual quotas create separate accountability but add comp system complexity.
-
-**Decision needed:** Blended single quota or two separate quota lines.
-
----
-
-**3. Overage revenue recognition** *(CFO)*
-
-Over-consuming accounts generate expansion signal dollars above their commit. Does Finance recognize that implied overage in the current quarter, or hold it until a contract amendment is signed? This determines whether expansion signal is a pipeline metric or an in-period revenue input.
-
-**Decision needed:** In-period overage recognition vs. deferred to contract amendment.
-
----
-
-**4. Multi-year ACV basis** *(CFO)*
-
-**v1 default (recommended):** Use Year 1 ACV (`annual_commit_dollars`) as the cACV denominator — it's the value in the contract and the number sales is paid on. Year 2 and 3 are handled at renewal.
-
-**Risk:** Year 1 of a ramp deal (e.g., 33% consumption on a 3-year ramp) can look like disaster even when on plan. Mitigant: flag ramp-structured deals separately; exclude from health tier penalties during the ramp period.
-
-**Decision needed:** Confirm Year 1 ACV basis, or override with blended average annual value. If overriding, the pipeline calculation must change.
-
----
-
-**5. Phased vs. big-bang rollout** *(VP of Sales)*
-
-Launch cACV across all regions simultaneously, or pilot one region or segment first? A pilot reduces blast radius if the metric needs recalibration but creates a two-tier comp environment that can cause rep attrition in non-pilot regions.
-
-**Decision needed:** Full launch vs. pilot region/segment; if pilot, which region and for how long.
-
----
-
-### Post-Launch Decisions
-
-**6. Quota relief for ramping accounts** *(VP of Sales)*
-
-New accounts are excluded from cACV for 90 days. Should reps receive a corresponding quota reduction for accounts in the ramp window? Without it, a rep who closes several new logos in a quarter sees attainment suppressed until accounts mature.
-
-**Decision needed:** Whether ramping accounts reduce the quota denominator during the ramp period.
-
----
-
-**7. Portfolio attainment floor** *(VP of Sales)*
-
-Should sustained low cACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review, independent of bookings performance?
-
-**Decision needed:** Whether an attainment floor exists, at what threshold, and how it interacts with the PIP process.
-
----
-
-**8. In-flight comp plan transition** *(VP of Sales + Finance)*
-
-Reps who signed OTE plans before cACV was introduced have contractual expectations. Are those plans honored to year-end, prorated, or renegotiated? This is the highest change-management risk in the rollout.
-
-**Decision needed:** Treatment of existing signed comp plans; legal review required.
-
----
-
-**9. Board and investor reporting readiness** *(CFO)*
-
-At what point does cACV move from an internal GTM metric to an externally disclosed one? This requires audit trail, definition consistency, and investor alignment on how it differs from reported ARR.
-
-**Decision needed:** Threshold (accuracy, cohort size, audit readiness) for external disclosure; timeline.
-
----
-
-**10. Multi-year account ownership and clawback** *(VP of Sales)*
-
-The AE who closes a multi-year deal receives a term multiplier on quota credit at signing (§7.1). From Year 2 onward, the account transitions to an AM for cACV attainment. Two sub-decisions needed:
-
-- **Handoff timing:** Does the AE-to-AM transition happen at contract signing, at the start of Year 2, or at a defined onboarding milestone?
-- **Clawback terms:** If the account churns before the committed term ends, what portion of the term multiplier is recovered from the AE, over what window?
-
-Without a defined clawback, the term multiplier creates an incentive for AEs to sign long-term deals without accountability for early churn. Without a clear handoff timing, both the AE and AM may assume the other is managing the account.
-
-**Decision needed:** AE-to-AM handoff trigger; clawback percentage and recovery window; whether clawback applies differently to voluntary churn vs. involuntary (e.g., customer acquired).
+1. **Comp go-live timing** *(VP of Sales)* — Same-year comp launch or shadow-track for 1–2 quarters first before paying on it?
+2. **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + cACV weighted) or two separate quota lines?
+3. **Overage revenue recognition** *(CFO)* — Recognize expansion signal dollars in-period or defer to contract amendment?
+4. **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the cACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
+5. **Phased vs. big-bang rollout** *(VP of Sales)* — Full launch across all regions or pilot one region/segment first?
+6. **Quota relief for ramping accounts** *(VP of Sales)* — Do new accounts in the 90-day ramp window reduce the quota denominator during that period?
+7. **Portfolio attainment floor** *(VP of Sales)* — Does sustained low cACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
+8. **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
+9. **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of cACV?
+10. **Multi-year account ownership and clawback** *(VP of Sales)* — When does the AE-to-AM handoff occur, and what portion of the term multiplier is clawed back if the account churns before term end?
 
 ---
 
