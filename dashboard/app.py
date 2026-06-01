@@ -907,6 +907,185 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Tab 7: Data Health  —  Data Engineering · Finance · RevOps
+# ─────────────────────────────────────────────────────────────────────────────
+
+def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str: str):
+    persona_callout(
+        "Data Engineering · Finance · RevOps",
+        [
+            "Is the pipeline snapshot fresh? When was the last successful run?",
+            "Are any cACV numbers violating the cap rule (cACV > annual commit)?",
+            "Do the formula components add up — does cACV + expansion signal equal ACV × rate?",
+            "How many accounts are missing a consumption rate, or have a NULL health tier?",
+        ],
+        accent="#64748b",
+    )
+
+    today = date.today()
+    try:
+        snap_date  = date.fromisoformat(as_of_date_str)
+        days_stale = (today - snap_date).days
+    except Exception:
+        snap_date  = None
+        days_stale = None
+
+    # ── Inline DQ checks ─────────────────────────────────────────────────────
+    checks = []
+
+    # 1. cACV cap violations
+    cap_violations = int((acct_df["cacv"] > acct_df["annual_commit_dollars"] + 1).sum())
+    checks.append({"Check": "cACV cap violations", "Severity": "ERROR",
+                   "Status": "✓ PASS" if cap_violations == 0 else "✗ FAIL",
+                   "Rows": cap_violations,
+                   "Detail": "cacv > annual_commit_dollars — formula error in pipeline" if cap_violations else "All cACV values ≤ committed ACV"})
+
+    # 2. Negative ACV at risk
+    neg_risk = int((acct_df["acv_at_risk"] < -1).sum())
+    checks.append({"Check": "Negative ACV at risk", "Severity": "ERROR",
+                   "Status": "✓ PASS" if neg_risk == 0 else "✗ FAIL",
+                   "Rows": neg_risk,
+                   "Detail": "acv_at_risk = ACV − cACV; should always be ≥ 0" if neg_risk else "All ACV at risk values non-negative"})
+
+    # 3. Negative expansion signal
+    neg_exp = int((acct_df.get("expansion_signal_acv", pd.Series(dtype=float)).fillna(0) < -1).sum())
+    checks.append({"Check": "Negative expansion signal", "Severity": "ERROR",
+                   "Status": "✓ PASS" if neg_exp == 0 else "✗ FAIL",
+                   "Rows": neg_exp,
+                   "Detail": "expansion_signal_acv should always be ≥ 0" if neg_exp else "All expansion signal values non-negative"})
+
+    # 4. NULL health tier
+    null_tier = int(acct_df["health_tier"].isna().sum())
+    checks.append({"Check": "NULL health tier", "Severity": "ERROR",
+                   "Status": "✓ PASS" if null_tier == 0 else "✗ FAIL",
+                   "Rows": null_tier,
+                   "Detail": "All accounts must have a health tier assigned" if null_tier else "No NULL health tiers"})
+
+    # 5. Orphaned accounts (no matching rep)
+    orphaned = int(acct_df["rep_name"].isna().sum()) if "rep_name" in acct_df.columns else 0
+    checks.append({"Check": "Orphaned accounts (no rep)", "Severity": "WARNING",
+                   "Status": "✓ PASS" if orphaned == 0 else "⚠ WARN",
+                   "Rows": orphaned,
+                   "Detail": f"{orphaned} accounts have no matching sales rep — excluded from rep rollup" if orphaned else "All accounts have a rep assignment"})
+
+    # 6. Missing consumption rate on mature accounts
+    mature_mask  = acct_df["health_tier"] != "Ramping"
+    missing_rate = int(acct_df.loc[mature_mask, "trailing_90d_avg_rate"].isna().sum())
+    checks.append({"Check": "Missing cons rate (mature)", "Severity": "WARNING",
+                   "Status": "✓ PASS" if missing_rate == 0 else "⚠ WARN",
+                   "Rows": missing_rate,
+                   "Detail": f"{missing_rate} mature (non-ramping) accounts missing trailing 90-day rate — may indicate missing usage data" if missing_rate else "All mature accounts have a consumption rate"})
+
+    # 7. Shelfware rate vs §9 target (≤8%) and DQ alert (>15%)
+    mature_count     = int(mature_mask.sum())
+    shelfware_count  = int(acct_df["health_tier"].isin(["Shelfware", "Inactive"]).sum())
+    shelfware_rate   = shelfware_count / mature_count if mature_count else 0
+    sw_status        = "✓ PASS" if shelfware_rate <= 0.08 else ("⚠ WARN" if shelfware_rate <= 0.15 else "✗ FAIL")
+    sw_severity      = "INFO" if shelfware_rate <= 0.08 else ("WARNING" if shelfware_rate <= 0.15 else "ERROR")
+    checks.append({"Check": "Shelfware rate (target ≤8%, alert >15%)", "Severity": sw_severity,
+                   "Status": sw_status,
+                   "Rows": shelfware_count,
+                   "Detail": f"{shelfware_rate:.1%} of mature accounts in Shelfware/Inactive tier (target ≤8%; DQ alert at >15%)"})
+
+    # 8. Ramping rate — informational
+    ramp_count = int((acct_df["health_tier"] == "Ramping").sum())
+    ramp_rate  = ramp_count / len(acct_df) if len(acct_df) else 0
+    checks.append({"Check": "Ramping rate", "Severity": "INFO",
+                   "Status": "ℹ INFO",
+                   "Rows": ramp_count,
+                   "Detail": f"{ramp_rate:.1%} of accounts in Ramping status — excluded from cACV (informational)"})
+
+    errors   = [c for c in checks if c["Status"].startswith("✗")]
+    warnings = [c for c in checks if c["Status"].startswith("⚠")]
+    n_passed = sum(1 for c in checks if c["Status"].startswith("✓"))
+
+    # ── KPI row ───────────────────────────────────────────────────────────────
+    if days_stale is not None:
+        fresh_ok  = days_stale <= 1
+        fresh_val = "Today" if days_stale == 0 else f"{days_stale}d old"
+        fresh_sub = "✓ Fresh" if fresh_ok else f"⚠ {days_stale} days stale — run pipeline"
+        fresh_cls = "" if fresh_ok else "neg"
+        fresh_acc = "#10b981" if fresh_ok else "#f59e0b"
+    else:
+        fresh_val, fresh_sub, fresh_cls, fresh_acc = "—", "", "", "#64748b"
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.markdown(kpi_card("Snapshot Date", as_of_date_str,
+                          sub=fresh_sub, sub_cls=fresh_cls, accent=fresh_acc), unsafe_allow_html=True)
+    c2.markdown(kpi_card("Checks Passed", f"{n_passed}/{len(checks)}",
+                          accent="#10b981" if not errors else "#ef4444"), unsafe_allow_html=True)
+    c3.markdown(kpi_card("ERROR Failures", str(len(errors)),
+                          sub="Must be 0 before comp platform sync" if errors else "Clean — ready to sync",
+                          sub_cls="neg" if errors else "pos",
+                          accent="#ef4444" if errors else "#10b981"), unsafe_allow_html=True)
+    c4.markdown(kpi_card("Warnings", str(len(warnings)),
+                          sub="Review before next pipeline run" if warnings else "No active warnings",
+                          accent="#f59e0b" if warnings else "#64748b"), unsafe_allow_html=True)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # ── Check results table ──────────────────────────────────────────────────
+    st.markdown('<div class="section-header">Check Results</div>', unsafe_allow_html=True)
+    chk_df = pd.DataFrame(checks)
+
+    def _status_style(v):
+        if str(v).startswith("✗"): return "color:#ef4444;font-weight:700"
+        if str(v).startswith("⚠"): return "color:#f59e0b;font-weight:700"
+        if str(v).startswith("ℹ"): return "color:#6b7280"
+        return "color:#10b981;font-weight:600"
+
+    def _sev_style(v):
+        return {"ERROR": "color:#ef4444", "WARNING": "color:#f59e0b",
+                "INFO": "color:#6b7280"}.get(str(v), "")
+
+    st.dataframe(
+        chk_df.style.map(_status_style, subset=["Status"]).map(_sev_style, subset=["Severity"]),
+        use_container_width=True, hide_index=True,
+    )
+
+    # ── Data coverage summary ─────────────────────────────────────────────────
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Data Coverage</div>', unsafe_allow_html=True)
+    tier_counts = acct_df["health_tier"].value_counts().to_dict()
+    total_a = len(acct_df)
+    total_r = len(rep_df)
+
+    coverage = pd.DataFrame([
+        {"Metric": "Accounts in snapshot",               "Value": f"{total_a:,}"},
+        {"Metric": "Reps in snapshot",                   "Value": f"{total_r:,}"},
+        {"Metric": "Accounts with consumption rate",
+         "Value": f'{acct_df["trailing_90d_avg_rate"].notna().sum():,} '
+                  f'({acct_df["trailing_90d_avg_rate"].notna().mean():.1%})'},
+        {"Metric": "Accounts with cACV > 0",
+         "Value": f'{(acct_df["cacv"] > 0).sum():,} '
+                  f'({(acct_df["cacv"] > 0).mean():.1%})'},
+        {"Metric": "Shelfware + Inactive",
+         "Value": f'{tier_counts.get("Shelfware", 0) + tier_counts.get("Inactive", 0):,} '
+                  f'({(tier_counts.get("Shelfware", 0) + tier_counts.get("Inactive", 0)) / total_a:.1%})'},
+        {"Metric": "Ramping (excluded from cACV)",
+         "Value": f'{tier_counts.get("Ramping", 0):,} '
+                  f'({tier_counts.get("Ramping", 0) / total_a:.1%})'},
+        {"Metric": "Expansion-flagged accounts",
+         "Value": f'{int(acct_df["expansion_flag"].sum()):,}'},
+    ])
+    st.dataframe(coverage, use_container_width=True, hide_index=True)
+
+    st.markdown(
+        f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
+        f'padding:0.85rem 1.1rem;margin-top:1rem;">'
+        f'<span style="font-size:0.72rem;font-weight:600;letter-spacing:0.07em;'
+        f'text-transform:uppercase;color:#94a3b8;">Full upstream DQ suite</span><br>'
+        f'<span style="font-size:0.8rem;color:#64748b;">The checks above run on the loaded snapshot. '
+        f'For full upstream validation against raw BigQuery tables — including NULL primary keys, '
+        f'orphaned usage logs, duplicate log IDs, and malformed contracts — run:<br>'
+        f'<code style="background:#e2e8f0;border-radius:4px;padding:2px 6px;font-size:0.8rem;">'
+        f'python3 pipeline_and_tests/dq_tests.py --as-of-date {as_of_date_str}'
+        f'</code></span></div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -942,13 +1121,14 @@ def main():
     acct_df      = load_accounts(as_of_date, region, employee_id)
     acct_df_full = load_accounts(as_of_date)   # unfiltered for renewal risk
 
-    tab_ov, tab_rgn, tab_rep, tab_rnw, tab_exp, tab_acct = st.tabs([
+    tab_ov, tab_rgn, tab_rep, tab_rnw, tab_exp, tab_acct, tab_dq = st.tabs([
         "📊  Portfolio Overview",
         "🗺  By Region",
         "👤  By Rep",
         "⚠️  Renewal Risk",
         "📈  Expansion & Activation",
         "🏢  Account Detail",
+        "📋  Data Health",
     ])
 
     with tab_ov:   page_overview(rep_df_view, acct_df)
@@ -957,6 +1137,7 @@ def main():
     with tab_rnw:  page_renewal_risk(acct_df_full, as_of_date)
     with tab_exp:  page_expansion_activation(acct_df_full)
     with tab_acct: page_accounts(acct_df, rep_name)
+    with tab_dq:   page_data_health(acct_df_full, rep_df, as_of_date)
 
 
 if __name__ == "__main__":

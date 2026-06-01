@@ -50,6 +50,8 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 
 > **Naming note:** cACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. Consider labeling it "cACV (GTM metric)" in any materials shared with investors to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
 
+> **Comp audit trail requirement:** Any cACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §13 Q8). Retroactive cACV corrections after commission payment require CFO sign-off.
+
 ### 2.2 Formula
 
 ```
@@ -306,13 +308,17 @@ The AE's bookings commission rate floats based on portfolio cACV attainment. Thi
 
 *Example impact:* A $300K ACV deal at the 1.20× rate vs. 0.85× rate is a $105K difference in quota credit — large enough to materially change behavior across a portfolio.
 
-**Mechanism 2 — Activation bonus at month 6**
+**Mechanism 2 — Activation bonus at month 6 (Enterprise: month 9)**
 
 Any AE whose new account sustains ≥80% consumption rate through month 6 earns a one-time SPIF. The 6-month requirement prevents Spike & Drop gaming: paying at 90 days incentivizes a burst of onboarding activity followed by drop-off. Month 6 requires sustained adoption.
 
-**Mechanism 3 — Portfolio overachievement floor**
+**Exception for Enterprise accounts (ACV ≥ $250K or contract term ≥ 2 years):** the evaluation window extends to month 9. Large enterprise deployments — spanning multiple cloud providers, business units, or compliance domains — require longer to fully instrument. The month 6 check-in milestone is still required for coaching, but the SPIF is earned at month 9 if ≥80% is sustained at that point.
+
+**Mechanism 3 — Portfolio overachievement floor (with inherited-territory carve-out)**
 
 An AE cannot earn above 100% OTE if portfolio cACV attainment is below 60%. Prevents a rep from chasing new logos while leaving a book full of shelfware unattended.
+
+**Carve-out for inherited territories:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio cACV from their inherited baseline, not the absolute attainment level. This prevents the floor from penalizing a rep for their predecessor's shelfware. The carve-out period requires VP of Sales sign-off to activate and is tracked separately in the compensation platform.
 
 ### 7.2 AM Incentive Mechanisms
 
@@ -422,6 +428,10 @@ cACV provides two distinct forecasting signals: **renewal risk** (defensive) and
 | Expansion flag conversion | ≥ 30% of flagged accounts → upsell within 180 days | Semi-annual |
 | New account activation | ≥ 70% reach Healthy tier within 90 days of go-live | Quarterly |
 | cACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal |
+| Pipeline data freshness | Snapshot ≤ 24 hours old at time of dashboard load | Every pipeline run |
+| DQ test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run |
+
+> **Note on shelfware threshold:** The DQ test in `dq_tests.py` alerts at >15% shelfware rate (a data integrity floor). The 8% target above is a performance ceiling — the org should be well below the alert level. If shelfware rate is between 8% and 15%, it requires a sales operations review; above 15%, it triggers the automated DQ alert and escalation to the data engineering team.
 
 ---
 
