@@ -107,7 +107,7 @@ cACV is designed to shift incentives at every layer of the GTM organization. The
 | Fast time-to-value | New accounts ramping to ≥80% consumption within 90 days trigger an activation bonus; slow onboarding costs attainment |
 | Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their cACV |
 | Proactive renewal risk management | Account Managers' quota is tied to cACV, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
-| Expansion from genuine usage | Expansion flag accounts (2+ months >120%) represent organic demand; reps are credited for converting that signal into a larger contract |
+| Expansion from genuine usage | Accounts consistently consuming more than 120% of their committed credits for 2+ months represent organic demand that has outgrown the contract; reps are credited for converting that signal into a larger deal |
 | Committing to longer contract terms | Multi-year deals earn a term multiplier on ACV quota credit (1.2×–1.5× for 2–5 years) — rewarding the revenue visibility a long-term commit provides without the quota-busting effect of full TCV credit |
 
 **Behaviors to suppress**
