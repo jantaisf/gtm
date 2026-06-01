@@ -299,6 +299,8 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 > **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. Consumption ACV comp reform is the thesis of this spec.
 
+> **Assumptions note:** The role structure, time allocations, and rules of engagement in §7.0 are modelled on broadly accepted enterprise SaaS patterns (Snowflake, industry benchmarks) and are intended as a starting framework, not a description of PANW's current sales org. PANW's actual AE and AM role definitions, existing compensation plans, territory ownership rules, and handoff processes may differ materially. Before this framework is adopted, the ROE definitions in §7.0.3 in particular — holding periods, expansion credit splits, renewal residuals, and poaching protection — will need to be reviewed and validated against PANW's existing comp agreements, Salesforce ownership model, and HR/legal requirements. These details should be worked through with VP of Sales, Sales Operations, and Finance before v1 rollout.
+
 ### 7.0 Role Definitions and Rules of Engagement
 
 #### 7.0.1 Role Mandates
