@@ -541,13 +541,18 @@ These scenarios define the expected Consumption ACV output for given inputs. Use
 
 ## 6. as_of_date Parameter
 
-All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
+**Default: today's date.** Running the pipeline or DQ tests without specifying `--as-of-date` produces a snapshot for the current calendar date. Explicitly passing `--as-of-date YYYY-MM-DD` overrides this for point-in-time analysis or backfills.
+
+```bash
+python3 pipeline_and_tests/run_pipeline.py                        # snapshot for today
+python3 pipeline_and_tests/run_pipeline.py --as-of-date 2025-06-30  # historical snapshot
+```
 
 **Why this matters:**
-- The synthetic dataset covers Jan 2024 → today. Run with `--as-of-date 2025-06-30` to simulate a mid-year snapshot.
-- Enables point-in-time analysis and backtesting of the metric.
-- `stg_active_contracts` uses `as_of_date` to determine which contracts are active.
-- `cacv_account` uses `as_of_date` to define the trailing 90-day window and new account threshold.
+- Enables point-in-time analysis and backtesting — run against any past date to reproduce a historical snapshot exactly.
+- `stg_active_contracts` uses `as_of_date` to determine which contracts are active at that moment.
+- `cacv_account` uses `as_of_date` to define the trailing 90-day window and the new account (Ramping) threshold.
+- The pipeline is idempotent for a given `as_of_date` — running it twice for the same date overwrites the prior result rather than appending.
 
 ---
 

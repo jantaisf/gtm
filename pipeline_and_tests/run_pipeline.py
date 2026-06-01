@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 2 Part 2: cACV Pipeline Runner
+Consumption ACV Pipeline Runner
 
 Executes 5 SQL transformation steps in order against BigQuery,
 producing the full derived table chain from raw tables to cacv_rep_rollup.
@@ -14,18 +14,19 @@ Steps:
     0  dim_dates               Calendar + PANW fiscal dimension (2000–2030)
     1  stg_active_contracts    Resolve active contracts per account
     2  stg_monthly_consumption Aggregate monthly usage; exclude orphaned/rogue logs
-    3  cacv_account            Account-level cACV + health tiers
-    4  cacv_rep_rollup         Rep + region cACV rollup
+    3  cacv_account            Account-level Consumption ACV + health tiers
+    4  cacv_rep_rollup         Rep + region Consumption ACV rollup
 
 Usage:
-    python3 run_pipeline.py
-    python3 run_pipeline.py --as-of-date 2026-05-28
+    python3 run_pipeline.py                        # snapshot for today
+    python3 run_pipeline.py --as-of-date 2026-05-28  # historical snapshot
     python3 run_pipeline.py --step 3
     python3 run_pipeline.py --dry-run
 
 Options:
-    --as-of-date YYYY-MM-DD   Evaluation date for active contract resolution.
-                               Default: today.
+    --as-of-date YYYY-MM-DD   Snapshot date. Default: today's date. All SQL steps
+                               use this date to resolve active contracts, the trailing
+                               90-day consumption window, and the Ramping threshold.
     --step N                   Run only step N (0–4).
     --dry-run                  Print SQL without executing.
 """

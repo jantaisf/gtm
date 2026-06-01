@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Phase 2 Part 3: Automated Data Quality Tests
+Consumption ACV — Automated Data Quality Tests
 
 Runs assertions against BigQuery raw tables to catch data anomalies
-before they corrupt the cACV metric calculation.
+before they corrupt the Consumption ACV metric calculation.
 
 Tests:
     [ERROR]   test_null_primary_keys          — NULL PKs in any table
@@ -19,10 +19,16 @@ Tests:
     [INFO]    test_new_account_rate           — % of accounts in Ramping status
 
 Usage:
-    python3 dq_tests.py
-    python3 dq_tests.py --as-of-date 2025-06-30
+    python3 dq_tests.py                           # run against today's date
+    python3 dq_tests.py --as-of-date 2025-06-30  # run against a historical snapshot
     python3 dq_tests.py --as-of-date 2025-06-30 --fail-on-error
     python3 dq_tests.py --as-of-date 2025-06-30 --output results.json
+
+Options:
+    --as-of-date YYYY-MM-DD   Snapshot date for date-sensitive tests (shelfware rate,
+                               overlapping contracts, new account rate). Default: today's date.
+    --fail-on-error           Exit with code 1 if any ERROR test fails.
+    --output FILE             Write JSON results to FILE.
 
 Exit codes:
     0  All tests passed (or only warnings/info)
