@@ -2,8 +2,6 @@
 
 **Consumption ACV (Consumption ACV)** is a prototype GTM metric for Palo Alto Networks Prisma Cloud's hybrid consumption model. It measures the portion of contracted ACV backed by actual platform usage — turning a bookings number into a leading indicator of renewal health and expansion pipeline.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cacv-dashboard.streamlit.app)
-
 ---
 
 ## What's in this repo
@@ -19,20 +17,6 @@
 | `dashboard/app.py` | Streamlit executive dashboard — 4 tabs, BigQuery + CSV demo mode |
 | `dashboard/demo_data/` | Cached CSV snapshot for the live demo (no credentials required) |
 | `comp_model.xlsx` | Spreadsheet model for AE/AM compensation under the Consumption ACV framework |
-
----
-
-## Live Demo
-
-The dashboard is deployed on Streamlit Community Cloud and runs on a committed CSV snapshot — no login or credentials required:
-
-**[https://cacv-dashboard.streamlit.app](https://cacv-dashboard.streamlit.app)**
-
-The demo shows:
-- **Overview** — org-wide KPIs, Consumption ACV by region, health tier mix, attainment scatter by rep
-- **By Region** — region comparison table + health tier stack chart
-- **By Rep** — ranked leaderboard with ACV vs. Consumption ACV overlay, full rep table
-- **Accounts** — per-account scatter (ACV vs. consumption rate), filterable by health tier
 
 ---
 
@@ -75,7 +59,7 @@ python3 pipeline_and_tests/dq_tests.py
 streamlit run dashboard/app.py
 ```
 
-The app connects to BigQuery automatically when GCP credentials are present. Without credentials it falls back to the committed CSV snapshot in `dashboard/demo_data/` — the same data powering the live demo.
+The app connects to BigQuery automatically when GCP credentials are present. Without credentials it falls back to the committed CSV snapshot in `dashboard/demo_data/` — no credentials required to explore the prototype.
 
 ---
 

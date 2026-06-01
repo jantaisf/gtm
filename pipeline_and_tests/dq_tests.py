@@ -48,7 +48,7 @@ GCP_PROJECT = "openclaw-gateway-491103"
 DS_RAW      = f"`{GCP_PROJECT}.raw`"
 DS_STAGING  = f"`{GCP_PROJECT}.staging`"
 DS_GTM      = f"`{GCP_PROJECT}.gtm`"
-DS          = DS_RAW   # DQ tests run against raw tables
+DS          = DS_RAW   # Data quality tests run against raw tables
 
 
 # ─────────────────────────────────────────────────────────────────────────────

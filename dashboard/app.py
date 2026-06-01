@@ -200,88 +200,33 @@ def inject_css() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BigQuery — optional
+# Data loading — CSV only
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_resource
-def _get_bq_client():
-    try:
-        from google.cloud import bigquery
-        client = bigquery.Client(project=GCP_PROJECT)
-        client.query("SELECT 1").result()
-        return client
-    except Exception:
-        return None
-
-def _bq(): return _get_bq_client()
-
-@st.cache_resource
-def _is_demo() -> bool: return _bq() is None
+def _is_demo() -> bool: return True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Data loading
-# ─────────────────────────────────────────────────────────────────────────────
-
-@st.cache_data(ttl=300, show_spinner="Loading rep data…")
+@st.cache_data(show_spinner="Loading rep data…")
 def load_rep_rollup(as_of_date: str) -> pd.DataFrame:
-    client = _bq()
-    if client is not None:
-        DS  = f"`{GCP_PROJECT}.gtm`"
-        sql = f"SELECT * FROM {DS}.cacv_rep_rollup WHERE DATE(as_of_date) = DATE '{as_of_date}'"
-        df  = client.query(sql).to_dataframe()
-        if not df.empty:
-            return df
-        return client.query(f"SELECT * FROM {DS}.cacv_rep_rollup ORDER BY calculated_at DESC LIMIT 1000").to_dataframe()
     df = pd.read_csv(DEMO_DATA_DIR / "rep_rollup.csv")
     df["as_of_date"] = pd.to_datetime(df["as_of_date"]).dt.date
     match = df[df["as_of_date"].astype(str) == as_of_date]
     return match if not match.empty else df
 
 
-@st.cache_data(ttl=300, show_spinner="Loading account detail…")
+@st.cache_data(show_spinner="Loading account detail…")
 def load_accounts(as_of_date: str, region: Optional[str] = None, employee_id: Optional[str] = None) -> pd.DataFrame:
-    client = _bq()
-    if client is not None:
-        DS = f"`{GCP_PROJECT}.gtm`"; DS_RAW = f"`{GCP_PROJECT}.raw`"
-        sql = f"""
-        SELECT ca.*, sr.name AS rep_name, sr.region, sr.segment
-        FROM {DS}.cacv_account ca
-        JOIN {DS_RAW}.sales_reps sr ON sr.employee_id = ca.employee_id
-        WHERE DATE(ca.as_of_date) = DATE '{as_of_date}'
-        """
-        if region and region != "All": sql += f"\n    AND sr.region = '{region}'"
-        if employee_id and employee_id != "All": sql += f"\n    AND ca.employee_id = '{employee_id}'"
-        try:
-            return client.query(sql).to_dataframe()
-        except Exception:
-            df = client.query(f"""
-                SELECT ca.*, sr.name AS rep_name, sr.region, sr.segment
-                FROM {DS}.cacv_account ca
-                JOIN {DS_RAW}.sales_reps sr ON sr.employee_id = ca.employee_id
-            """).to_dataframe()
-            if region and region != "All": df = df[df["region"] == region]
-            if employee_id and employee_id != "All": df = df[df["employee_id"] == employee_id]
-            return df
     df = pd.read_csv(DEMO_DATA_DIR / "accounts.csv")
     df["as_of_date"] = pd.to_datetime(df["as_of_date"]).dt.date
     match = df[df["as_of_date"].astype(str) == as_of_date]
     df = match if not match.empty else df
-    if region and region != "All": df = df[df["region"] == region]
+    if region and region != "All":      df = df[df["region"] == region]
     if employee_id and employee_id != "All": df = df[df["employee_id"] == employee_id]
     return df
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def load_available_dates() -> list:
-    client = _bq()
-    if client is not None:
-        DS = f"`{GCP_PROJECT}.gtm`"
-        try:
-            df = client.query(f"SELECT DISTINCT DATE(as_of_date) AS d FROM {DS}.cacv_rep_rollup ORDER BY 1 DESC LIMIT 30").to_dataframe()
-            return [str(d) for d in df["d"].tolist()]
-        except Exception:
-            pass
     df = pd.read_csv(DEMO_DATA_DIR / "rep_rollup.csv")
     return sorted(df["as_of_date"].astype(str).unique(), reverse=True)[:30]
 
@@ -363,7 +308,7 @@ def render_sidebar(rep_df: pd.DataFrame):
 
     st.sidebar.markdown("<hr>", unsafe_allow_html=True)
     if _is_demo():
-        st.sidebar.markdown('<p style="color:#475569;font-size:0.72rem;">📊 Demo mode · cached snapshot<br>Connect BigQuery for live data</p>', unsafe_allow_html=True)
+        st.sidebar.markdown('<p style="color:#475569;font-size:0.72rem;">📊 Demo mode · synthetic data only<br>Filters and drill-downs are limited.<br>Full interactivity available in the<br>production build with live data.</p>', unsafe_allow_html=True)
     else:
         st.sidebar.markdown(f'<p style="color:#475569;font-size:0.72rem;">Project: {GCP_PROJECT}<br>Datasets: raw · staging · gtm</p>', unsafe_allow_html=True)
     return as_of_date, region, rep_name, employee_id, rate_col, window_label
@@ -505,6 +450,7 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                    annotation_text="85% target", annotation_font_color="#f59e0b", annotation_font_size=11)
     fig3.update_layout(**_chart(
         xaxis=dict(tickprefix="$", tickformat=","),
+        yaxis=dict(range=[0, 115], ticksuffix="%"),
         legend=dict(orientation="h", y=-0.18),
         margin=dict(t=10, b=48, l=8, r=8),
     ))
@@ -627,7 +573,10 @@ def page_reps(rep_df: pd.DataFrame):
             att  = bot["cacv_attainment_rate"]
             body = (f"**{bot['rep_name']}** · {bot['region']}  \n"
                     f"Consumption ACV **{fmt_m(bot['total_cacv'])}** · Attainment **{fmt_pct(att)}**")
-            st.error(body) if (pd.notna(att) and att < 0.6) else st.info(body)
+            if pd.notna(att) and att < 0.6:
+                st.error(body)
+            else:
+                st.info(body)
 
     st.markdown("<br>", unsafe_allow_html=True)
     chart_df = filtered.nlargest(20, "total_cacv")
@@ -1003,7 +952,7 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
         snap_date  = None
         days_stale = None
 
-    # ── Inline DQ checks ─────────────────────────────────────────────────────
+    # ── Inline data quality checks ───────────────────────────────────────────
     checks = []
 
     # 1. Consumption ACV cap violations
@@ -1049,7 +998,7 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
                    "Rows": missing_rate,
                    "Detail": f"{missing_rate} mature (non-ramping) accounts missing trailing 90-day rate — may indicate missing usage data" if missing_rate else "All mature accounts have a consumption rate"})
 
-    # 7. Shelfware rate vs §9 target (≤8%) and DQ alert (>15%)
+    # 7. Shelfware rate vs §9 target (≤8%) and data quality alert (>15%)
     mature_count     = int(mature_mask.sum())
     shelfware_count  = int(acct_df["health_tier"].isin(["Shelfware", "Inactive"]).sum())
     shelfware_rate   = shelfware_count / mature_count if mature_count else 0
@@ -1058,7 +1007,7 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
     checks.append({"Check": "Shelfware rate (target ≤8%, alert >15%)", "Severity": sw_severity,
                    "Status": sw_status,
                    "Rows": shelfware_count,
-                   "Detail": f"{shelfware_rate:.1%} of mature accounts in Shelfware/Inactive tier (target ≤8%; DQ alert at >15%)"})
+                   "Detail": f"{shelfware_rate:.1%} of mature accounts in Shelfware/Inactive tier (target ≤8%; data quality alert at >15%)"})
 
     # 8. Ramping rate — informational
     ramp_count = int((acct_df["health_tier"] == "Ramping").sum())
@@ -1147,7 +1096,7 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
         f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
         f'padding:0.85rem 1.1rem;margin-top:1rem;">'
         f'<span style="font-size:0.72rem;font-weight:600;letter-spacing:0.07em;'
-        f'text-transform:uppercase;color:#94a3b8;">Full upstream DQ suite</span><br>'
+        f'text-transform:uppercase;color:#94a3b8;">Full upstream data quality suite</span><br>'
         f'<span style="font-size:0.8rem;color:#64748b;">The checks above run on the loaded snapshot. '
         f'For full upstream validation against raw BigQuery tables — including NULL primary keys, '
         f'orphaned usage logs, duplicate log IDs, and malformed contracts — run:<br>'
@@ -1173,8 +1122,42 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown(
+        '<div style="background:#fefce8;border:1px solid #fde68a;border-left:4px solid #f59e0b;'
+        'border-radius:10px;padding:0.75rem 1.1rem;margin-bottom:1rem;">'
+        '<span style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#92400e;">Prototype · For Demonstration Purposes</span><br>'
+        '<span style="font-size:0.82rem;color:#78350f;">'
+        'This dashboard is a working prototype built on synthetic data to illustrate the Consumption ACV metric, '
+        'pipeline architecture, and reporting concepts described in the product and technical specifications. '
+        'It is intended for stakeholder review and feedback — not for production use or business decisions.'
+        '</span></div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("What this prototype demonstrates — click to explore", expanded=False):
+        st.markdown("""
+**Seven views across the full go-to-market hierarchy**
+- **Portfolio Overview** — top-line Consumption ACV attainment, ACV at risk, and Consumption Overage KPIs; regional health breakdown; tier distribution donut
+- **By Region** — regional comparison of Consumption ACV attainment, risk exposure, and health tier mix
+- **By Rep** — rep-level leaderboard with attainment rate, ACV at risk, and Consumption Overage; sortable and filterable
+- **Renewal Risk** — accounts with the highest dollar exposure at renewal; timeline of upcoming contract expirations
+- **Expansion & Activation** — accounts consuming above their committed ACV (Consumption Overage signal); new account ramp progress
+- **Account Detail** — full drill-down to individual account: health tier, contract terms, month-by-month consumption rate trend, and 7/30/90-day rate windows
+- **Data Health** — inline data quality checks against the loaded snapshot, with a pointer to run the full upstream validation suite
+
+**Interactive controls (sidebar)**
+- Filter any view by **region** or **individual sales rep**
+- Change the **consumption rate window** between 7-day, 30-day, and 90-day trailing averages to compare short- vs. long-term usage signals (note: Consumption ACV for compensation purposes always uses the 90-day window)
+- Select a **snapshot date** to replay any historical pipeline run
+
+**What changes in production**
+- Synthetic data is replaced with live BigQuery tables populated by the pipeline (`run_pipeline.py`)
+- The data health tab connects to `dq_tests.py` output rather than computing inline checks
+- Dashboards are rebuilt on PANW's existing BI platform; this Streamlit prototype demonstrates the metric logic and layout
+        """)
+
     if _is_demo():
-        st.info("**Demo mode** — showing a cached pipeline snapshot. All filters, charts, and tables are fully interactive.")
+        st.caption("📊 Demo mode · synthetic data snapshot · filters and drill-downs are limited · full interactivity available in the production build")
 
     available_dates = load_available_dates()
     initial_date    = available_dates[0] if available_dates else "2026-06-01"

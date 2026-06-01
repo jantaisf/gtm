@@ -21,7 +21,8 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 **Owner:** Principal PM, Analytics & AI  
 **Stakeholders:** VP of Sales, CFO  
 **Status:** Proposed — pending executive alignment  
-**Last Updated:** May 2026
+**Last Updated:** May 2026  
+**Prototype:** Run locally with `streamlit run dashboard/app.py`
 
 > **Product scope note:** This spec covers the Prisma Cloud capability set (cloud security posture, workload protection, code security).
 
@@ -523,9 +524,9 @@ Consumption ACV provides two distinct forecasting signals: **renewal risk** (def
 | New account activation | ≥ 70% reach Healthy tier within 90 days of go-live | Quarterly |
 | Consumption ACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal |
 | Pipeline data freshness | Snapshot ≤ 24 hours old at time of dashboard load | Every pipeline run |
-| DQ test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run |
+| Data quality test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run |
 
-> **Note on shelfware threshold:** The DQ test in `dq_tests.py` alerts at >15% shelfware rate (a data integrity floor). The 8% target above is a performance ceiling — the org should be well below the alert level. If shelfware rate is between 8% and 15%, it requires a sales operations review; above 15%, it triggers the automated DQ alert and escalation to the data engineering team.
+> **Note on shelfware threshold:** The data quality test in `dq_tests.py` alerts at >15% shelfware rate (a data integrity floor). The 8% target above is a performance ceiling — the org should be well below the alert level. If shelfware rate is between 8% and 15%, it requires a sales operations review; above 15%, it triggers the automated data quality alert and escalation to the data engineering team.
 
 ---
 
@@ -559,6 +560,8 @@ This section makes explicit what is and is not in scope for the initial launch o
 ---
 
 ## 11. Executive Dashboard
+
+**🔗 Prototype:** Run locally with `streamlit run dashboard/app.py` — no BigQuery credentials required, loads from the included synthetic data snapshot.
 
 The Consumption ACV dashboard is the primary operational interface for sales leadership. It serves four distinct audiences, each with different questions and a different level of granularity.
 

@@ -541,7 +541,7 @@ These scenarios define the expected Consumption ACV output for given inputs. Use
 
 ## 6. as_of_date Parameter
 
-**Default: today's date.** Running the pipeline or DQ tests without specifying `--as-of-date` produces a snapshot for the current calendar date. Explicitly passing `--as-of-date YYYY-MM-DD` overrides this for point-in-time analysis or backfills.
+**Default: today's date.** Running the pipeline or data quality tests without specifying `--as-of-date` produces a snapshot for the current calendar date. Explicitly passing `--as-of-date YYYY-MM-DD` overrides this for point-in-time analysis or backfills.
 
 ```bash
 python3 pipeline_and_tests/run_pipeline.py                        # snapshot for today
@@ -563,7 +563,7 @@ python3 pipeline_and_tests/run_pipeline.py --as-of-date 2025-06-30  # historical
 | **Data warehouse** | BigQuery | Snowflake, Redshift | Free sandbox tier; serverless; strong Python client |
 | **Pipeline style** | SQL (dbt-style) | PySpark, Pandas | Readable, auditable, portable to dbt in production |
 | **Dashboard** | Streamlit + Plotly | PANW's existing BI platform | Fastest iteration for prototype; no BI license required. Production dashboards will be rebuilt on PANW's existing BI tooling, which connects directly to the BigQuery semantic layer views |
-| **DQ framework** | Custom Python assertions | Great Expectations, dbt tests | Lower dependency overhead; same pattern ports to dbt tests |
+| **Data Quality framework** | Custom Python assertions | Great Expectations, dbt tests | Lower dependency overhead; same pattern ports to dbt tests |
 | **Credit pricing model** | Option A (monthly bucket) | Annual pool, rollover | Clearest shelfware/overage signal; standard PANW contract structure |
 
 ---
@@ -620,12 +620,47 @@ python3 pipeline_and_tests/run_pipeline.py --dry-run
 # Run data quality tests (11 assertions, ERROR / WARNING / INFO)
 python3 pipeline_and_tests/dq_tests.py --as-of-date 2025-06-30
 
-# DQ tests — fail CI on any ERROR
+# Data quality tests — fail CI on any ERROR
 python3 pipeline_and_tests/dq_tests.py --fail-on-error --output results.json
 
 # Launch dashboard
 streamlit run dashboard/app.py
 ```
+
+### 9.1 Refresh Schedule
+
+All pipeline runs are scheduled in **UTC** to avoid DST ambiguity across PANW's global operations. Three runs per day ensure each major region receives a fresh snapshot at both the start and end of its business day.
+
+| Run | UTC Time | Americas | EMEA | APAC | Regional role |
+|-----|----------|----------|------|------|---------------|
+| 1 | 00:00 UTC | 5 PM PT / 8 PM ET (prior day) | 1 AM CET | 8 AM SGT | Americas EOD · APAC BOD |
+| 2 | 08:00 UTC | 1 AM PT / 4 AM ET | 9 AM CET | 4 PM SGT | EMEA BOD · APAC EOD |
+| 3 | 16:00 UTC | 9 AM PT / 12 PM ET | 5 PM CET | Midnight SGT | Americas BOD · EMEA EOD |
+
+> **Note — Run 1 timing:** The 00:00 UTC run depends on upstream usage logs being fully ingested before midnight UTC. If daily usage data from cloud providers is not available until 01:00–02:00 UTC (a common pattern for usage metering pipelines), Run 1 should be shifted accordingly or skipped in favour of Runs 2 and 3. Validate ingestion SLAs with the platform data engineering team before setting the production schedule.
+
+### 9.2 Upstream Data Dependencies
+
+The pipeline is designed to be **event-driven** — each run should be triggered by a completion signal from the upstream ingestion job rather than on a fixed clock. If the upstream job is delayed, the pipeline run defers to the next scheduled window rather than starting against incomplete data.
+
+| Source Table | Source System | Typical Ingestion Cadence | Pipeline Dependency |
+|---|---|---|---|
+| `bronze.daily_usage_logs` | Prisma Cloud metering API | Daily batch (last-mile, closes ~23:00 UTC prior day) | **Critical — pipeline must not start until this table is confirmed complete** |
+| `bronze.contracts` | CRM (e.g., Salesforce CPQ) | Near-real-time CDC or nightly batch | Non-blocking after initial load; changes propagate on next run |
+| `bronze.accounts` | CRM / MDM | Near-real-time CDC or nightly batch | Non-blocking after initial load |
+| `bronze.sales_reps` | HRIS (e.g., Workday) | Daily or on-change | Non-blocking; rep roster changes are low-frequency |
+
+**Recommended trigger pattern:**
+
+```
+upstream_ingestion_job completes
+    → emits completion event (Pub/Sub, Airflow sensor, or dbt source freshness check)
+    → pipeline_and_tests/run_pipeline.py is invoked with --as-of-date <today>
+    → on success, data quality tests run automatically (dq_tests.py --fail-on-error)
+    → on data quality failure, on-call alert is raised; downstream Gold tables are not refreshed
+```
+
+If event-driven triggering is not available at initial rollout, the fixed UTC schedule in §9.1 can be used as a fallback, with the understanding that Run 1 may occasionally execute before `bronze.daily_usage_logs` is fully populated.
 
 ---
 
@@ -766,3 +801,258 @@ Key reports enabled by the current data model:
 | Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time Consumption ACV; semantic layer views remain unchanged |
 | Cohort-based multiplier calibration | Medium | Validate health tier thresholds against actual churn cohorts using `fact_cacv_monthly` + renewal outcomes |
 | Feature-depth weighting | Medium | Weight credits by product tier (base NGFW vs. advanced security add-ons) |
+
+---
+
+## 13. Testing & Quality Checks
+
+The test suite spans three layers. Each layer catches a different class of failure: bad source data (Layer 1), broken pipeline logic (Layer 2), and broken dashboard rendering (Layer 3).
+
+```
+Layer 1 — Data Quality (dq_tests.py)
+    Catches problems in the Bronze tables before they corrupt metric output.
+    Runs automatically after every pipeline execution.
+
+Layer 2 — Metric Correctness (pipeline unit tests)
+    Asserts that the Gold-layer fact table matches expected values for
+    known input scenarios (§5). Catches regressions in SQL logic.
+
+Layer 3 — Dashboard Smoke Tests
+    Confirms the Streamlit app loads, queries BigQuery, and renders
+    all four pages without an unhandled exception.
+```
+
+---
+
+### 13.1 Layer 1 — Data Quality Tests (`dq_tests.py`)
+
+Eleven assertions run against the Bronze tables. A **severity** controls what happens on failure:
+
+- `ERROR` — data integrity is broken; the pipeline **must not proceed**. With `--fail-on-error`, the process exits with code 1, blocking downstream steps.
+- `WARNING` — an expected anomaly (e.g., orphaned logs) that is handled by the pipeline but should be monitored for volume.
+- `INFO` — a normal pattern worth surfacing (e.g., Ramping accounts). Always passes; never blocks.
+
+| # | Test | Severity | What it catches | Pipeline impact |
+|---|------|----------|-----------------|-----------------|
+| 1 | `test_null_primary_keys` | ERROR | NULL `employee_id`, `account_id`, `contract_id`, or `log_id` in any Bronze table | Blocks pipeline |
+| 2 | `test_negative_credits` | ERROR | Rows in `daily_usage_logs` where `compute_credits_consumed < 0` — likely metering errors | Blocks pipeline |
+| 3 | `test_malformed_contracts` | ERROR | Contracts where `end_date < start_date` — makes active-contract resolution undefined | Blocks pipeline |
+| 4 | `test_duplicate_log_ids` | ERROR | Duplicate `log_id` values — would double-count usage in monthly aggregation | Blocks pipeline |
+| 5 | `test_contracts_missing_accounts` | ERROR | Contracts whose `account_id` has no matching row in `accounts` | Blocks pipeline |
+| 6 | `test_accounts_missing_reps` | ERROR | Accounts whose `employee_id` has no matching row in `sales_reps` | Blocks pipeline |
+| 7 | `test_orphaned_usage` | WARNING | Usage logs for `account_id` values not present in `accounts` — excluded from cACV | Logged; pipeline continues |
+| 8 | `test_out_of_contract_usage` | WARNING | Usage for valid accounts that falls outside all contract windows — excluded from cACV | Logged; pipeline continues |
+| 9 | `test_shelfware_rate` | WARNING | >15% of currently active accounts have zero usage in the trailing 90 days | Logged; pipeline continues |
+| 10 | `test_overlapping_contracts` | INFO | Accounts with >1 simultaneously active contract (expected for mid-year expansions) | Informational only |
+| 11 | `test_new_account_rate` | INFO | % of active accounts in Ramping status (contract < 90 days old) | Informational only |
+
+**Running data quality tests:**
+
+```bash
+# Standard run against today's snapshot
+python3 pipeline_and_tests/dq_tests.py
+
+# Historical snapshot
+python3 pipeline_and_tests/dq_tests.py --as-of-date 2025-06-30
+
+# Fail with exit code 1 on any ERROR (use in CI)
+python3 pipeline_and_tests/dq_tests.py --fail-on-error
+
+# Write structured results to JSON
+python3 pipeline_and_tests/dq_tests.py --as-of-date 2025-06-30 --output results.json
+```
+
+The JSON output includes `test_name`, `severity`, `passed`, `row_count`, `detail`, and up to 5 `sample_rows` per failing test — sufficient for triage without a BigQuery console.
+
+---
+
+### 13.2 Layer 2 — Metric Correctness Tests
+
+The scenarios in §5 define the exact expected output for nine representative accounts. These serve as regression tests: if Consumption ACV, Consumption Overage, or Health Tier changes unexpectedly on any scenario after a SQL refactor, a test should catch it before it reaches production.
+
+**Assertions encoded as pipeline tests:**
+
+| Assertion | Rule |
+|---|---|
+| Cap holds | `cacv <= annual_commit_dollars` for all non-NULL rows |
+| Floor holds | `cacv >= 0` for all non-NULL rows |
+| Overage non-negative | `expansion_signal_acv >= 0` for all non-NULL rows |
+| Arithmetic identity | `cacv + expansion_signal_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows |
+| At-risk identity | `acv_at_risk = annual_commit_dollars - cacv` for all non-NULL rows |
+| Ramping accounts NULL | `cacv IS NULL` and `expansion_signal_acv IS NULL` for any account whose earliest contract start is within 90 days of `as_of_date` |
+| No phantom accounts | Every `account_id` in `fact_cacv_snapshot` exists in `dim_accounts` |
+| No phantom reps | Every `employee_id` in `fact_cacv_snapshot` exists in `dim_reps` |
+| Rate window consistency | `trailing_90d_avg_rate` is always the rate used in the `cacv` calculation regardless of the display window selected in the dashboard |
+
+**Suggested implementation:** These can be expressed as BigQuery `ASSERT` statements or as Python `pytest` tests that query the Gold tables and compare against the §5 fixture values. dbt users can encode them as `dbt test` assertions in `schema.yml`.
+
+---
+
+### 13.3 Layer 3 — Dashboard Smoke Tests
+
+Minimal end-to-end checks that confirm the Streamlit app renders without errors against a live (or mock) BigQuery connection.
+
+| Check | Description |
+|---|---|
+| App boots | `streamlit run dashboard/app.py` exits with code 0 on `--server.headless true` |
+| All four pages load | Summary, Renewal Risk, Consumption Overage, and Account Detail each render without an unhandled exception |
+| Empty-state handling | App degrades gracefully when `fact_cacv_snapshot` returns zero rows (e.g., new environment with no data) |
+| Rate window fallback | When `trailing_7d_avg_rate` or `trailing_30d_avg_rate` columns are absent (older data schema), the app silently falls back to `trailing_90d_avg_rate` |
+| Non-90d info banner | Selecting a 7d or 30d window in the sidebar surfaces the comp-window notice in Account Detail |
+
+---
+
+### 13.4 CI Integration
+
+Recommended pipeline for an automated CI run (e.g., GitHub Actions, Cloud Build):
+
+```
+1. Run data quality tests with --fail-on-error
+       python3 pipeline_and_tests/dq_tests.py --fail-on-error --output dq_results.json
+       → Exit 1 on any ERROR severity failure; downstream steps are skipped.
+
+2. Run pipeline
+       python3 pipeline_and_tests/run_pipeline.py --as-of-date <today>
+       → Creates/overwrites Gold tables.
+
+3. Run metric correctness assertions
+       pytest pipeline_and_tests/test_metric_correctness.py
+       → Queries Gold tables; asserts §13.2 rules hold.
+
+4. Archive data quality results
+       Upload dq_results.json as a build artifact for audit trail.
+```
+
+**Exit code contract:**
+- `dq_tests.py` exits `0` if all ERROR-level tests pass (warnings and info do not affect the exit code unless `--fail-on-error` is set).
+- `run_pipeline.py` exits `0` on success, `1` on any BigQuery job error.
+- Metric correctness tests follow standard `pytest` exit codes (`0` = all pass, `1` = any failure).
+
+---
+
+### 13.5 Known Gaps (v2)
+
+| Gap | Risk | Planned fix |
+|---|---|---|
+| No automated metric correctness test file exists yet | Medium — SQL regressions may go undetected | Add `pytest` fixture in `pipeline_and_tests/test_metric_correctness.py` encoding all §5 scenarios |
+| Dashboard smoke tests are manual | Low for prototype; medium in production | Add `pytest` + `playwright` headless Streamlit tests |
+| No schema change detection | Medium — upstream column renames silently break the pipeline | Add a Bronze schema fingerprint check to `dq_tests.py` (compare actual column names against expected schema) |
+| Shelfware threshold (15%) is hardcoded | Low | Promote to a configurable parameter; alert threshold may differ by segment or quarter |
+| Data quality tests don't cover Silver or Gold tables | Medium post-GA | Extend `dq_tests.py` with a `--layer silver\|gold` flag to run referential integrity checks on the downstream tables |
+
+---
+
+## 14. Semantic Layer Build-Out
+
+### 14.0 What the Prototype Has
+
+The current prototype implements a minimal semantic layer: two BigQuery views built in pipeline Step 5 that flatten the star schema into denormalized surfaces.
+
+| View | Grain | Primary consumers |
+|---|---|---|
+| `gold.vw_rep_portfolio` | One row per sales rep | Dashboard tabs 2–3, compensation platform |
+| `gold.vw_account_detail` | One row per account | Dashboard tab 6, CS platform, Salesforce |
+
+These views are functional and sufficient for the prototype, but they do not cover all downstream consumers, do not enforce access control, and are not documented at the column level. The sections below describe what a production build adds.
+
+---
+
+### 14.1 Additional Views for Production
+
+Each downstream consumer has different grain, column, and freshness requirements. Rather than exposing the raw Gold tables directly — which requires each consumer to write their own joins — production should add a view per consumer type.
+
+| View | Grain | New vs. prototype | Consumer | Key columns added |
+|---|---|---|---|---|
+| `gold.vw_rep_portfolio` | Rep | Exists | Dashboard, comp platform | No change to existing columns; add `manager_id`, `manager_name` for rollup reporting |
+| `gold.vw_account_detail` | Account | Exists | Dashboard, CS platform, Salesforce | No change; consider adding `days_to_renewal`, `contract_type` |
+| `gold.vw_regional_summary` | Region | **New** | Regional VPs, Finance | Pre-aggregated region totals — `total_acv`, `total_cacv`, `attainment_rate`, `acv_at_risk`, tier counts |
+| `gold.vw_renewal_pipeline` | Account, sorted by `contract_end_date` | **New** | CFO, Renewal desk | Accounts within 180-day renewal window; columns: `days_to_renewal`, `health_tier`, `acv_at_risk`, `cacv`, `trailing_90d_avg_rate` |
+| `gold.vw_expansion_signals` | Account | **New** | AEs, Sales Managers | Accounts with `expansion_flag = TRUE` or `expansion_signal_acv > 0`; ordered by overage magnitude |
+| `gold.vw_comp_input` | Rep × month | **New** | Compensation platform | Monthly Consumption ACV per rep; includes `run_id` from `pipeline_run_log` for audit trail; excludes Ramping accounts |
+| `gold.vw_finance_snapshot` | Rep, Region, Org total | **New** | CFO, Finance, Board reporting | Aggregated Consumption ACV attainment and risk at org level; designed to feed CFO/board dashboards without raw access to rep-level data |
+
+**Design rule:** Views are additive — adding a column or a new view never breaks an existing consumer. Removing or renaming a column is a breaking change and requires a deprecation window (see §14.4).
+
+---
+
+### 14.2 Access Control and Row-Level Security
+
+The Gold tables and semantic views contain commercially sensitive compensation and forecast data. Production access should follow the principle of least privilege.
+
+| Role | Access | Implementation |
+|---|---|---|
+| **Sales rep** | Own accounts and metrics only | BigQuery row-level security on `vw_account_detail` filtered by `employee_id = SESSION_USER()` |
+| **Sales manager** | All accounts in their region | Row-level security filtered by `region` matching manager's assigned territories |
+| **Regional VP** | Their region's reps and accounts | Same as manager; can also access `vw_regional_summary` for their region |
+| **Revenue Operations** | All reps, all regions — read only | Full read on all `gold.*` views; no access to Bronze or Silver |
+| **Compensation platform (service account)** | `vw_comp_input` only | Dedicated service account; no access to other views |
+| **Finance / CFO** | Aggregate views only | `vw_finance_snapshot`, `vw_renewal_pipeline`; no rep-level detail unless explicitly granted |
+| **Data Engineering** | Full read/write on all datasets | Pipeline execution; separate service account from consumer roles |
+
+> **Note:** This access model is a starting point. PANW's actual role structure, territory hierarchy, and data governance policies will determine the final implementation. Row-level security rules should be reviewed with RevOps and Legal before go-live.
+
+---
+
+### 14.3 Column Documentation (Data Dictionary)
+
+Every column in every production view should have a documented definition attached at the BigQuery schema level using `column_description` in the DDL, or as dbt column-level docs in `schema.yml`. The minimum required fields for each column entry:
+
+| Field | Description |
+|---|---|
+| `column_name` | Exact column name as it appears in the view |
+| `data_type` | BigQuery data type |
+| `definition` | Plain-English definition — what the number means, not how it is calculated |
+| `calculation` | Formula or SQL reference (e.g., "= `annual_commit_dollars × trailing_90d_avg_rate`, capped at `annual_commit_dollars`") |
+| `grain` | What one row represents |
+| `source` | Upstream table(s) and column(s) this value derives from |
+| `nullability` | Conditions under which the column is NULL (e.g., "NULL for Ramping accounts") |
+| `comp_use` | Whether this column feeds the compensation platform — if yes, any changes require CFO sign-off |
+
+**Priority columns to document first** (highest comp and business risk):
+
+- `cacv` — Consumption ACV; the metric used for compensation
+- `expansion_signal_acv` — Consumption Overage; upsell signal
+- `trailing_90d_avg_rate` — the rate used in all comp calculations
+- `health_tier` — drives renewal risk classification and CS escalation
+- `is_new_account` — determines whether an account is excluded from comp
+
+---
+
+### 14.4 View Versioning and Backward Compatibility
+
+Once downstream systems (comp platform, Salesforce, CS tools) depend on semantic views, column changes become breaking changes. The recommended pattern:
+
+```
+1. New column needed  →  ADD to existing view (non-breaking, safe to deploy immediately)
+
+2. Column rename      →  ADD new column with new name; keep old name as alias for one quarter;
+                         notify consumers; remove alias in the following quarter
+
+3. Column removed     →  Same as rename — alias the old name to NULL (or a safe default) for
+                         one quarter to allow consumers to migrate; then remove
+
+4. New consumer view  →  Add new view; no impact on existing consumers
+
+5. Metric logic change→  Bump view version suffix: vw_account_detail_v2
+                         Run both versions in parallel for one full comp cycle;
+                         migrate consumers; deprecate v1
+```
+
+> Any change to a column flagged `comp_use = TRUE` (see §14.3) requires written approval from the VP of Finance before deployment, regardless of whether it appears additive.
+
+---
+
+### 14.5 Metrics Layer (v2 Consideration)
+
+The current semantic layer is SQL views in BigQuery — sufficient for the prototype and early production. As the number of consumers grows, a dedicated **metrics layer** ensures every team uses the same definition of Consumption ACV, regardless of which BI tool or API they query through.
+
+Options to evaluate in v2:
+
+| Tool | Approach | Fits when |
+|---|---|---|
+| **dbt metrics** | Define metrics in `schema.yml`; dbt generates the SQL | Already using dbt for transformations; want metrics in the same repo as models |
+| **Cube.js** (or similar) | Standalone semantic/metrics API; caches and pre-aggregates | Multiple BI tools need the same metrics; want query acceleration |
+| **LookML (Looker)** | Metrics defined in LookML models; explored via Looker UI | PANW's BI platform is Looker — definitions live in the BI layer, not the warehouse |
+| **BigQuery BI Engine + views** | Stay in BigQuery; rely on views + caching | Simpler stack; single BI tool; fewer consumers |
+
+The current SQL view approach maps cleanly to any of these options — the `gold.*` views become the source tables for whichever metrics layer is adopted. No pipeline changes are required when the metrics layer is added or swapped.
