@@ -55,6 +55,23 @@ CHART_THEME = dict(
     legend=dict(font=dict(size=11, color="#6b7280")),
 )
 
+def _chart(*, exclude: tuple = (), **overrides) -> dict:
+    """Merge CHART_THEME with per-chart overrides without duplicate keyword errors.
+
+    Nested dicts (xaxis, yaxis, legend, margin, hoverlabel) are shallow-merged so
+    per-chart additions extend the theme rather than replace it wholesale.
+    Keys listed in `exclude` are dropped entirely (e.g. exclude=("xaxis","yaxis")
+    for pie/donut charts that have no axes).
+    """
+    layout = {k: v for k, v in CHART_THEME.items() if k not in exclude}
+    for key, val in overrides.items():
+        if key in layout and isinstance(layout[key], dict) and isinstance(val, dict):
+            layout[key] = {**layout[key], **val}
+        else:
+            layout[key] = val
+    return layout
+
+
 st.set_page_config(
     page_title="cACV Dashboard · Prisma Cloud",
     page_icon="📊",
@@ -424,10 +441,12 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                     marker_color="#3b82f6",
                     text=[f"{fmt_m(v)}  ·  {fmt_pct(r)}" for v, r in zip(rdf["total_cacv"], rdf["attainment"])],
                     textposition="inside", textfont=dict(color="white", size=11))
-        fig.update_layout(**CHART_THEME, barmode="overlay",
-                          legend=dict(orientation="h", y=-0.18),
-                          yaxis=dict(**CHART_THEME["yaxis"], tickprefix="$", tickformat=","),
-                          height=300)
+        fig.update_layout(**_chart(
+            barmode="overlay",
+            legend=dict(orientation="h", y=-0.18),
+            yaxis=dict(tickprefix="$", tickformat=","),
+            height=300,
+        ))
         st.plotly_chart(fig, use_container_width=True)
 
     with col_r:
@@ -444,8 +463,10 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
             text=f"<b>{total_accts}</b><br><span style='font-size:11px;color:#94a3b8'>accounts</span>",
             x=0.5, y=0.5, showarrow=False, font=dict(size=20, color="#0f172a"),
             xref="paper", yref="paper", align="center")
-        fig2.update_layout(**{k:v for k,v in CHART_THEME.items() if k not in ("xaxis","yaxis")},
-                           showlegend=False, margin=dict(t=20,b=20,l=20,r=20), height=300)
+        fig2.update_layout(**_chart(
+            exclude=("xaxis", "yaxis"),
+            showlegend=False, margin=dict(t=20, b=20, l=20, r=20), height=300,
+        ))
         st.plotly_chart(fig2, use_container_width=True)
 
     st.markdown('<div class="section-header">cACV Attainment vs. ACV — by Rep</div>', unsafe_allow_html=True)
@@ -463,10 +484,11 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                    annotation_text="100%", annotation_font_color="#94a3b8", annotation_font_size=11)
     fig3.add_hline(y=85, line_dash="dot", line_color="#f59e0b", line_width=1,
                    annotation_text="85% target", annotation_font_color="#f59e0b", annotation_font_size=11)
-    fig3.update_layout(**CHART_THEME,
-                       xaxis=dict(**CHART_THEME["xaxis"], tickprefix="$", tickformat=","),
-                       legend=dict(orientation="h", y=-0.18),
-                       margin=dict(t=10,b=48,l=8,r=8))
+    fig3.update_layout(**_chart(
+        xaxis=dict(tickprefix="$", tickformat=","),
+        legend=dict(orientation="h", y=-0.18),
+        margin=dict(t=10, b=48, l=8, r=8),
+    ))
     st.plotly_chart(fig3, use_container_width=True)
 
 
@@ -527,9 +549,12 @@ def page_region(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                         marker_color=HEALTH_COLORS[label],
                         text=rh_pct[col].apply(lambda v: f"{v:.0f}%" if v >= 5 else ""),
                         textposition="inside", textfont=dict(color="white", size=11))
-        fig.update_layout(**CHART_THEME, barmode="stack",
-                          yaxis=dict(**CHART_THEME["yaxis"], title="% of accounts", ticksuffix="%"),
-                          legend=dict(orientation="h", y=-0.22), height=340)
+        fig.update_layout(**_chart(
+            barmode="stack",
+            yaxis=dict(title="% of accounts", ticksuffix="%"),
+            legend=dict(orientation="h", y=-0.22),
+            height=340,
+        ))
         st.plotly_chart(fig, use_container_width=True)
 
     with col_r:
@@ -550,9 +575,10 @@ def page_region(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                            labels={"region":"Region","exp_signal_acv":"Expansion Signal ACV ($)"},
                            height=340)
             fig_e.update_traces(textposition="outside")
-            fig_e.update_layout(**CHART_THEME,
-                                yaxis=dict(**CHART_THEME["yaxis"], tickprefix="$", tickformat=","),
-                                showlegend=False)
+            fig_e.update_layout(**_chart(
+                yaxis=dict(tickprefix="$", tickformat=","),
+                showlegend=False,
+            ))
             st.plotly_chart(fig_e, use_container_width=True)
 
 
@@ -595,12 +621,14 @@ def page_reps(rep_df: pd.DataFrame):
                 text=[f"{fmt_m(v)}  ·  {fmt_pct(r)}"
                       for v, r in zip(chart_df["total_cacv"], chart_df["cacv_attainment_rate"])],
                 textposition="inside", textfont=dict(color="white", size=11))
-    fig.update_layout(**CHART_THEME, barmode="overlay",
-                      xaxis=dict(**CHART_THEME["xaxis"], tickprefix="$", tickformat=","),
-                      legend=dict(orientation="h", y=-0.06),
-                      margin=dict(t=10,b=48,l=160,r=8),
-                      height=max(320, len(chart_df)*30),
-                      yaxis=dict(**CHART_THEME["yaxis"], autorange="reversed"))
+    fig.update_layout(**_chart(
+        barmode="overlay",
+        xaxis=dict(tickprefix="$", tickformat=","),
+        yaxis=dict(autorange="reversed"),
+        legend=dict(orientation="h", y=-0.06),
+        margin=dict(t=10, b=48, l=160, r=8),
+        height=max(320, len(chart_df) * 30),
+    ))
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('<div class="section-header">Full Rep Table</div>', unsafe_allow_html=True)
@@ -687,10 +715,11 @@ def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str):
                      color_discrete_map=HEALTH_COLORS,
                      labels={"bucket":"Days to Renewal","acv_at_risk":"ACV at Risk ($)","health_tier":"Health Tier"},
                      height=320)
-        fig.update_layout(**CHART_THEME,
-                          yaxis=dict(**CHART_THEME["yaxis"], tickprefix="$", tickformat=","),
-                          legend=dict(orientation="h", y=-0.22),
-                          barmode="stack")
+        fig.update_layout(**_chart(
+            barmode="stack",
+            yaxis=dict(tickprefix="$", tickformat=","),
+            legend=dict(orientation="h", y=-0.22),
+        ))
         st.plotly_chart(fig, use_container_width=True)
 
     with col_r:
@@ -705,8 +734,10 @@ def page_renewal_risk(acct_df: pd.DataFrame, as_of_date_str: str):
         fig2.add_annotation(text=f"<b>{len(upcoming)}</b><br><span style='font-size:11px;color:#94a3b8'>expiring</span>",
                              x=0.5, y=0.5, showarrow=False, font=dict(size=20, color="#0f172a"),
                              xref="paper", yref="paper", align="center")
-        fig2.update_layout(**{k:v for k,v in CHART_THEME.items() if k not in ("xaxis","yaxis")},
-                           showlegend=False, margin=dict(t=20,b=20,l=20,r=20), height=320)
+        fig2.update_layout(**_chart(
+            exclude=("xaxis", "yaxis"),
+            showlegend=False, margin=dict(t=20, b=20, l=20, r=20), height=320,
+        ))
         st.plotly_chart(fig2, use_container_width=True)
 
     # Renewal risk table
@@ -813,8 +844,10 @@ def page_expansion_activation(acct_df: pd.DataFrame):
                          color="Pace", color_discrete_map=pace_colors,
                          text="Count", height=280)
             fig.update_traces(textposition="outside")
-            fig.update_layout(**CHART_THEME, showlegend=False,
-                              yaxis=dict(**CHART_THEME["yaxis"], title="Accounts"))
+            fig.update_layout(**_chart(
+                showlegend=False,
+                yaxis=dict(title="Accounts"),
+            ))
             st.plotly_chart(fig, use_container_width=True)
 
         with col_r:
@@ -826,8 +859,10 @@ def page_expansion_activation(acct_df: pd.DataFrame):
                           color="Pace", color_discrete_map=pace_colors,
                           text=pace_acv["ACV"].apply(fmt_m), height=280)
             fig2.update_traces(textposition="outside")
-            fig2.update_layout(**CHART_THEME, showlegend=False,
-                               yaxis=dict(**CHART_THEME["yaxis"], tickprefix="$", tickformat=",", title="ACV ($)"))
+            fig2.update_layout(**_chart(
+                showlegend=False,
+                yaxis=dict(tickprefix="$", tickformat=",", title="ACV ($)"),
+            ))
             st.plotly_chart(fig2, use_container_width=True)
 
         st.markdown('<div class="section-header">Ramping Account Detail</div>', unsafe_allow_html=True)
@@ -880,10 +915,11 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
                   annotation_text="100% commit", annotation_font_color="#94a3b8", annotation_font_size=11)
     fig.add_hline(y=0.80, line_dash="dot", line_color="#f59e0b", line_width=1,
                   annotation_text="80% floor", annotation_font_color="#f59e0b", annotation_font_size=11)
-    fig.update_layout(**CHART_THEME,
-                      xaxis=dict(**CHART_THEME["xaxis"], tickprefix="$", tickformat=","),
-                      legend=dict(orientation="h", y=-0.2),
-                      margin=dict(t=10,b=56,l=8,r=8))
+    fig.update_layout(**_chart(
+        xaxis=dict(tickprefix="$", tickformat=","),
+        legend=dict(orientation="h", y=-0.2),
+        margin=dict(t=10, b=56, l=8, r=8),
+    ))
     st.plotly_chart(fig, use_container_width=True)
 
     exp_cols   = ["expansion_signal_acv"] if "expansion_signal_acv" in view.columns else []
