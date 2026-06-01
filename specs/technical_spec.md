@@ -210,7 +210,153 @@ This pattern provides:
 
 ---
 
-## 3. Pipeline Step-by-Step Logic
+## 3. History Tracking
+
+The pipeline captures three distinct types of history, each serving a different purpose. These are not interchangeable — collapsing them into a single pattern produces a model that is weak at all three jobs.
+
+| History type | Question it answers | Pattern |
+|---|---|---|
+| **Point-in-time accuracy** | "What was the state at time X?" | SCD Type 2 on dimension tables |
+| **Comp auditability** | "Why was rep X paid Y in month M?" | Pipeline run log + corrections audit table |
+| **Source data changes** | "When and why did the underlying data change?" | Append-only change log tables in Bronze |
+
+---
+
+### 3.1 Slowly Changing Dimensions (Point-in-Time Accuracy)
+
+**v1 default:** All dimension tables use **SCD Type 1** (overwrite on each pipeline run). Territory reassignments, account renames, and contract amendments take effect immediately and replace the prior value. Historical fact rows still join correctly because `fact_cacv_snapshot` is a snapshot table — but dimension attributes (rep name, region, segment) will reflect the *current* state, not the state at time of measurement.
+
+**v1 limitation:** Any cohort analysis asking "what region drove the best activation rate in FY25?" will silently use today's territory mapping, not the territory at time of measurement. This is acceptable for a v1 operating dashboard but must be resolved before BI or board-level cohort reporting is expected to be reliable.
+
+**v2 upgrade — SCD Type 2 fields** (add to `dim_reps` and `dim_contracts`):
+
+| Field | Type | Notes |
+|---|---|---|
+| `surrogate_key` | INTEGER | Synthetic Primary Key — replaces natural key as Foreign Key in `fact_cacv_snapshot` |
+| `valid_from` | DATE | Date this version became active |
+| `valid_to` | DATE | NULL = current row; set to day before next version on update |
+| `is_current` | BOOLEAN | Partition filter shorthand — `WHERE is_current = TRUE` returns latest |
+| `dw_created_at` | TIMESTAMP | When this row was written to the warehouse |
+| `change_reason` | STRING | `territory_reassignment` / `contract_amendment` / `acquisition` / `name_change` |
+
+When Type 2 is active, `fact_cacv_snapshot` stores `surrogate_key` (not the natural key) as its Foreign Key, so each fact row is permanently bound to the dimension version that was current when the metric was calculated.
+
+**Priority by table:**
+- `dim_reps` — highest value; territory reassignments are frequent and directly affect regional reporting accuracy
+- `dim_contracts` — high value; contract amendments change the ACV denominator retroactively
+- `dim_accounts` — lower priority; account renames are uncommon
+
+---
+
+### 3.2 Pipeline Run Log and Corrections (Comp Auditability)
+
+Any cACV figure flowing to a compensation platform must be traceable to the exact pipeline run that produced it, with an immutable record of any retroactive corrections. This is a finance requirement, not an analytics nice-to-have (see product_spec.md §2.1 and §9).
+
+**New table: `pipeline_run_log`** — one row per pipeline execution:
+
+| Field | Type | Notes |
+|---|---|---|
+| `run_id` | STRING | Primary Key — UUID |
+| `as_of_date` | DATE | Snapshot date this run produced |
+| `run_timestamp` | TIMESTAMP | Pipeline start time |
+| `pipeline_version` | STRING | Git SHA or semantic version tag |
+| `triggered_by` | STRING | `scheduled` / `manual` / `correction` |
+| `status` | STRING | `running` / `success` / `failed` |
+| `rows_written_fact` | INTEGER | Rows upserted to `fact_cacv_snapshot` |
+| `rows_written_dims` | INTEGER | Rows upserted across all dim tables |
+| `is_correction` | BOOLEAN | TRUE if this run overwrites a prior `as_of_date` snapshot |
+| `correction_note` | STRING | Required when `is_correction = TRUE` |
+| `correction_approved_by` | STRING | VP of Finance or CFO sign-off; required before comp platform sync |
+
+**New table: `fact_cacv_corrections`** — delta record for every retroactive cACV change after commissions have been paid:
+
+| Field | Type | Notes |
+|---|---|---|
+| `correction_id` | STRING | Primary Key — UUID |
+| `pipeline_run_id` | STRING | Foreign Key → `pipeline_run_log.run_id` |
+| `account_id` | STRING | |
+| `as_of_date` | DATE | Snapshot period being corrected |
+| `corrected_at` | TIMESTAMP | |
+| `corrected_by` | STRING | |
+| `old_cacv` | FLOAT | Value before correction |
+| `new_cacv` | FLOAT | Value after correction |
+| `old_health_tier` | STRING | |
+| `new_health_tier` | STRING | |
+| `correction_reason` | STRING | Required — free text |
+| `comp_period_affected` | STRING | e.g. `FY26-Q1` — which pay period is impacted |
+| `clawback_triggered` | BOOLEAN | |
+| `clawback_amount` | FLOAT | NULL if clawback not triggered |
+| `approved_by` | STRING | CFO sign-off required for corrections that affect already-paid commissions |
+
+**Changes to `fact_cacv_snapshot`** — add two fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `pipeline_run_id` | STRING | Foreign Key → `pipeline_run_log.run_id` — links every metric value to its source run |
+| `is_correction` | BOOLEAN | TRUE if this row replaced a prior calculation for the same `account_id × as_of_date` |
+
+This makes the full audit chain traceable: commission record → `vw_rep_portfolio` row → `fact_cacv_snapshot` row → `pipeline_run_log` entry → either a scheduled run or an approved correction.
+
+---
+
+### 3.3 Source Data Change Logs (Bronze Layer)
+
+Two Bronze tables carry changes that directly affect cACV calculations and comp attribution. Without change logs for these, there is no way to distinguish "the metric moved because consumption changed" from "the metric moved because someone edited the source data."
+
+**New table: `bronze.account_ownership_history`** — every rep-to-account assignment from initial signing through all subsequent reassignments:
+
+| Field | Type | Notes |
+|---|---|---|
+| `ownership_id` | STRING | Primary Key — UUID |
+| `account_id` | STRING | Foreign Key → `bronze.accounts` |
+| `employee_id` | STRING | Foreign Key → `bronze.sales_reps` |
+| `effective_from` | DATE | Start of this ownership period |
+| `effective_to` | DATE | NULL = current owner |
+| `change_type` | STRING | `initial_assignment` / `territory_rebalance` / `rep_departure` / `acquisition` |
+| `source` | STRING | `salesforce_sync` / `manual` / `pipeline` |
+| `created_at` | TIMESTAMP | |
+| `created_by` | STRING | |
+| `notes` | STRING | Optional — context for the change |
+
+This table is what makes the `signing_owner_id` / current `employee_id` split on `dim_contracts` fully defensible at scale. The original signing owner is captured at contract creation; this table records every ownership change after that.
+
+> **Data collection note:** This table must be populated from day one. Ownership history that isn't captured at time of reassignment cannot be reconstructed retroactively from the warehouse — it lives only in Salesforce's audit log or HR records.
+
+**New table: `bronze.contract_amendments`** — every change to ACV, credit allowance, or contract term after the original contract is written:
+
+| Field | Type | Notes |
+|---|---|---|
+| `amendment_id` | STRING | Primary Key — UUID |
+| `contract_id` | STRING | Foreign Key → `bronze.contracts` |
+| `amendment_type` | STRING | `acv_change` / `term_extension` / `credit_change` / `early_termination` |
+| `field_changed` | STRING | `annual_commit_dollars` / `end_date` / `included_monthly_compute_credits` |
+| `old_value` | STRING | Stored as STRING to handle mixed types; cast at query time |
+| `new_value` | STRING | |
+| `effective_date` | DATE | When the amendment takes effect on the contract (not when it was signed) |
+| `signed_date` | DATE | When the amendment paperwork was executed |
+| `created_at` | TIMESTAMP | |
+| `created_by` | STRING | |
+| `approved_by` | STRING | Required for `acv_change` amendments — affects the cACV denominator and comp calculations |
+
+An ACV amendment changes the cACV denominator going forward. Without this table, a drop in attainment after a mid-year downsell looks identical to a drop caused by the customer reducing consumption — two situations that require completely different responses.
+
+---
+
+### 3.4 Priority and Phasing
+
+| Addition | Priority | Phase | Rationale |
+|---|---|---|---|
+| `pipeline_run_log` + `pipeline_run_id` on `fact_cacv_snapshot` | P0 | v1 | CFO requirement — required before comp platform integration |
+| `fact_cacv_corrections` | P0 | v1 | Immutable delta record for retroactive corrections and clawback evaluation |
+| `bronze.account_ownership_history` | P1 | v1 | Must start day one — not reconstructable retroactively from the warehouse |
+| `bronze.contract_amendments` | P1 | v1 | ACV and term changes affect the cACV denominator; needed to separate metric movement from data edits |
+| SCD Type 2 on `dim_reps` | P2 | v2 | Required for accurate regional cohort analysis; acceptable to defer if v1 scope is point-in-time |
+| SCD Type 2 on `dim_contracts` | P2 | v2 | Amendment history is surfaced via `contract_amendments` log for v1 |
+| SCD Type 2 on `dim_accounts` | P3 | v2 | Account renames are uncommon; lower risk than rep or contract changes |
+
+---
+
+## 4. Pipeline Step-by-Step Logic
 
 ### Step 0 — `dim_dates`
 
@@ -342,7 +488,7 @@ This pattern provides:
 
 ---
 
-## 4. Metric Correctness Test Cases
+## 5. Metric Correctness Test Cases
 
 These scenarios define the expected cACV output for given inputs. Use them as regression tests during refactors — if cACV changes unexpectedly on any of these, something broke.
 
@@ -367,7 +513,7 @@ These scenarios define the expected cACV output for given inputs. Use them as re
 
 ---
 
-## 5. as_of_date Parameter
+## 6. as_of_date Parameter
 
 All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 
@@ -379,7 +525,7 @@ All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 
 ---
 
-## 6. Technology Choices & Rationale
+## 7. Technology Choices & Rationale
 
 | Decision | Chosen | Alternatives Considered | Rationale |
 |---|---|---|---|
@@ -391,7 +537,7 @@ All pipeline steps accept an `as_of_date` parameter (default: `CURRENT_DATE()`).
 
 ---
 
-## 7. File Structure
+## 8. File Structure
 
 ```
 gtm/
@@ -419,7 +565,7 @@ gtm/
 
 ---
 
-## 8. Running the Pipeline
+## 9. Running the Pipeline
 
 ```bash
 # Authenticate
@@ -452,7 +598,7 @@ streamlit run dashboard/app.py
 
 ---
 
-## 9. Dashboard Implementation
+## 10. Dashboard Implementation
 
 ### Stack
 - **Frontend:** Streamlit (Python) — single-file app (`dashboard/app.py`)
@@ -482,9 +628,9 @@ If `cacv_rep_rollup` has no rows for the requested `as_of_date`, the app falls b
 
 ---
 
-## 10. Downstream System Integrations
+## 11. Downstream System Integrations
 
-### 9.1 Integration Architecture
+### 11.1 Integration Architecture
 
 ```
 BigQuery (gold dataset — semantic layer views)
@@ -499,7 +645,7 @@ All operational exports read from the semantic layer views — `vw_account_detai
 
 ---
 
-### 9.2 Salesforce CRM
+### 11.2 Salesforce CRM
 
 **Sync:** Nightly batch via BigQuery → Salesforce REST API (or Salesforce Connect external object)
 **Source:** `gold.vw_account_detail`
@@ -516,7 +662,7 @@ All operational exports read from the semantic layer views — `vw_account_detai
 
 ---
 
-### 9.3 Compensation Platform (e.g., Xactly, CaptivateIQ)
+### 11.3 Compensation Platform (e.g., Xactly, CaptivateIQ)
 
 **Sync:** Monthly close via BigQuery scheduled export → CSV/SFTP or direct API
 **Source:** `gold.vw_rep_portfolio`
@@ -541,7 +687,7 @@ WHERE f.is_new_account = FALSE                           -- just aged out of ram
 
 ---
 
-### 9.4 Customer Success Platform (e.g., Gainsight, Totango)
+### 11.4 Customer Success Platform (e.g., Gainsight, Totango)
 
 **Sync:** Daily via BigQuery → CS platform API
 **Source:** `gold.vw_account_detail`
@@ -562,7 +708,7 @@ Key field mapping from `gold.vw_account_detail`:
 
 ---
 
-### 9.5 BI / Board Reporting (e.g., Tableau, Looker)
+### 11.5 BI / Board Reporting (e.g., Tableau, Looker)
 
 **Source:** `gold.fact_cacv_snapshot` + `gold.dim_*` directly — the BI layer bypasses the semantic layer views and joins at will, enabling any aggregation not pre-built into the views.
 
@@ -578,13 +724,13 @@ Key reports enabled by the current data model:
 
 ---
 
-## 11. v2 Roadmap
+## 12. v2 Roadmap
 
 | Enhancement | Effort | Value |
 |---|---|---|
 | Port SQL to dbt | Medium | Dims and facts become first-class dbt models with built-in lineage, tests, and a docs site |
 | `fact_cacv_monthly` grain table | Medium | Add a monthly-grain fact table (account × month) enabling cohort curves, trend analysis, and any time-series BI report currently blocked by the snapshot grain |
-| SCD Type 2 on dim tables | Medium | Add `valid_from` / `valid_to` to `dim_reps` and `dim_contracts` — preserves history of territory reassignments and contract amendments without rewriting fact data |
+| SCD Type 2 on `dim_reps` + `dim_contracts` | Medium | Add `valid_from` / `valid_to` and `surrogate_key` — preserves history of territory reassignments and contract amendments without rewriting fact data (see §3.1) |
 | ML churn prediction | High | Predict which At Risk accounts churn at renewal, trained on `fact_cacv_monthly` cohort history |
 | Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time cACV; semantic layer views remain unchanged |
 | Cohort-based multiplier calibration | Medium | Validate health tier thresholds against actual churn cohorts using `fact_cacv_monthly` + renewal outcomes |
