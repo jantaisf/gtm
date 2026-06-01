@@ -55,11 +55,11 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 ### 2.2 Formula
 
 ```
-Consumption ACV      = ACV × consumption_rate
+Consumption ACV   = ACV × consumption_rate
 
-Expansion Signal ACV = MAX(Consumption ACV − ACV, 0)
+Consumption Overage = MAX(Consumption ACV − ACV, 0)
 
-consumption_rate     = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
+consumption_rate  = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
 ```
 
 **Where:**
@@ -68,17 +68,17 @@ consumption_rate     = trailing_90d_avg(monthly_credits_consumed / included_mont
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
-**Expansion Signal ACV** is a derived metric — the portion of consumption above the contracted commit. It is always zero for accounts consuming at or below 100%, and positive for over-consuming accounts. Note that above-commit usage is billed at the PAYG list rate, so Expansion Signal ACV underestimates the actual incremental revenue from overage; it is best treated as a demand signal rather than a revenue figure.
+**Consumption Overage** is a derived metric — the portion of consumption above the contracted commit. It is always zero for accounts consuming at or below 100%, and positive for over-consuming accounts. Note that above-commit usage is billed at the PAYG list rate, so Consumption Overage underestimates the actual incremental revenue from overage; it is best treated as a demand signal rather than a revenue figure.
 
 > **Open question — quota cap:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at ACV so that over-consuming accounts do not inflate a rep's attainment above 100%. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §13 Q11.
 
 **Example:**
 
-| Account | ACV | Consumption Rate | Consumption ACV | Expansion Signal |
+| Account | ACV | Consumption Rate | Consumption ACV | Consumption Overage |
 |---|---|---|---|---|
 | Healthy customer | $200K | 92% | $184K | — |
 | Shelfware | $300K | 4% | $12K | — |
-| Overage (expansion signal) | $80K | 138% | $110K | $30K |
+| Overage | $80K | 138% | $110K | $30K |
 | New account (<90 days) | $150K | — | Excluded (ramping) | — |
 
 ### 2.3 Aggregation Levels
@@ -272,7 +272,7 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 |---|---|---|
 | **Shelfware** | Near-zero consumption rate over trailing 90 days | Consumption ACV reflects near-zero value; account flagged for save plan |
 | **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects current inactive state once spike ages out |
-| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption ACV capped at commit; excess reported as expansion signal; expansion flag surfaced to rep for upsell motion |
+| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep for upsell motion |
 | **Mid-Year Expansion** | Customer signs additional contract before original expires | ARR and credits summed across all simultaneously active contracts; expansion flag set |
 | **Orphaned Usage** | Usage logs reference an account not in the customer master | Excluded from Consumption ACV; surfaced in data quality report |
 | **Out-of-contract Usage** | Usage logged before contract start or after contract end | Excluded from consumption rate calculation |
@@ -334,7 +334,7 @@ Account Managers are paid quarterly on Consumption ACV attainment across their p
 
 When an account starts generating over-consumption signal (consuming consistently above 100% of committed ACV), the AM earns a SPIF for surfacing the upsell opportunity — independent of whether the AE closes the expansion deal. This creates a direct financial incentive to flag over-consuming accounts proactively rather than waiting for the AE to notice.
 
-*Rationale:* The expansion signal is the AM's most valuable output after retention. Without a bonus, AMs have no incentive to surface it — the upside goes to the AE who closes the upsell.
+*Rationale:* Consumption Overage is the AM's most valuable output after retention. Without a bonus, AMs have no incentive to surface it — the upside goes to the AE who closes the upsell.
 
 ### 7.3 Multi-Year ACV and Rep Credit
 
@@ -605,7 +605,7 @@ The following decisions require VP of Sales and/or CFO sign-off before Consumpti
 
 1. **Comp go-live timing** *(VP of Sales)* — Same-year comp launch or shadow-track for 1–2 quarters first before paying on it?
 2. **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + Consumption ACV weighted) or two separate quota lines?
-3. **Overage revenue recognition** *(CFO)* — Recognize expansion signal dollars in-period or defer to contract amendment?
+3. **Overage revenue recognition** *(CFO)* — Recognize Consumption Overage in-period or defer to contract amendment?
 4. **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the Consumption ACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
 5. **Phased vs. big-bang rollout** *(VP of Sales)* — Full launch across all regions or pilot one region/segment first?
 6. **Quota relief for ramping accounts** *(VP of Sales)* — Do new accounts in the 90-day ramp window reduce the quota denominator during that period?

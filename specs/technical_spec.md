@@ -179,7 +179,7 @@ Measurable events and metrics at the lowest useful grain.
 | `annual_commit_dollars` | INTEGER | Degenerate dimension — ACV at snapshot time |
 | `trailing_90d_avg_rate` | FLOAT | Consumption rate over last 3 complete months |
 | `cacv` | FLOAT | `MIN(ACV × rate, ACV)`; NULL if ramping |
-| `expansion_signal_acv` | FLOAT | `MAX(ACV × rate − ACV, 0)`; NULL if ramping |
+| `expansion_signal_acv` | FLOAT | Consumption Overage: `MAX(Consumption ACV − ACV, 0)`; NULL if ramping |
 | `acv_at_risk` | FLOAT | `ACV − Consumption ACV`; NULL if ramping |
 | `health_tier` | STRING | Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
 | `is_new_account` | BOOLEAN | Contract start within last 90 days |
@@ -450,6 +450,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
                       annual_commit_dollars), 2)
    END
 
+   -- Consumption Overage
    expansion_signal_acv = CASE
      WHEN is_new_account THEN NULL
      ELSE ROUND(GREATEST(
@@ -457,7 +458,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
            0), 2)
    END
    ```
-   **Cap rationale:** Consumption ACV is capped at the contracted commit to preserve the "% of bookings realized" narrative. Over-consumption flows to `expansion_signal_acv` as a separate upsell pipeline metric.
+   Over-consumption above the contracted commit is reported separately as Consumption Overage (`expansion_signal_acv`).
 6. Compute `acv_at_risk = annual_commit_dollars - cacv`
 7. Flag `expansion_flag = TRUE` if `overage_months >= 2`
 8. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
@@ -465,7 +466,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 **Edge cases handled:**
 - Spike & Drop → trailing 90-day window smooths spike once it ages out
 - New accounts → excluded from Consumption ACV with `is_new_account` flag
-- Consistent overages → `expansion_flag` surfaced; excess consumption reported in `expansion_signal_acv`, not inflated into Consumption ACV
+- Consistent overages → `expansion_flag` surfaced; Consumption Overage reported in `expansion_signal_acv`
 
 ---
 
@@ -476,7 +477,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 **`vw_rep_portfolio`** — aggregates `fact_cacv_snapshot` to rep level, joining `dim_reps`:
 - `total_acv`, `total_cacv`, `cacv_attainment_rate`
 - Health tier account counts: `accounts_expansion`, `accounts_healthy`, `accounts_at_risk`, `accounts_shelfware`, `accounts_inactive`, `accounts_ramping`
-- `expansion_opportunities`, `total_acv_at_risk`, `total_expansion_signal_acv`
+- `expansion_opportunities`, `total_acv_at_risk`, `total_expansion_signal_acv` (Consumption Overage)
 - `region_rank` and `org_rank` window functions for leaderboard
 - Rep name, region, segment from `dim_reps`
 
@@ -492,7 +493,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 
 These scenarios define the expected Consumption ACV output for given inputs. Use them as regression tests during refactors — if Consumption ACV changes unexpectedly on any of these, something broke.
 
-| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected Consumption ACV | Expected Expansion Signal |
+| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected Consumption ACV | Expected Consumption Overage |
 |---|---|---|---|---|---|---|---|
 | Healthy steady-state | $200K | 0.90 | 0.94 | 0.91 | 0.917 | $183,400 | $0 |
 | Shelfware | $300K | 0.05 | 0.03 | 0.02 | 0.033 | $9,900 | $0 |
@@ -507,7 +508,7 @@ These scenarios define the expected Consumption ACV output for given inputs. Use
 **Key assertions to encode as pipeline tests:**
 - `cacv` is never NULL for a non-ramping account with ≥ 1 month of data
 - `cacv <= annual_commit_dollars` always (cap holds)
-- `expansion_signal_acv >= 0` always
+- `expansion_signal_acv >= 0` always (Consumption Overage is never negative)
 - `cacv + expansion_signal_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows
 - `acv_at_risk = annual_commit_dollars - cacv` for all non-NULL rows
 

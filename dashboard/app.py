@@ -389,11 +389,11 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
         help_text="Committed ACV not backed by consumption",
     ), unsafe_allow_html=True)
     c5.markdown(kpi_card(
-        "Expansion Signal", fmt_m(expansion_signal),
-        sub="Over-commit pipeline" if expansion_signal > 0 else "No signal yet",
+        "Consumption Overage", fmt_m(expansion_signal),
+        sub="Consumption above committed ACV" if expansion_signal > 0 else "No overage yet",
         sub_cls="pos" if expansion_signal > 0 else "",
         accent="#10b981",
-        help_text="Consumption above committed ACV — upsell indicator",
+        help_text="MAX(Consumption ACV − ACV, 0) — upsell demand signal",
     ), unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -560,7 +560,7 @@ def page_region(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
         st.plotly_chart(fig, use_container_width=True)
 
     with col_r:
-        st.markdown('<div class="section-header">Expansion Pipeline by Region</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Consumption Overage by Region</div>', unsafe_allow_html=True)
         # Accounts with expansion_flag by region
         exp_by_region = (acct_df[acct_df["expansion_flag"] == True]
                          .groupby("region", as_index=False)
@@ -574,7 +574,7 @@ def page_region(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                            x="region", y="exp_signal_acv", color="region",
                            color_discrete_sequence=["#10b981","#3b82f6","#f59e0b","#8b5cf6","#ef4444"],
                            text=exp_by_region.sort_values("exp_signal_acv", ascending=False)["exp_signal_acv"].apply(fmt_m),
-                           labels={"region":"Region","exp_signal_acv":"Expansion Signal ACV ($)"},
+                           labels={"region":"Region","exp_signal_acv":"Consumption Overage ($)"},
                            height=340)
             fig_e.update_traces(textposition="outside")
             fig_e.update_layout(**_chart(
@@ -635,7 +635,7 @@ def page_reps(rep_df: pd.DataFrame):
 
     st.markdown('<div class="section-header">Full Rep Table</div>', unsafe_allow_html=True)
     extra_cols   = ["total_expansion_signal_acv"] if "total_expansion_signal_acv" in filtered.columns else []
-    extra_labels = ["Exp Signal"] if extra_cols else []
+    extra_labels = ["Consumption Overage"] if extra_cols else []
     tbl = filtered[["org_rank","region_rank","rep_name","region","segment",
                      "total_accounts","ramping_accounts","mature_accounts",
                      "total_acv","total_cacv","cacv_attainment_rate",
@@ -788,7 +788,7 @@ def page_expansion_activation(acct_df: pd.DataFrame):
     c1, c2, c3 = st.columns(3)
     c1.markdown(kpi_card("Flagged Accounts",    str(len(exp_df)),
                           sub="Sustained >120% consumption", accent="#10b981"), unsafe_allow_html=True)
-    c2.markdown(kpi_card("Expansion Signal ACV", fmt_m(exp_signal_total),
+    c2.markdown(kpi_card("Consumption Overage", fmt_m(exp_signal_total),
                           sub="Consumption above committed ACV", sub_cls="pos", accent="#10b981"), unsafe_allow_html=True)
     c3.markdown(kpi_card("Avg Consumption Rate", fmt_pct(exp_df["trailing_90d_avg_rate"].mean()) if not exp_df.empty else "—",
                           sub="Across flagged accounts", accent="#10b981"), unsafe_allow_html=True)
@@ -801,8 +801,8 @@ def page_expansion_activation(acct_df: pd.DataFrame):
             "annual_commit_dollars","trailing_90d_avg_rate","cacv","expansion_signal_acv","acv_at_risk",
             "contract_end_date",
         ]].copy()
-        tbl.columns = ["Account","Rep","Region","ACV","Cons Rate","Consumption ACV","Expansion Signal","ACV at Risk","Contract End"]
-        for col in ["ACV","Consumption ACV","Expansion Signal","ACV at Risk"]:
+        tbl.columns = ["Account","Rep","Region","ACV","Cons Rate","Consumption ACV","Consumption Overage","ACV at Risk","Contract End"]
+        for col in ["ACV","Consumption ACV","Consumption Overage","ACV at Risk"]:
             tbl[col] = tbl[col].apply(fmt_m)
         tbl["Cons Rate"] = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
         st.dataframe(tbl, use_container_width=True, hide_index=True)
@@ -925,7 +925,7 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
     st.plotly_chart(fig, use_container_width=True)
 
     exp_cols   = ["expansion_signal_acv"] if "expansion_signal_acv" in view.columns else []
-    exp_labels = ["Exp Signal"] if exp_cols else []
+    exp_labels = ["Consumption Overage"] if exp_cols else []
     tbl = view[["company_name","rep_name","region","health_tier",
                 "annual_commit_dollars","trailing_90d_avg_rate","cacv"]
                + exp_cols
@@ -954,7 +954,7 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
         [
             "Is the pipeline snapshot fresh? When was the last successful run?",
             "Are any Consumption ACV numbers violating the cap rule (Consumption ACV > annual commit)?",
-            "Do the formula components add up — does Consumption ACV + expansion signal equal ACV × rate?",
+            "Do the formula components add up — does Consumption ACV + Consumption Overage equal ACV × rate?",
             "How many accounts are missing a consumption rate, or have a NULL health tier?",
         ],
         accent="#64748b",
@@ -985,12 +985,12 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
                    "Rows": neg_risk,
                    "Detail": "acv_at_risk = ACV − Consumption ACV; should always be ≥ 0" if neg_risk else "All ACV at risk values non-negative"})
 
-    # 3. Negative expansion signal
+    # 3. Negative Consumption Overage
     neg_exp = int((acct_df.get("expansion_signal_acv", pd.Series(dtype=float)).fillna(0) < -1).sum())
-    checks.append({"Check": "Negative expansion signal", "Severity": "ERROR",
+    checks.append({"Check": "Negative Consumption Overage", "Severity": "ERROR",
                    "Status": "✓ PASS" if neg_exp == 0 else "✗ FAIL",
                    "Rows": neg_exp,
-                   "Detail": "expansion_signal_acv should always be ≥ 0" if neg_exp else "All expansion signal values non-negative"})
+                   "Detail": "expansion_signal_acv should always be ≥ 0 (MAX floor)" if neg_exp else "All Consumption Overage values non-negative"})
 
     # 4. NULL health tier
     null_tier = int(acct_df["health_tier"].isna().sum())
