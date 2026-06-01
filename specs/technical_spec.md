@@ -79,7 +79,7 @@ As-landed data. No transforms applied. Pipeline reads from here; nothing writes 
 #### `bronze.sales_reps`
 | Column | Type | Notes |
 |---|---|---|
-| `employee_id` | STRING | PK — UUID |
+| `employee_id` | STRING | Primary Key — UUID |
 | `name` | STRING | |
 | `region` | STRING | Northeast / Southeast / Midwest / West / International |
 | `segment` | STRING | Enterprise / Mid-Market |
@@ -87,17 +87,17 @@ As-landed data. No transforms applied. Pipeline reads from here; nothing writes 
 #### `bronze.accounts`
 | Column | Type | Notes |
 |---|---|---|
-| `account_id` | STRING | PK — UUID |
+| `account_id` | STRING | Primary Key — UUID |
 | `company_name` | STRING | |
 | `industry` | STRING | |
-| `employee_id` | STRING | FK → dim_reps.employee_id (current owner; may differ from signing owner after reassignment) |
+| `employee_id` | STRING | Foreign Key → dim_reps.employee_id (current owner; may differ from signing owner after reassignment) |
 
 #### `bronze.contracts`
 | Column | Type | Notes |
 |---|---|---|
-| `contract_id` | STRING | PK — UUID |
-| `account_id` | STRING | FK → bronze.accounts.account_id |
-| `owner_id` | STRING | FK → dim_reps.employee_id — rep who owned the account at signing |
+| `contract_id` | STRING | Primary Key — UUID |
+| `account_id` | STRING | Foreign Key → bronze.accounts.account_id |
+| `owner_id` | STRING | Foreign Key → dim_reps.employee_id — rep who owned the account at signing |
 | `start_date` | DATE | |
 | `end_date` | DATE | Inclusive: `start_date + contract_term_months - 1 day` (e.g. 2026-01-01 + 12mo → 2026-12-31) |
 | `annual_commit_dollars` | INTEGER | ACV — annualized contract value |
@@ -108,7 +108,7 @@ As-landed data. No transforms applied. Pipeline reads from here; nothing writes 
 #### `bronze.daily_usage_logs`
 | Column | Type | Notes |
 |---|---|---|
-| `log_id` | STRING | PK — format `LOG-NNNNNNN` |
+| `log_id` | STRING | Primary Key — format `LOG-NNNNNNN` |
 | `account_id` | STRING | May reference non-existent accounts (orphan edge case) |
 | `date` | DATE | May fall outside contract window (rogue usage edge case) |
 | `compute_credits_consumed` | FLOAT | Daily credit burn |
@@ -136,14 +136,14 @@ Calendar + PANW fiscal calendar spine, 2000-01-01 → 2030-12-31. See Step 0 for
 #### `gold.dim_accounts`
 | Column | Type | Notes |
 |---|---|---|
-| `account_id` | STRING | PK |
+| `account_id` | STRING | Primary Key |
 | `company_name` | STRING | |
 | `industry` | STRING | |
 
 #### `gold.dim_reps`
 | Column | Type | Notes |
 |---|---|---|
-| `employee_id` | STRING | PK |
+| `employee_id` | STRING | Primary Key |
 | `name` | STRING | |
 | `region` | STRING | |
 | `segment` | STRING | Enterprise / Mid-Market |
@@ -151,9 +151,9 @@ Calendar + PANW fiscal calendar spine, 2000-01-01 → 2030-12-31. See Step 0 for
 #### `gold.dim_contracts`
 | Column | Type | Notes |
 |---|---|---|
-| `contract_id` | STRING | PK |
-| `account_id` | STRING | FK → dim_accounts |
-| `signing_owner_id` | STRING | FK → dim_reps — rep at signing; preserved for comp attribution after reassignment |
+| `contract_id` | STRING | Primary Key |
+| `account_id` | STRING | Foreign Key → dim_accounts |
+| `signing_owner_id` | STRING | Foreign Key → dim_reps — rep at signing; preserved for comp attribution after reassignment |
 | `start_date` | DATE | |
 | `end_date` | DATE | |
 | `annual_commit_dollars` | INTEGER | |
@@ -172,10 +172,10 @@ Measurable events and metrics at the lowest useful grain.
 
 | Column | Type | Notes |
 |---|---|---|
-| `account_id` | STRING | FK → dim_accounts |
-| `employee_id` | STRING | FK → dim_reps — current account owner |
-| `contract_id` | STRING | FK → dim_contracts — primary active contract |
-| `as_of_date` | DATE | FK → dim_dates |
+| `account_id` | STRING | Foreign Key → dim_accounts |
+| `employee_id` | STRING | Foreign Key → dim_reps — current account owner |
+| `contract_id` | STRING | Foreign Key → dim_contracts — primary active contract |
+| `as_of_date` | DATE | Foreign Key → dim_dates |
 | `annual_commit_dollars` | INTEGER | Degenerate dimension — ACV at snapshot time |
 | `trailing_90d_avg_rate` | FLOAT | Consumption rate over last 3 complete months |
 | `cacv` | FLOAT | `MIN(ACV × rate, ACV)`; NULL if ramping |
