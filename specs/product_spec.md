@@ -17,10 +17,10 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 > **Terminology:** Throughout this spec, **ACV** (Annual Contract Value) refers to the contracted annual commitment. **Consumption ACV** (Consumed ACV) is the portion of ACV backed by actual platform usage. The two are distinct: ACV is what was sold; Consumption ACV is what is being consumed.
 
-**Version:** 1.0
-**Owner:** Principal PM, Analytics & AI
-**Stakeholders:** VP of Sales, CFO
-**Status:** Proposed — pending executive alignment
+**Version:** 1.0  
+**Owner:** Principal PM, Analytics & AI  
+**Stakeholders:** VP of Sales, CFO  
+**Status:** Proposed — pending executive alignment  
 **Last Updated:** May 2026
 
 > **Product scope note:** This spec covers the Prisma Cloud capability set (cloud security posture, workload protection, code security).
