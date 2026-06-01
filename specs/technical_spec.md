@@ -252,9 +252,28 @@ When Type 2 is active, `fact_cacv_snapshot` stores `surrogate_key` (not the natu
 
 ---
 
-### 3.2 Pipeline Run Log and Corrections (Comp Auditability)
+### 3.2 Audit Trail (Comp Auditability)
 
-Any Consumption ACV figure flowing to a compensation platform must be traceable to the exact pipeline run that produced it, with an immutable record of any retroactive corrections. This is a finance requirement, not an analytics nice-to-have (see product_spec.md §2.1 and §9).
+Consumption ACV drives compensation. That means **every figure that influences a paycheck must be fully auditable** — traceable from the commission record back to the raw source data, with an immutable record of any retroactive change. This is a finance and legal requirement, not an analytics nice-to-have (see product_spec.md §2.1 and §2.2.2).
+
+The audit trail has four layers, each described below:
+
+1. **Pipeline provenance** — every metric value is linked to the pipeline run that produced it (`pipeline_run_log`)
+2. **Retroactive corrections** — any after-the-fact change to an already-paid figure is recorded in a non-destructive delta table (`fact_cacv_corrections`)
+3. **Ownership history** — who owned each account at each point in time, for correct rep attribution (`account_ownership_history`, §3.3)
+4. **Contract amendments** — changes to ACV or credit allowance that affect the denominator (`contract_amendments`, §3.3)
+
+Before integrating with the compensation platform, Finance and RevOps must define and document:
+- The correction workflow and required approvals at each tier (see product_spec.md §13 Q8)
+- The rep dispute resolution process (how a rep challenges a calculated figure)
+- The clawback policy and what events trigger a `clawback_triggered = TRUE` record
+- The comp period cut-off rule (which pipeline run "locks" the comp period for a given quarter)
+
+These process decisions cannot be inferred from the data model — they must be codified before the first live comp period.
+
+#### Pipeline Run Log and Corrections
+
+Any Consumption ACV figure flowing to a compensation platform must be traceable to the exact pipeline run that produced it, with an immutable record of any retroactive corrections.
 
 **New table: `pipeline_run_log`** — one row per pipeline execution:
 
