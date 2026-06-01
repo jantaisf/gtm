@@ -178,11 +178,11 @@ Tracking both cACV (real-time) and NRR/GRR (at renewal) allows the team to valid
 
 Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ACV at deal signing.
 
-| Edition | Deal Profile | Pricing |
-|---|---|---|
-| **Business Edition** | Mid-Market, 1-year term, no volume discount | Contact PANW sales |
-| **Enterprise Edition** | Enterprise, 2–3 year platform deal, ~30% volume discount typical | Contact PANW sales |
-| **Overage (PAYG)** | Above-commit usage billed at Business list rate | Contact PANW sales |
+| Edition | Deal Profile |
+|---|---|
+| **Business Edition** | Mid-Market, 1-year term, no volume discount |
+| **Enterprise Edition** | Enterprise, 2–3 year platform deal, ~30% volume discount typical |
+| **Overage (PAYG)** | Above-commit usage billed at Business list rate |
 
 **Credit consumption by workload type** (Enterprise Edition):
 
