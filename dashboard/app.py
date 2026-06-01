@@ -7,7 +7,6 @@ falls back automatically to committed CSV snapshots (Streamlit Cloud / demo).
 
 Run locally:
     streamlit run dashboard/app.py
-    streamlit run dashboard/app.py -- --as-of-date 2025-06-30
 
 Deploy:
     Streamlit Community Cloud → connect GitHub repo → set main file to dashboard/app.py
@@ -38,12 +37,217 @@ HEALTH_COLORS = {
     "Ramping":   "#8b5cf6",
 }
 
+TIER_ORDER = ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive", "Ramping"]
+
+# Shared Plotly layout applied to every chart
+CHART_THEME = dict(
+    font=dict(family="Inter, -apple-system, BlinkMacSystemFont, sans-serif",
+              color="#374151", size=12),
+    plot_bgcolor="white",
+    paper_bgcolor="white",
+    margin=dict(t=24, b=40, l=8, r=8),
+    hoverlabel=dict(bgcolor="white", bordercolor="#e2e8f0",
+                    font_size=13,
+                    font_family="Inter, -apple-system, sans-serif"),
+    xaxis=dict(gridcolor="#f1f5f9", linecolor="#e2e8f0",
+               tickfont=dict(size=11, color="#6b7280"), zeroline=False),
+    yaxis=dict(gridcolor="#f1f5f9", linecolor="#e2e8f0",
+               tickfont=dict(size=11, color="#6b7280"), zeroline=False),
+    legend=dict(font=dict(size=11, color="#6b7280")),
+)
+
 st.set_page_config(
-    page_title="cACV Executive Dashboard",
+    page_title="cACV Dashboard · Prisma Cloud",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CSS injection
+# ─────────────────────────────────────────────────────────────────────────────
+
+def inject_css() -> None:
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* ── Global typography ── */
+    html, body, [class*="css"], button, input, select, textarea {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+
+    /* ── Hide Streamlit chrome ── */
+    #MainMenu { visibility: hidden; }
+    footer    { visibility: hidden; }
+    header    { visibility: hidden; }
+    [data-testid="stToolbar"] { display: none; }
+
+    /* ── Page container ── */
+    .main .block-container {
+        padding: 1.75rem 2.25rem 3rem;
+        max-width: 1440px;
+    }
+
+    /* ── Dark sidebar ── */
+    [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+        border-right: none;
+    }
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] .stMarkdown p,
+    [data-testid="stSidebar"] .stMarkdown small,
+    [data-testid="stSidebar"] caption {
+        color: #94a3b8 !important;
+    }
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #f1f5f9 !important;
+    }
+    [data-testid="stSidebar"] label {
+        color: #94a3b8 !important;
+        font-size: 0.72rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="select"] > div {
+        background-color: #1e293b !important;
+        border-color: #334155 !important;
+        color: #e2e8f0 !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stSidebar"] hr {
+        border-color: #1e293b !important;
+    }
+
+    /* ── KPI cards ── */
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid var(--accent-color, #3b82f6);
+        border-radius: 12px;
+        padding: 1.1rem 1.3rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        height: 100%;
+        min-height: 100px;
+    }
+    .kpi-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-bottom: 0.55rem;
+    }
+    .kpi-value {
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.1;
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.02em;
+    }
+    .kpi-sub {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #64748b;
+    }
+    .kpi-sub.neg { color: #ef4444; }
+    .kpi-sub.pos { color: #10b981; }
+
+    /* ── Page header ── */
+    .page-header {
+        padding-bottom: 1.25rem;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .page-eyebrow {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #3b82f6;
+        margin-bottom: 0.3rem;
+    }
+    .page-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.03em;
+        line-height: 1.2;
+    }
+    .page-sub {
+        font-size: 0.82rem;
+        color: #94a3b8;
+        margin-top: 0.3rem;
+        font-weight: 400;
+    }
+
+    /* ── Section headers ── */
+    .section-header {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #0f172a;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.01em;
+    }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 4px;
+        gap: 2px;
+        border-bottom: none !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b !important;
+        padding: 8px 20px !important;
+        border: none !important;
+        background: transparent !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: white !important;
+        color: #0f172a !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    }
+    .stTabs [data-baseweb="tab-panel"] {
+        padding-top: 1.5rem;
+    }
+
+    /* ── Dividers ── */
+    hr {
+        border: none;
+        border-top: 1px solid #f1f5f9;
+        margin: 1.5rem 0;
+    }
+
+    /* ── Tables ── */
+    [data-testid="stDataFrame"] {
+        border-radius: 10px !important;
+        overflow: hidden;
+        border: 1px solid #e2e8f0 !important;
+    }
+
+    /* ── Info / alert boxes ── */
+    [data-testid="stAlertContainer"] {
+        border-radius: 10px !important;
+    }
+
+    /* ── Selectbox (main area) ── */
+    [data-baseweb="select"] > div {
+        border-radius: 8px !important;
+        border-color: #e2e8f0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # BigQuery client — optional; gracefully absent in demo mode
@@ -51,24 +255,18 @@ st.set_page_config(
 
 @st.cache_resource
 def _get_bq_client():
-    """Return a BigQuery client or None if credentials are unavailable."""
     try:
         from google.cloud import bigquery
         client = bigquery.Client(project=GCP_PROJECT)
-        # Cheap probe — fails fast if credentials are missing or insufficient
         client.query("SELECT 1").result()
         return client
     except Exception:
         return None
 
 
-def _bq() -> object:
+def _bq():
     return _get_bq_client()
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Demo-mode detection (set once at startup)
-# ─────────────────────────────────────────────────────────────────────────────
 
 @st.cache_resource
 def _is_demo() -> bool:
@@ -83,20 +281,14 @@ def _is_demo() -> bool:
 def load_rep_rollup(as_of_date: str) -> pd.DataFrame:
     client = _bq()
     if client is not None:
-        DS = f"`{GCP_PROJECT}.gtm`"
-        sql = f"""
-        SELECT * FROM {DS}.cacv_rep_rollup
-        WHERE DATE(as_of_date) = DATE '{as_of_date}'
-        """
-        df = client.query(sql).to_dataframe()
+        DS  = f"`{GCP_PROJECT}.gtm`"
+        sql = f"SELECT * FROM {DS}.cacv_rep_rollup WHERE DATE(as_of_date) = DATE '{as_of_date}'"
+        df  = client.query(sql).to_dataframe()
         if not df.empty:
             return df
-        # Fall back to latest available date
         return client.query(
             f"SELECT * FROM {DS}.cacv_rep_rollup ORDER BY calculated_at DESC LIMIT 1000"
         ).to_dataframe()
-
-    # CSV fallback
     df = pd.read_csv(DEMO_DATA_DIR / "rep_rollup.csv")
     df["as_of_date"] = pd.to_datetime(df["as_of_date"]).dt.date
     match = df[df["as_of_date"].astype(str) == as_of_date]
@@ -136,8 +328,6 @@ def load_accounts(
             if employee_id and employee_id != "All":
                 df = df[df["employee_id"] == employee_id]
             return df
-
-    # CSV fallback
     df = pd.read_csv(DEMO_DATA_DIR / "accounts.csv")
     df["as_of_date"] = pd.to_datetime(df["as_of_date"]).dt.date
     match = df[df["as_of_date"].astype(str) == as_of_date]
@@ -157,17 +347,13 @@ def load_available_dates() -> list:
         try:
             df = client.query(f"""
                 SELECT DISTINCT DATE(as_of_date) AS d
-                FROM {DS}.cacv_rep_rollup
-                ORDER BY 1 DESC LIMIT 30
+                FROM {DS}.cacv_rep_rollup ORDER BY 1 DESC LIMIT 30
             """).to_dataframe()
             return [str(d) for d in df["d"].tolist()]
         except Exception:
             pass
-
-    # CSV fallback
     df = pd.read_csv(DEMO_DATA_DIR / "rep_rollup.csv")
-    dates = sorted(df["as_of_date"].astype(str).unique(), reverse=True)
-    return dates[:30]
+    return sorted(df["as_of_date"].astype(str).unique(), reverse=True)[:30]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -190,39 +376,77 @@ def fmt_pct(v) -> str:
     return f"{v:.1%}"
 
 
+def attainment_color(rate: float) -> str:
+    if rate >= 0.85:
+        return "#10b981"
+    if rate >= 0.70:
+        return "#f59e0b"
+    return "#ef4444"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KPI card component
+# ─────────────────────────────────────────────────────────────────────────────
+
+def kpi_card(label: str, value: str, sub: str = "",
+             sub_cls: str = "", accent: str = "#3b82f6",
+             help_text: str = "") -> str:
+    sub_html = f'<div class="kpi-sub {sub_cls}">{sub}</div>' if sub else ""
+    title_attr = f'title="{help_text}"' if help_text else ""
+    return f"""
+    <div class="kpi-card" style="--accent-color:{accent};" {title_attr}>
+        <div class="kpi-label">{label}</div>
+        <div class="kpi-value">{value}</div>
+        {sub_html}
+    </div>
+    """
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_sidebar(rep_df: pd.DataFrame):
-    st.sidebar.header("Filters")
+    st.sidebar.markdown(
+        '<p style="color:#f1f5f9;font-size:1rem;font-weight:700;'
+        'letter-spacing:-0.01em;margin-bottom:0.1rem;">Prisma Cloud</p>'
+        '<p style="color:#475569;font-size:0.7rem;font-weight:500;'
+        'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1.5rem;">'
+        'cACV Dashboard</p>',
+        unsafe_allow_html=True,
+    )
 
     available_dates = load_available_dates()
     as_of_date = st.sidebar.selectbox(
-        "As-of Date",
-        options=available_dates,
-        index=0,
+        "As-of Date", options=available_dates, index=0,
         help="Pipeline snapshot date",
     )
 
-    regions = ["All"] + sorted(rep_df["region"].dropna().unique().tolist())
-    region = st.sidebar.selectbox("Region", regions)
+    regions    = ["All"] + sorted(rep_df["region"].dropna().unique().tolist())
+    region     = st.sidebar.selectbox("Region", regions)
+    rep_pool   = rep_df if region == "All" else rep_df[rep_df["region"] == region]
+    rep_opts   = ["All"] + sorted(rep_pool["rep_name"].dropna().unique().tolist())
+    rep_name   = st.sidebar.selectbox("Sales Rep", rep_opts)
 
-    rep_pool = rep_df if region == "All" else rep_df[rep_df["region"] == region]
-    rep_options = ["All"] + sorted(rep_pool["rep_name"].dropna().unique().tolist())
-    rep_name = st.sidebar.selectbox("Sales Rep", rep_options)
     employee_id = None
     if rep_name != "All":
         row = rep_pool[rep_pool["rep_name"] == rep_name]
         employee_id = row["employee_id"].iloc[0] if not row.empty else None
 
-    st.sidebar.markdown("---")
+    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
     if _is_demo():
-        st.sidebar.caption("📊 **Demo mode** — cached snapshot")
-        st.sidebar.caption("Connect BigQuery for live data")
+        st.sidebar.markdown(
+            '<p style="color:#475569;font-size:0.72rem;">📊 Demo mode · cached snapshot<br>'
+            'Connect BigQuery for live data</p>',
+            unsafe_allow_html=True,
+        )
     else:
-        st.sidebar.caption(f"**Project:** {GCP_PROJECT}")
-        st.sidebar.caption("**Datasets:** raw · staging · gtm")
+        st.sidebar.markdown(
+            f'<p style="color:#475569;font-size:0.72rem;">'
+            f'Project: {GCP_PROJECT}<br>'
+            f'Datasets: raw · staging · gtm</p>',
+            unsafe_allow_html=True,
+        )
 
     return as_of_date, region, rep_name, employee_id
 
@@ -231,9 +455,7 @@ def render_sidebar(rep_df: pd.DataFrame):
 # Page: Overview
 # ─────────────────────────────────────────────────────────────────────────────
 
-def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
-    st.header("Portfolio Overview")
-
+def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
     total_acv        = rep_df["total_acv"].sum()
     total_cacv       = rep_df["total_cacv"].sum()
     total_risk       = rep_df["total_acv_at_risk"].sum()
@@ -243,71 +465,105 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
         if "total_expansion_signal_acv" in rep_df.columns else 0
     )
 
+    # KPI cards
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total ACV",          fmt_m(total_acv))
-    c2.metric("Total cACV",         fmt_m(total_cacv))
-    c3.metric("cACV Attainment",    fmt_pct(att_rate))
-    c4.metric("ACV at Risk",        fmt_m(total_risk),
-              delta=f"-{fmt_m(total_risk)}", delta_color="inverse")
-    c5.metric("Expansion Signal",   fmt_m(expansion_signal),
-              delta=fmt_m(expansion_signal), delta_color="normal",
-              help="Over-commit consumption — upsell pipeline signal")
+    c1.markdown(kpi_card("Total ACV",       fmt_m(total_acv),   accent="#64748b"), unsafe_allow_html=True)
+    c2.markdown(kpi_card("Total cACV",      fmt_m(total_cacv),  accent="#3b82f6"), unsafe_allow_html=True)
+    c3.markdown(kpi_card(
+        "cACV Attainment", fmt_pct(att_rate),
+        sub=("Above target" if att_rate >= 0.85 else
+             "Below 85% target" if att_rate >= 0.70 else "Needs attention"),
+        sub_cls=("pos" if att_rate >= 0.85 else "neg" if att_rate < 0.70 else ""),
+        accent=attainment_color(att_rate),
+    ), unsafe_allow_html=True)
+    c4.markdown(kpi_card(
+        "ACV at Risk", fmt_m(total_risk),
+        sub=f"{total_risk/total_acv:.1%} of portfolio" if total_acv else "",
+        sub_cls="neg", accent="#ef4444",
+        help_text="Committed ACV not backed by consumption",
+    ), unsafe_allow_html=True)
+    c5.markdown(kpi_card(
+        "Expansion Signal", fmt_m(expansion_signal),
+        sub="Over-commit pipeline" if expansion_signal > 0 else "No signal",
+        sub_cls="pos" if expansion_signal > 0 else "",
+        accent="#10b981",
+        help_text="Consumption above committed ACV — upsell indicator",
+    ), unsafe_allow_html=True)
 
-    st.markdown("---")
-    col_left, col_right = st.columns(2)
+    st.markdown("<hr>", unsafe_allow_html=True)
 
-    with col_left:
-        st.subheader("cACV by Region")
-        region_df = (
+    col_l, col_r = st.columns(2)
+
+    with col_l:
+        st.markdown('<div class="section-header">cACV by Region</div>', unsafe_allow_html=True)
+        rdf = (
             rep_df.groupby("region", as_index=False)
             .agg(total_acv=("total_acv", "sum"), total_cacv=("total_cacv", "sum"))
         )
-        region_df["attainment"] = region_df["total_cacv"] / region_df["total_acv"]
-        region_df = region_df.sort_values("total_cacv", ascending=False)
+        rdf["attainment"] = rdf["total_cacv"] / rdf["total_acv"]
+        rdf = rdf.sort_values("total_cacv", ascending=False)
 
         fig = go.Figure()
         fig.add_bar(
-            x=region_df["region"], y=region_df["total_acv"], name="ACV",
-            marker_color="#e2e8f0",
-            text=[fmt_m(v) for v in region_df["total_acv"]], textposition="outside",
+            x=rdf["region"], y=rdf["total_acv"], name="ACV",
+            marker_color="#f1f5f9",
+            text=[fmt_m(v) for v in rdf["total_acv"]],
+            textposition="outside",
+            textfont=dict(size=11, color="#94a3b8"),
         )
         fig.add_bar(
-            x=region_df["region"], y=region_df["total_cacv"], name="cACV",
+            x=rdf["region"], y=rdf["total_cacv"], name="cACV",
             marker_color="#3b82f6",
-            text=[f"{fmt_m(v)}<br>{fmt_pct(r)}"
-                  for v, r in zip(region_df["total_cacv"], region_df["attainment"])],
-            textposition="inside", textfont_color="white",
+            text=[f"{fmt_m(v)}  ·  {fmt_pct(r)}"
+                  for v, r in zip(rdf["total_cacv"], rdf["attainment"])],
+            textposition="inside", textfont=dict(color="white", size=11),
         )
         fig.update_layout(
-            barmode="overlay", plot_bgcolor="white",
-            margin=dict(t=20, b=40), legend=dict(orientation="h", y=-0.15),
-            yaxis_tickprefix="$", yaxis_tickformat=",", height=340,
+            **CHART_THEME,
+            barmode="overlay",
+            legend=dict(orientation="h", y=-0.18, font=dict(size=11, color="#6b7280")),
+            yaxis=dict(**CHART_THEME["yaxis"], tickprefix="$", tickformat=","),
+            height=320,
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    with col_right:
-        st.subheader("Account Health Mix")
-        health_counts = acct_df["health_tier"].value_counts().reset_index()
-        health_counts.columns = ["health_tier", "count"]
+    with col_r:
+        st.markdown('<div class="section-header">Account Health Mix</div>', unsafe_allow_html=True)
+        hc = acct_df["health_tier"].value_counts().reset_index()
+        hc.columns = ["health_tier", "count"]
+        total_accts = hc["count"].sum()
 
         fig2 = px.pie(
-            health_counts, names="health_tier", values="count",
-            color="health_tier", color_discrete_map=HEALTH_COLORS, hole=0.55,
+            hc, names="health_tier", values="count",
+            color="health_tier", color_discrete_map=HEALTH_COLORS, hole=0.62,
         )
-        fig2.update_traces(textposition="outside", textinfo="label+percent")
-        fig2.update_layout(showlegend=False, margin=dict(t=20, b=20, l=20, r=20), height=340)
+        fig2.update_traces(
+            textposition="outside", textinfo="label+percent",
+            textfont=dict(size=11),
+            marker=dict(line=dict(color="white", width=2)),
+        )
+        fig2.add_annotation(
+            text=f"<b>{total_accts}</b><br><span style='font-size:11px;color:#94a3b8'>accounts</span>",
+            x=0.5, y=0.5, showarrow=False, font=dict(size=20, color="#0f172a"),
+            xref="paper", yref="paper", align="center",
+        )
+        fig2.update_layout(
+            **{k: v for k, v in CHART_THEME.items() if k not in ("xaxis", "yaxis")},
+            showlegend=False,
+            margin=dict(t=20, b=20, l=20, r=20),
+            height=320,
+        )
         st.plotly_chart(fig2, use_container_width=True)
 
-    st.subheader("cACV Attainment vs. ACV — by Rep")
-    scatter_df = rep_df.copy()
-    scatter_df["attainment_pct"] = scatter_df["cacv_attainment_rate"].fillna(0) * 100
-    scatter_df["bubble_size"] = (
-        scatter_df["total_acv"] / scatter_df["total_acv"].max() * 40
-    ).clip(lower=5)
+    st.markdown('<div class="section-header">cACV Attainment vs. ACV — by Rep</div>', unsafe_allow_html=True)
+    sdf = rep_df.copy()
+    sdf["attainment_pct"] = sdf["cacv_attainment_rate"].fillna(0) * 100
+    sdf["bubble_size"]    = (sdf["total_acv"] / sdf["total_acv"].max() * 38).clip(lower=6)
 
     fig3 = px.scatter(
-        scatter_df, x="total_acv", y="attainment_pct",
+        sdf, x="total_acv", y="attainment_pct",
         size="bubble_size", color="region",
+        color_discrete_sequence=["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444"],
         hover_name="rep_name",
         hover_data={
             "total_acv": ":.3s", "total_cacv": ":.3s",
@@ -315,11 +571,19 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
             "accounts_at_risk": True, "bubble_size": False,
         },
         labels={"total_acv": "Total ACV ($)", "attainment_pct": "cACV Attainment (%)", "region": "Region"},
-        height=380,
+        opacity=0.85,
+        height=360,
     )
-    fig3.add_hline(y=100, line_dash="dash", line_color="gray",   annotation_text="100% target")
-    fig3.add_hline(y=80,  line_dash="dot",  line_color="#f59e0b", annotation_text="80% floor")
-    fig3.update_layout(plot_bgcolor="white", margin=dict(t=10))
+    fig3.add_hline(y=100, line_dash="dash", line_color="#94a3b8", line_width=1,
+                   annotation_text="100%", annotation_font_color="#94a3b8", annotation_font_size=11)
+    fig3.add_hline(y=85,  line_dash="dot",  line_color="#f59e0b", line_width=1,
+                   annotation_text="85% target", annotation_font_color="#f59e0b", annotation_font_size=11)
+    fig3.update_layout(
+        **CHART_THEME,
+        xaxis=dict(**CHART_THEME["xaxis"], tickprefix="$", tickformat=","),
+        legend=dict(orientation="h", y=-0.18, font=dict(size=11, color="#6b7280")),
+        margin=dict(t=10, b=48, l=8, r=8),
+    )
     st.plotly_chart(fig3, use_container_width=True)
 
 
@@ -328,8 +592,6 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame, region: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def page_region(rep_df: pd.DataFrame):
-    st.header("Region Breakdown")
-
     region_agg = (
         rep_df.groupby("region", as_index=False)
         .agg(
@@ -338,55 +600,59 @@ def page_region(rep_df: pd.DataFrame):
             total_acv=("total_acv", "sum"),
             total_cacv=("total_cacv", "sum"),
             total_acv_at_risk=("total_acv_at_risk", "sum"),
-            ramping_accounts=("ramping_accounts", "sum"),
             accounts_expansion=("accounts_expansion", "sum"),
             accounts_at_risk=("accounts_at_risk", "sum"),
             expansion_acv_pipeline=("expansion_acv_pipeline", "sum"),
-            spike_drop_accounts=("spike_drop_accounts", "sum"),
         )
     )
     region_agg["att_rate"] = region_agg["total_cacv"] / region_agg["total_acv"]
     region_agg["risk_pct"] = region_agg["total_acv_at_risk"] / region_agg["total_acv"]
     region_agg = region_agg.sort_values("total_cacv", ascending=False)
 
-    display = region_agg[[
-        "region", "reps", "total_accounts", "total_acv", "total_cacv",
-        "att_rate", "total_acv_at_risk", "risk_pct",
-        "accounts_expansion", "accounts_at_risk", "expansion_acv_pipeline",
-    ]].copy()
-    display.columns = [
-        "Region", "Reps", "Accounts", "ACV", "cACV",
-        "Attainment", "ACV at Risk", "Risk %",
-        "Expansion Accts", "At-Risk Accts", "Expansion Pipeline",
-    ]
-    for col in ["ACV", "cACV", "ACV at Risk", "Expansion Pipeline"]:
-        display[col] = display[col].apply(fmt_m)
-    display["Attainment"] = display["Attainment"].apply(fmt_pct)
-    display["Risk %"]     = display["Risk %"].apply(fmt_pct)
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    display = region_agg.copy()
+    display["ACV"]              = display["total_acv"].apply(fmt_m)
+    display["cACV"]             = display["total_cacv"].apply(fmt_m)
+    display["Attainment"]       = display["att_rate"].apply(fmt_pct)
+    display["ACV at Risk"]      = display["total_acv_at_risk"].apply(fmt_m)
+    display["Risk %"]           = display["risk_pct"].apply(fmt_pct)
+    display["Expansion Pipeline"] = display["expansion_acv_pipeline"].apply(fmt_m)
+    st.dataframe(
+        display[["region", "reps", "total_accounts", "ACV", "cACV", "Attainment",
+                 "ACV at Risk", "Risk %", "accounts_expansion", "accounts_at_risk",
+                 "Expansion Pipeline"]].rename(columns={
+                     "region": "Region", "reps": "Reps",
+                     "total_accounts": "Accounts",
+                     "accounts_expansion": "Expansion Accts",
+                     "accounts_at_risk": "At-Risk Accts",
+                 }),
+        use_container_width=True, hide_index=True,
+    )
 
-    st.subheader("Health Tier Mix by Region")
-    tier_cols   = ["accounts_expansion", "accounts_healthy", "accounts_at_risk",
-                   "accounts_shelfware", "accounts_inactive", "accounts_ramping"]
-    tier_labels = ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive", "Ramping"]
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Health Tier Mix by Region</div>', unsafe_allow_html=True)
 
-    region_health = rep_df.groupby("region", as_index=False)[tier_cols].sum()
-    region_health_pct = region_health.copy()
-    row_totals = region_health[tier_cols].sum(axis=1)
+    tier_cols = ["accounts_expansion", "accounts_healthy", "accounts_at_risk",
+                 "accounts_shelfware", "accounts_inactive", "accounts_ramping"]
+    rh     = rep_df.groupby("region", as_index=False)[tier_cols].sum()
+    totals = rh[tier_cols].sum(axis=1)
+    rh_pct = rh.copy()
     for col in tier_cols:
-        region_health_pct[col] = region_health[col] / row_totals * 100
+        rh_pct[col] = rh[col] / totals * 100
 
     fig = go.Figure()
-    for col, label in zip(tier_cols, tier_labels):
+    for col, label in zip(tier_cols, TIER_ORDER):
         fig.add_bar(
-            name=label, x=region_health_pct["region"], y=region_health_pct[col],
+            name=label, x=rh_pct["region"], y=rh_pct[col],
             marker_color=HEALTH_COLORS[label],
-            text=region_health_pct[col].apply(lambda v: f"{v:.0f}%"),
-            textposition="inside",
+            text=rh_pct[col].apply(lambda v: f"{v:.0f}%" if v >= 5 else ""),
+            textposition="inside", textfont=dict(color="white", size=11),
         )
     fig.update_layout(
-        barmode="stack", plot_bgcolor="white", yaxis_title="% of Accounts",
-        margin=dict(t=10, b=40), legend=dict(orientation="h", y=-0.2), height=360,
+        **CHART_THEME,
+        barmode="stack",
+        yaxis=dict(**CHART_THEME["yaxis"], title="% of accounts", ticksuffix="%"),
+        legend=dict(orientation="h", y=-0.18, font=dict(size=11, color="#6b7280")),
+        height=340,
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -395,53 +661,57 @@ def page_region(rep_df: pd.DataFrame):
 # Page: Rep Leaderboard
 # ─────────────────────────────────────────────────────────────────────────────
 
-def page_reps(rep_df: pd.DataFrame, region: str):
-    st.header("Rep Leaderboard")
-
+def page_reps(rep_df: pd.DataFrame):
     filtered = rep_df.sort_values("total_cacv", ascending=False).reset_index(drop=True)
 
-    c1, c2 = st.columns(2)
     if not filtered.empty:
         top = filtered.iloc[0]
         bot = filtered.iloc[-1]
+        c1, c2 = st.columns(2)
         with c1:
             st.success(
-                f"**#1 {top['rep_name']}** ({top['region']})  \n"
-                f"cACV: **{fmt_m(top['total_cacv'])}** · Attainment: **{fmt_pct(top['cacv_attainment_rate'])}**"
+                f"**#{int(top['org_rank'])} {top['rep_name']}** · {top['region']}  \n"
+                f"cACV **{fmt_m(top['total_cacv'])}** · Attainment **{fmt_pct(top['cacv_attainment_rate'])}**"
             )
         with c2:
-            att = bot["cacv_attainment_rate"]
-            msg = (
-                f"**{bot['rep_name']}** ({bot['region']})  \n"
-                f"cACV: **{fmt_m(bot['total_cacv'])}** · Attainment: **{fmt_pct(att)}**"
+            att  = bot["cacv_attainment_rate"]
+            body = (
+                f"**{bot['rep_name']}** · {bot['region']}  \n"
+                f"cACV **{fmt_m(bot['total_cacv'])}** · Attainment **{fmt_pct(att)}**"
             )
             if pd.notna(att) and att < 0.6:
-                st.error(msg)
+                st.error(body)
             else:
-                st.info(msg)
+                st.info(body)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     chart_df = filtered.nlargest(20, "total_cacv")
     fig = go.Figure()
     fig.add_bar(
         y=chart_df["rep_name"], x=chart_df["total_acv"], name="ACV",
-        orientation="h", marker_color="#e2e8f0",
+        orientation="h", marker_color="#f1f5f9",
+        marker_line=dict(color="#e2e8f0", width=1),
     )
     fig.add_bar(
         y=chart_df["rep_name"], x=chart_df["total_cacv"], name="cACV",
         orientation="h", marker_color="#3b82f6",
-        text=[f"{fmt_m(v)}  {fmt_pct(r)}"
+        text=[f"{fmt_m(v)}  ·  {fmt_pct(r)}"
               for v, r in zip(chart_df["total_cacv"], chart_df["cacv_attainment_rate"])],
-        textposition="inside", textfont_color="white",
+        textposition="inside", textfont=dict(color="white", size=11),
     )
     fig.update_layout(
-        barmode="overlay", plot_bgcolor="white",
-        margin=dict(t=10, l=140), legend=dict(orientation="h", y=-0.1),
-        xaxis_tickprefix="$", xaxis_tickformat=",",
-        height=max(300, len(chart_df) * 28), yaxis=dict(autorange="reversed"),
+        **CHART_THEME,
+        barmode="overlay",
+        xaxis=dict(**CHART_THEME["xaxis"], tickprefix="$", tickformat=","),
+        legend=dict(orientation="h", y=-0.06, font=dict(size=11, color="#6b7280")),
+        margin=dict(t=10, b=48, l=160, r=8),
+        height=max(320, len(chart_df) * 30),
+        yaxis=dict(**CHART_THEME["yaxis"], autorange="reversed"),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Full Rep Table")
+    st.markdown('<div class="section-header">Full Rep Table</div>', unsafe_allow_html=True)
     extra_cols   = ["total_expansion_signal_acv"] if "total_expansion_signal_acv" in filtered.columns else []
     extra_labels = ["Exp Signal"] if extra_cols else []
     tbl = filtered[[
@@ -472,46 +742,57 @@ def page_reps(rep_df: pd.DataFrame, region: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def page_accounts(acct_df: pd.DataFrame, rep_name: str):
-    title = f"Account Detail — {rep_name}" if rep_name != "All" else "Account Detail"
-    st.header(title)
-
     if acct_df.empty:
         st.info("No accounts match the current filter.")
         return
 
-    tiers    = ["All"] + sorted(acct_df["health_tier"].dropna().unique().tolist())
-    sel_tier = st.selectbox("Health Tier", tiers, key="acct_tier_filter")
+    tiers    = ["All"] + [t for t in TIER_ORDER if t in acct_df["health_tier"].unique()]
+    sel_tier = st.selectbox("Filter by health tier", tiers, key="acct_tier_filter")
     view     = acct_df if sel_tier == "All" else acct_df[acct_df["health_tier"] == sel_tier]
 
     fig = px.scatter(
         view.dropna(subset=["trailing_90d_avg_rate"]),
-        x="annual_commit_dollars", y="trailing_90d_avg_rate",
-        color="health_tier", color_discrete_map=HEALTH_COLORS,
-        size="annual_commit_dollars", size_max=22,
+        x="annual_commit_dollars",
+        y="trailing_90d_avg_rate",
+        color="health_tier",
+        color_discrete_map=HEALTH_COLORS,
+        size="annual_commit_dollars",
+        size_max=20,
         hover_name="company_name",
         hover_data={
             "annual_commit_dollars": ":.3s",
             "trailing_90d_avg_rate": ":.2f",
             "cacv": ":.3s",
-            "rep_name": True, "health_tier": True,
+            "rep_name": True,
+            "health_tier": True,
         },
         labels={
             "annual_commit_dollars": "ACV ($)",
             "trailing_90d_avg_rate": "Consumption Rate (90-day avg)",
         },
-        height=400,
+        opacity=0.80,
+        height=380,
     )
-    fig.add_hline(y=1.0,  line_dash="dash", line_color="gray",   annotation_text="100% commit")
-    fig.add_hline(y=0.80, line_dash="dot",  line_color="#f59e0b", annotation_text="80% floor")
-    fig.update_layout(plot_bgcolor="white", margin=dict(t=10))
+    fig.add_hline(y=1.0,  line_dash="dash", line_color="#94a3b8", line_width=1,
+                  annotation_text="100% commit", annotation_font_color="#94a3b8",
+                  annotation_font_size=11)
+    fig.add_hline(y=0.80, line_dash="dot",  line_color="#f59e0b", line_width=1,
+                  annotation_text="80% floor", annotation_font_color="#f59e0b",
+                  annotation_font_size=11)
+    fig.update_layout(
+        **CHART_THEME,
+        xaxis=dict(**CHART_THEME["xaxis"], tickprefix="$", tickformat=","),
+        legend=dict(orientation="h", y=-0.2, font=dict(size=11, color="#6b7280")),
+        margin=dict(t=10, b=56, l=8, r=8),
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    exp_signal_cols   = ["expansion_signal_acv"] if "expansion_signal_acv" in view.columns else []
-    exp_signal_labels = ["Exp Signal"] if exp_signal_cols else []
+    exp_cols   = ["expansion_signal_acv"] if "expansion_signal_acv" in view.columns else []
+    exp_labels = ["Exp Signal"] if exp_cols else []
     tbl = view[[
         "company_name", "rep_name", "region", "health_tier",
         "annual_commit_dollars", "trailing_90d_avg_rate", "cacv",
-    ] + exp_signal_cols + [
+    ] + exp_cols + [
         "acv_at_risk", "months_of_data",
         "expansion_flag", "is_spike_drop", "is_new_account",
         "contract_start_date", "contract_end_date",
@@ -519,17 +800,16 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
     tbl.columns = (
         ["Account", "Rep", "Region", "Health",
          "ACV", "Cons Rate", "cACV"]
-        + exp_signal_labels
-        + ["ACV at Risk", "Months Data",
+        + exp_labels
+        + ["ACV at Risk", "Months",
            "Expansion?", "Spike/Drop?", "Ramping?",
-           "Contract Start", "Contract End"]
+           "Start", "End"]
     )
-    for col in ["ACV", "cACV", "ACV at Risk"] + exp_signal_labels:
+    for col in ["ACV", "cACV", "ACV at Risk"] + exp_labels:
         tbl[col] = tbl[col].apply(fmt_m)
     tbl["Cons Rate"] = tbl["Cons Rate"].apply(
         lambda v: f"{v:.2f}" if pd.notna(v) else "—"
     )
-
     color_map = {
         "Expansion": "#d1fae5", "Healthy": "#dbeafe", "At Risk": "#fef3c7",
         "Shelfware": "#ffedd5", "Inactive": "#fee2e2", "Ramping": "#ede9fe",
@@ -543,15 +823,22 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.title("Prisma Cloud · cACV Executive Dashboard")
-    st.caption("Consumed Annual Contract Value — North Star Metric for the Hybrid Consumption Model")
+    inject_css()
+
+    # Page header
+    st.markdown("""
+    <div class="page-header">
+        <div class="page-eyebrow">Prisma Cloud</div>
+        <div class="page-title">cACV Executive Dashboard</div>
+        <div class="page-sub">Consumed Annual Contract Value · North Star Metric for the Hybrid Consumption Model</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if _is_demo():
         st.info(
-            "📊 **Demo mode** — displaying a cached snapshot of pipeline output. "
+            "**Demo mode** — showing a cached pipeline snapshot. "
             "All filters, charts, and tables are fully interactive. "
-            "Connect GCP credentials locally for live BigQuery data.",
-            icon=None,
+            "Run locally with GCP credentials for live BigQuery data."
         )
 
     available_dates = load_available_dates()
@@ -559,7 +846,7 @@ def main():
     rep_df_full     = load_rep_rollup(initial_date)
 
     if rep_df_full.empty:
-        st.warning("No data found in snapshot. Run `python3 pipeline_and_tests/run_pipeline.py` to rebuild.")
+        st.warning("No data found. Run `python3 pipeline_and_tests/run_pipeline.py` to populate the tables.")
         st.stop()
 
     as_of_date, region, rep_name, employee_id = render_sidebar(rep_df_full)
@@ -573,17 +860,17 @@ def main():
 
     acct_df = load_accounts(as_of_date, region, employee_id)
 
-    tab_overview, tab_region, tab_reps, tab_accounts = st.tabs([
-        "📊 Overview", "🗺️ By Region", "👤 By Rep", "🏢 Accounts"
+    tab_ov, tab_rgn, tab_rep, tab_acct = st.tabs([
+        "📊  Overview", "🗺  By Region", "👤  By Rep", "🏢  Accounts"
     ])
 
-    with tab_overview:
-        page_overview(rep_df_view, acct_df, region)
-    with tab_region:
+    with tab_ov:
+        page_overview(rep_df_view, acct_df)
+    with tab_rgn:
         page_region(rep_df)
-    with tab_reps:
-        page_reps(rep_df_view, region)
-    with tab_accounts:
+    with tab_rep:
+        page_reps(rep_df_view)
+    with tab_acct:
         page_accounts(acct_df, rep_name)
 
 
