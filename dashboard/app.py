@@ -1,14 +1,15 @@
 """
-cACV Executive Dashboard
-Prisma Cloud · Consumed ACV North Star Metric
+Consumption ACV Executive Dashboard
+Prisma Cloud · Consumption ACV North Star Metric
 
-Six tabs, one per audience from product_spec.md §11:
+Seven tabs, one per audience from product_spec.md §11:
   1. Portfolio Overview     — VP of Sales, CFO
   2. By Region              — Regional VPs, Sales Ops
   3. By Rep                 — Sales Managers
   4. Renewal Risk           — CFO, CS Leadership
   5. Expansion & Activation — AEs, Sales Managers
   6. Account Detail         — CS Leads, AEs
+  7. Data Health            — Data Engineering, Finance, RevOps
 
 Data loading: BigQuery-first, falls back to CSV snapshots for demo / Streamlit Cloud.
 """
@@ -73,7 +74,7 @@ def _chart(*, exclude: tuple = (), **overrides) -> dict:
 
 
 st.set_page_config(
-    page_title="cACV Dashboard · Prisma Cloud",
+    page_title="Consumption ACV Dashboard · Prisma Cloud",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -329,7 +330,7 @@ def persona_callout(audience: str, questions: list[str], accent: str = "#3b82f6"
 def render_sidebar(rep_df: pd.DataFrame):
     st.sidebar.markdown(
         '<p style="color:#f1f5f9;font-size:1rem;font-weight:700;letter-spacing:-0.01em;margin-bottom:0.1rem;">Prisma Cloud</p>'
-        '<p style="color:#475569;font-size:0.7rem;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1.5rem;">cACV Dashboard</p>',
+        '<p style="color:#475569;font-size:0.7rem;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1.5rem;">Consumption ACV</p>',
         unsafe_allow_html=True,
     )
     available_dates = load_available_dates()
@@ -359,10 +360,10 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
     persona_callout(
         "VP of Sales · CFO",
         [
-            "How much of our booked ACV is actually being consumed?",
+            "How much of our booked ACV is backed by actual consumption?",
             "What is our total churn exposure right now, in dollars?",
             "Which regions are healthy and which are lagging?",
-            "What does our cACV attainment tell us about next renewal cycle NRR?",
+            "What does our Consumption ACV attainment tell us about next renewal cycle NRR?",
         ],
     )
 
@@ -373,11 +374,11 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
     expansion_signal = rep_df["total_expansion_signal_acv"].sum() if "total_expansion_signal_acv" in rep_df.columns else 0
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.markdown(kpi_card("Total ACV",       fmt_m(total_acv),  accent="#64748b"), unsafe_allow_html=True)
-    c2.markdown(kpi_card("Total cACV",      fmt_m(total_cacv), accent="#3b82f6"), unsafe_allow_html=True)
+    c1.markdown(kpi_card("Total ACV",            fmt_m(total_acv),  accent="#64748b"), unsafe_allow_html=True)
+    c2.markdown(kpi_card("Consumption ACV",      fmt_m(total_cacv), accent="#3b82f6"), unsafe_allow_html=True)
     c3.markdown(kpi_card(
-        "cACV Attainment", fmt_pct(att_rate),
-        sub=("Above target" if att_rate >= 0.85 else "Below 85% target" if att_rate >= 0.70 else "Needs attention"),
+        "Consumption ACV Attainment", fmt_pct(att_rate),
+        sub=("Above 85% target" if att_rate >= 0.85 else "Below 85% target" if att_rate >= 0.70 else "Needs attention"),
         sub_cls=("pos" if att_rate >= 0.85 else "neg"),
         accent=attainment_color(att_rate),
     ), unsafe_allow_html=True)
@@ -427,7 +428,7 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
     col_l, col_r = st.columns(2)
 
     with col_l:
-        st.markdown('<div class="section-header">cACV by Region</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Consumption ACV by Region</div>', unsafe_allow_html=True)
         rdf = rep_df.groupby("region", as_index=False).agg(
             total_acv=("total_acv","sum"), total_cacv=("total_cacv","sum"))
         rdf["attainment"] = rdf["total_cacv"] / rdf["total_acv"]
@@ -437,9 +438,10 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                     marker_color="#f1f5f9",
                     text=[fmt_m(v) for v in rdf["total_acv"]], textposition="outside",
                     textfont=dict(size=11, color="#94a3b8"))
-        fig.add_bar(x=rdf["region"], y=rdf["total_cacv"], name="cACV",
+        fig.add_bar(x=rdf["region"], y=rdf["total_cacv"], name="Consumption ACV",
                     marker_color="#3b82f6",
                     text=[f"{fmt_m(v)}  ·  {fmt_pct(r)}" for v, r in zip(rdf["total_cacv"], rdf["attainment"])],
+
                     textposition="inside", textfont=dict(color="white", size=11))
         fig.update_layout(**_chart(
             barmode="overlay",
@@ -469,7 +471,7 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
         ))
         st.plotly_chart(fig2, use_container_width=True)
 
-    st.markdown('<div class="section-header">cACV Attainment vs. ACV — by Rep</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Consumption ACV Attainment vs. ACV — by Rep</div>', unsafe_allow_html=True)
     sdf = rep_df.copy()
     sdf["attainment_pct"] = sdf["cacv_attainment_rate"].fillna(0) * 100
     sdf["bubble_size"]    = (sdf["total_acv"] / sdf["total_acv"].max() * 38).clip(lower=6)
@@ -478,7 +480,7 @@ def page_overview(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
                       hover_name="rep_name",
                       hover_data={"total_acv":":.3s","total_cacv":":.3s","attainment_pct":":.1f",
                                   "total_accounts":True,"accounts_at_risk":True,"bubble_size":False},
-                      labels={"total_acv":"Total ACV ($)","attainment_pct":"cACV Attainment (%)","region":"Region"},
+                      labels={"total_acv":"Total ACV ($)","attainment_pct":"Consumption ACV Attainment (%)","region":"Region"},
                       opacity=0.85, height=340)
     fig3.add_hline(y=100, line_dash="dash", line_color="#94a3b8", line_width=1,
                    annotation_text="100%", annotation_font_color="#94a3b8", annotation_font_size=11)
@@ -500,7 +502,7 @@ def page_region(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
     persona_callout(
         "Regional VPs · Sales Ops",
         [
-            "How does my region compare to others on cACV attainment?",
+            "How does my region compare to others on Consumption ACV attainment?",
             "What percentage of my portfolio is at risk of churn?",
             "Which health tiers dominate my region — do I have a shelfware problem or an expansion opportunity?",
             "Where is the expansion pipeline concentrated?",
@@ -521,12 +523,12 @@ def page_region(rep_df: pd.DataFrame, acct_df: pd.DataFrame):
     region_agg = region_agg.sort_values("total_cacv", ascending=False)
 
     display = region_agg.copy()
-    for col, src in [("ACV","total_acv"),("cACV","total_cacv"),
+    for col, src in [("ACV","total_acv"),("Consumption ACV","total_cacv"),
                      ("ACV at Risk","total_acv_at_risk"),("Exp Pipeline","expansion_acv_pipeline")]:
         display[col] = display[src].apply(fmt_m)
     display["Attainment"] = display["att_rate"].apply(fmt_pct)
     display["Risk %"]     = display["risk_pct"].apply(fmt_pct)
-    st.dataframe(display[["region","reps","total_accounts","ACV","cACV","Attainment",
+    st.dataframe(display[["region","reps","total_accounts","ACV","Consumption ACV","Attainment",
                            "ACV at Risk","Risk %","accounts_expansion","accounts_at_risk","Exp Pipeline"]]
                  .rename(columns={"region":"Region","reps":"Reps","total_accounts":"Accounts",
                                   "accounts_expansion":"Expansion Accts","accounts_at_risk":"At-Risk Accts"}),
@@ -590,7 +592,7 @@ def page_reps(rep_df: pd.DataFrame):
     persona_callout(
         "Sales Managers",
         [
-            "Who are my top performers this quarter?",
+            "Who are my top performers this quarter by Consumption ACV?",
             "Which rep has the most ACV at risk and needs coaching now?",
             "How does each rep's book of business break down by health tier?",
             "Who has expansion opportunities they should be working?",
@@ -603,11 +605,11 @@ def page_reps(rep_df: pd.DataFrame):
         c1, c2 = st.columns(2)
         with c1:
             st.success(f"**#{int(top['org_rank'])} {top['rep_name']}** · {top['region']}  \n"
-                       f"cACV **{fmt_m(top['total_cacv'])}** · Attainment **{fmt_pct(top['cacv_attainment_rate'])}**")
+                       f"Consumption ACV **{fmt_m(top['total_cacv'])}** · Attainment **{fmt_pct(top['cacv_attainment_rate'])}**")
         with c2:
             att  = bot["cacv_attainment_rate"]
             body = (f"**{bot['rep_name']}** · {bot['region']}  \n"
-                    f"cACV **{fmt_m(bot['total_cacv'])}** · Attainment **{fmt_pct(att)}**")
+                    f"Consumption ACV **{fmt_m(bot['total_cacv'])}** · Attainment **{fmt_pct(att)}**")
             st.error(body) if (pd.notna(att) and att < 0.6) else st.info(body)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -616,7 +618,7 @@ def page_reps(rep_df: pd.DataFrame):
     fig.add_bar(y=chart_df["rep_name"], x=chart_df["total_acv"], name="ACV",
                 orientation="h", marker_color="#f1f5f9",
                 marker_line=dict(color="#e2e8f0", width=1))
-    fig.add_bar(y=chart_df["rep_name"], x=chart_df["total_cacv"], name="cACV",
+    fig.add_bar(y=chart_df["rep_name"], x=chart_df["total_cacv"], name="Consumption ACV",
                 orientation="h", marker_color="#3b82f6",
                 text=[f"{fmt_m(v)}  ·  {fmt_pct(r)}"
                       for v, r in zip(chart_df["total_cacv"], chart_df["cacv_attainment_rate"])],
@@ -643,11 +645,11 @@ def page_reps(rep_df: pd.DataFrame):
                        "accounts_shelfware","accounts_inactive"]].copy()
     tbl.columns = (["Org#","Rgn#","Rep","Region","Segment",
                     "Accts","Ramping","Mature",
-                    "ACV","cACV","Attainment",
+                    "ACV","Consumption ACV","Attainment",
                     "ACV at Risk","Exp Opps","Exp Pipeline"]
                    + extra_labels
                    + ["Expansion","Healthy","At Risk","Shelfware","Inactive"])
-    for col in ["ACV","cACV","ACV at Risk","Exp Pipeline"] + extra_labels:
+    for col in ["ACV","Consumption ACV","ACV at Risk","Exp Pipeline"] + extra_labels:
         tbl[col] = tbl[col].apply(fmt_m)
     tbl["Attainment"] = tbl["Attainment"].apply(fmt_pct)
     st.dataframe(tbl, use_container_width=True, hide_index=True)
@@ -799,8 +801,8 @@ def page_expansion_activation(acct_df: pd.DataFrame):
             "annual_commit_dollars","trailing_90d_avg_rate","cacv","expansion_signal_acv","acv_at_risk",
             "contract_end_date",
         ]].copy()
-        tbl.columns = ["Account","Rep","Region","ACV","Cons Rate","cACV","Expansion Signal","ACV at Risk","Contract End"]
-        for col in ["ACV","cACV","Expansion Signal","ACV at Risk"]:
+        tbl.columns = ["Account","Rep","Region","ACV","Cons Rate","Consumption ACV","Expansion Signal","ACV at Risk","Contract End"]
+        for col in ["ACV","Consumption ACV","Expansion Signal","ACV at Risk"]:
             tbl[col] = tbl[col].apply(fmt_m)
         tbl["Cons Rate"] = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
         st.dataframe(tbl, use_container_width=True, hide_index=True)
@@ -809,7 +811,7 @@ def page_expansion_activation(acct_df: pd.DataFrame):
 
     # ── Section 2: New Account Activation Tracker ─────────────────────────
     st.markdown('<div class="section-header">New Account Activation Tracker</div>', unsafe_allow_html=True)
-    st.caption("Accounts in the 90-day ramp window, excluded from cACV until history matures. "
+    st.caption("Accounts in the 90-day ramp window, excluded from Consumption ACV until history matures. "
                "AEs earn a one-time activation bonus when a new account sustains ≥80% consumption through month 6. "
                "Accounts below 30% current pace need onboarding attention.")
 
@@ -822,7 +824,7 @@ def page_expansion_activation(acct_df: pd.DataFrame):
     c1.markdown(kpi_card("Ramping Accounts", str(len(ramp_df)),
                           sub="In 90-day ramp window", accent="#8b5cf6"), unsafe_allow_html=True)
     c2.markdown(kpi_card("ACV Ramping",      fmt_m(acv_ramping),
-                          sub="Excluded from cACV until mature", accent="#8b5cf6"), unsafe_allow_html=True)
+                          sub="Excluded from Consumption ACV until mature", accent="#8b5cf6"), unsafe_allow_html=True)
     c3.markdown(kpi_card("Strong Start (≥50%)", str(on_track),
                           sub_cls="pos" if on_track > 0 else "", accent="#10b981"), unsafe_allow_html=True)
     c4.markdown(kpi_card("Needs Attention (<20%)", str(lagging),
@@ -930,10 +932,10 @@ def page_accounts(acct_df: pd.DataFrame, rep_name: str):
                + ["acv_at_risk","months_of_data",
                   "expansion_flag","is_spike_drop","is_new_account",
                   "contract_start_date","contract_end_date"]].copy()
-    tbl.columns = (["Account","Rep","Region","Health","ACV","Cons Rate","cACV"]
+    tbl.columns = (["Account","Rep","Region","Health","ACV","Cons Rate","Consumption ACV"]
                    + exp_labels
                    + ["ACV at Risk","Months","Expansion?","Spike/Drop?","Ramping?","Start","End"])
-    for col in ["ACV","cACV","ACV at Risk"] + exp_labels:
+    for col in ["ACV","Consumption ACV","ACV at Risk"] + exp_labels:
         tbl[col] = tbl[col].apply(fmt_m)
     tbl["Cons Rate"] = tbl["Cons Rate"].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
     color_map = {"Expansion":"#d1fae5","Healthy":"#dbeafe","At Risk":"#fef3c7",
@@ -951,8 +953,8 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
         "Data Engineering · Finance · RevOps",
         [
             "Is the pipeline snapshot fresh? When was the last successful run?",
-            "Are any cACV numbers violating the cap rule (cACV > annual commit)?",
-            "Do the formula components add up — does cACV + expansion signal equal ACV × rate?",
+            "Are any Consumption ACV numbers violating the cap rule (Consumption ACV > annual commit)?",
+            "Do the formula components add up — does Consumption ACV + expansion signal equal ACV × rate?",
             "How many accounts are missing a consumption rate, or have a NULL health tier?",
         ],
         accent="#64748b",
@@ -969,19 +971,19 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
     # ── Inline DQ checks ─────────────────────────────────────────────────────
     checks = []
 
-    # 1. cACV cap violations
+    # 1. Consumption ACV cap violations
     cap_violations = int((acct_df["cacv"] > acct_df["annual_commit_dollars"] + 1).sum())
-    checks.append({"Check": "cACV cap violations", "Severity": "ERROR",
+    checks.append({"Check": "Consumption ACV cap violations", "Severity": "ERROR",
                    "Status": "✓ PASS" if cap_violations == 0 else "✗ FAIL",
                    "Rows": cap_violations,
-                   "Detail": "cacv > annual_commit_dollars — formula error in pipeline" if cap_violations else "All cACV values ≤ committed ACV"})
+                   "Detail": "cacv > annual_commit_dollars — formula error in pipeline" if cap_violations else "All Consumption ACV values ≤ committed ACV"})
 
     # 2. Negative ACV at risk
     neg_risk = int((acct_df["acv_at_risk"] < -1).sum())
     checks.append({"Check": "Negative ACV at risk", "Severity": "ERROR",
                    "Status": "✓ PASS" if neg_risk == 0 else "✗ FAIL",
                    "Rows": neg_risk,
-                   "Detail": "acv_at_risk = ACV − cACV; should always be ≥ 0" if neg_risk else "All ACV at risk values non-negative"})
+                   "Detail": "acv_at_risk = ACV − Consumption ACV; should always be ≥ 0" if neg_risk else "All ACV at risk values non-negative"})
 
     # 3. Negative expansion signal
     neg_exp = int((acct_df.get("expansion_signal_acv", pd.Series(dtype=float)).fillna(0) < -1).sum())
@@ -1029,7 +1031,7 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
     checks.append({"Check": "Ramping rate", "Severity": "INFO",
                    "Status": "ℹ INFO",
                    "Rows": ramp_count,
-                   "Detail": f"{ramp_rate:.1%} of accounts in Ramping status — excluded from cACV (informational)"})
+                   "Detail": f"{ramp_rate:.1%} of accounts in Ramping status — excluded from Consumption ACV (informational)"})
 
     errors   = [c for c in checks if c["Status"].startswith("✗")]
     warnings = [c for c in checks if c["Status"].startswith("⚠")]
@@ -1092,13 +1094,13 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
         {"Metric": "Accounts with consumption rate",
          "Value": f'{acct_df["trailing_90d_avg_rate"].notna().sum():,} '
                   f'({acct_df["trailing_90d_avg_rate"].notna().mean():.1%})'},
-        {"Metric": "Accounts with cACV > 0",
+        {"Metric": "Accounts with Consumption ACV > 0",
          "Value": f'{(acct_df["cacv"] > 0).sum():,} '
                   f'({(acct_df["cacv"] > 0).mean():.1%})'},
         {"Metric": "Shelfware + Inactive",
          "Value": f'{tier_counts.get("Shelfware", 0) + tier_counts.get("Inactive", 0):,} '
                   f'({(tier_counts.get("Shelfware", 0) + tier_counts.get("Inactive", 0)) / total_a:.1%})'},
-        {"Metric": "Ramping (excluded from cACV)",
+        {"Metric": "Ramping (excluded from Consumption ACV)",
          "Value": f'{tier_counts.get("Ramping", 0):,} '
                   f'({tier_counts.get("Ramping", 0) / total_a:.1%})'},
         {"Metric": "Expansion-flagged accounts",
@@ -1131,8 +1133,8 @@ def main():
     st.markdown("""
     <div class="page-header">
         <div class="page-eyebrow">Prisma Cloud</div>
-        <div class="page-title">cACV Executive Dashboard</div>
-        <div class="page-sub">Consumed Annual Contract Value · North Star Metric for the Hybrid Consumption Model</div>
+        <div class="page-title">Consumption ACV Dashboard</div>
+        <div class="page-sub">Consumption Annual Contract Value · North Star Metric for the Hybrid Consumption Model</div>
     </div>
     """, unsafe_allow_html=True)
 

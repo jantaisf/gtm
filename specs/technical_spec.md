@@ -12,8 +12,8 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-# Technical Spec: cACV Data Pipeline
-## Prisma Cloud Consumed ARR — End-to-End Architecture
+# Technical Spec: Consumption ACV Data Pipeline
+## Prisma Cloud Consumption ACV — End-to-End Architecture
 
 **Version:** 1.0
 **Owner:** Principal PM, Analytics & AI
@@ -168,7 +168,7 @@ Calendar + PANW fiscal calendar spine, 2000-01-01 → 2030-12-31. See Step 0 for
 Measurable events and metrics at the lowest useful grain.
 
 #### `gold.fact_cacv_snapshot`
-**Grain:** one row per `account_id × as_of_date`. This is the single source of truth for all cACV metrics.
+**Grain:** one row per `account_id × as_of_date`. This is the single source of truth for all Consumption ACV metrics.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -180,7 +180,7 @@ Measurable events and metrics at the lowest useful grain.
 | `trailing_90d_avg_rate` | FLOAT | Consumption rate over last 3 complete months |
 | `cacv` | FLOAT | `MIN(ACV × rate, ACV)`; NULL if ramping |
 | `expansion_signal_acv` | FLOAT | `MAX(ACV × rate − ACV, 0)`; NULL if ramping |
-| `acv_at_risk` | FLOAT | `ACV − cACV`; NULL if ramping |
+| `acv_at_risk` | FLOAT | `ACV − Consumption ACV`; NULL if ramping |
 | `health_tier` | STRING | Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
 | `is_new_account` | BOOLEAN | Contract start within last 90 days |
 | `expansion_flag` | BOOLEAN | 2+ consecutive months >120% consumption |
@@ -250,7 +250,7 @@ When Type 2 is active, `fact_cacv_snapshot` stores `surrogate_key` (not the natu
 
 ### 3.2 Pipeline Run Log and Corrections (Comp Auditability)
 
-Any cACV figure flowing to a compensation platform must be traceable to the exact pipeline run that produced it, with an immutable record of any retroactive corrections. This is a finance requirement, not an analytics nice-to-have (see product_spec.md §2.1 and §9).
+Any Consumption ACV figure flowing to a compensation platform must be traceable to the exact pipeline run that produced it, with an immutable record of any retroactive corrections. This is a finance requirement, not an analytics nice-to-have (see product_spec.md §2.1 and §9).
 
 **New table: `pipeline_run_log`** — one row per pipeline execution:
 
@@ -268,7 +268,7 @@ Any cACV figure flowing to a compensation platform must be traceable to the exac
 | `correction_note` | STRING | Required when `is_correction = TRUE` |
 | `correction_approved_by` | STRING | VP of Finance or CFO sign-off; required before comp platform sync |
 
-**New table: `fact_cacv_corrections`** — delta record for every retroactive cACV change after commissions have been paid:
+**New table: `fact_cacv_corrections`** — delta record for every retroactive Consumption ACV change after commissions have been paid:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -301,7 +301,7 @@ This makes the full audit chain traceable: commission record → `vw_rep_portfol
 
 ### 3.3 Source Data Change Logs (Bronze Layer)
 
-Two Bronze tables carry changes that directly affect cACV calculations and comp attribution. Without change logs for these, there is no way to distinguish "the metric moved because consumption changed" from "the metric moved because someone edited the source data."
+Two Bronze tables carry changes that directly affect Consumption ACV calculations and comp attribution. Without change logs for these, there is no way to distinguish "the metric moved because consumption changed" from "the metric moved because someone edited the source data."
 
 **New table: `bronze.account_ownership_history`** — every rep-to-account assignment from initial signing through all subsequent reassignments:
 
@@ -336,9 +336,9 @@ This table is what makes the `signing_owner_id` / current `employee_id` split on
 | `signed_date` | DATE | When the amendment paperwork was executed |
 | `created_at` | TIMESTAMP | |
 | `created_by` | STRING | |
-| `approved_by` | STRING | Required for `acv_change` amendments — affects the cACV denominator and comp calculations |
+| `approved_by` | STRING | Required for `acv_change` amendments — affects the Consumption ACV denominator and comp calculations |
 
-An ACV amendment changes the cACV denominator going forward. Without this table, a drop in attainment after a mid-year downsell looks identical to a drop caused by the customer reducing consumption — two situations that require completely different responses.
+An ACV amendment changes the Consumption ACV denominator going forward. Without this table, a drop in attainment after a mid-year downsell looks identical to a drop caused by the customer reducing consumption — two situations that require completely different responses.
 
 ---
 
@@ -349,7 +349,7 @@ An ACV amendment changes the cACV denominator going forward. Without this table,
 | `pipeline_run_log` + `pipeline_run_id` on `fact_cacv_snapshot` | P0 | v1 | CFO requirement — required before comp platform integration |
 | `fact_cacv_corrections` | P0 | v1 | Immutable delta record for retroactive corrections and clawback evaluation |
 | `bronze.account_ownership_history` | P1 | v1 | Must start day one — not reconstructable retroactively from the warehouse |
-| `bronze.contract_amendments` | P1 | v1 | ACV and term changes affect the cACV denominator; needed to separate metric movement from data edits |
+| `bronze.contract_amendments` | P1 | v1 | ACV and term changes affect the Consumption ACV denominator; needed to separate metric movement from data edits |
 | SCD Type 2 on `dim_reps` | P2 | v2 | Required for accurate regional cohort analysis; acceptable to defer if v1 scope is point-in-time |
 | SCD Type 2 on `dim_contracts` | P2 | v2 | Amendment history is surfaced via `contract_amendments` log for v1 |
 | SCD Type 2 on `dim_accounts` | P3 | v2 | Account renames are uncommon; lower risk than rep or contract changes |
@@ -433,7 +433,7 @@ An ACV amendment changes the cACV denominator going forward. Without this table,
 
 ### Step 4 — `gold.fact_cacv_snapshot`
 
-**Purpose:** Compute account-level cACV using the trailing 90-day consumption rate and write the fact table.
+**Purpose:** Compute account-level Consumption ACV using the trailing 90-day consumption rate and write the fact table.
 
 **Reads from:** `silver.active_contracts`, `silver.monthly_consumption`, `gold.dim_dates`
 
@@ -442,7 +442,7 @@ An ACV amendment changes the cACV denominator going forward. Without this table,
 2. Compute `trailing_90d_avg_rate = AVG(consumption_rate)` over those 3 months
 3. Apply health tier classification (see product_spec.md §5)
 4. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
-5. Compute cACV — **capped at annual commit**:
+5. Compute Consumption ACV — **capped at annual commit**:
    ```sql
    cacv = CASE
      WHEN is_new_account THEN NULL
@@ -457,15 +457,15 @@ An ACV amendment changes the cACV denominator going forward. Without this table,
            0), 2)
    END
    ```
-   **Cap rationale:** cACV is capped at the contracted commit to preserve the "% of bookings realized" narrative. Over-consumption flows to `expansion_signal_acv` as a separate upsell pipeline metric.
+   **Cap rationale:** Consumption ACV is capped at the contracted commit to preserve the "% of bookings realized" narrative. Over-consumption flows to `expansion_signal_acv` as a separate upsell pipeline metric.
 6. Compute `acv_at_risk = annual_commit_dollars - cacv`
 7. Flag `expansion_flag = TRUE` if `overage_months >= 2`
 8. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
 
 **Edge cases handled:**
 - Spike & Drop → trailing 90-day window smooths spike once it ages out
-- New accounts → excluded from cACV with `is_new_account` flag
-- Consistent overages → `expansion_flag` surfaced; excess consumption reported in `expansion_signal_acv`, not inflated into cACV
+- New accounts → excluded from Consumption ACV with `is_new_account` flag
+- Consistent overages → `expansion_flag` surfaced; excess consumption reported in `expansion_signal_acv`, not inflated into Consumption ACV
 
 ---
 
@@ -490,9 +490,9 @@ An ACV amendment changes the cACV denominator going forward. Without this table,
 
 ## 5. Metric Correctness Test Cases
 
-These scenarios define the expected cACV output for given inputs. Use them as regression tests during refactors — if cACV changes unexpectedly on any of these, something broke.
+These scenarios define the expected Consumption ACV output for given inputs. Use them as regression tests during refactors — if Consumption ACV changes unexpectedly on any of these, something broke.
 
-| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected cACV | Expected Expansion Signal |
+| Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected Consumption ACV | Expected Expansion Signal |
 |---|---|---|---|---|---|---|---|
 | Healthy steady-state | $200K | 0.90 | 0.94 | 0.91 | 0.917 | $183,400 | $0 |
 | Shelfware | $300K | 0.05 | 0.03 | 0.02 | 0.033 | $9,900 | $0 |
@@ -653,7 +653,7 @@ All operational exports read from the semantic layer views — `vw_account_detai
 | BQ Field | Salesforce Object | Salesforce Field | Notes |
 |---|---|---|---|
 | `health_tier` | Account | `Health_Tier__c` | Picklist: Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
-| `cacv_attainment_rate` | Account | `cACV_Attainment__c` | Number (%) — drives renewal forecast category |
+| `cacv_attainment_rate` | Account | `Consumption ACV_Attainment__c` | Number (%) — drives renewal forecast category |
 | `acv_at_risk` | Account | `ACV_at_Risk__c` | Currency — adjusts renewal opportunity amount |
 | `expansion_flag = TRUE` | Opportunity (auto-create) | Stage = `Expansion Identified` | Creates new opp on Account if none exists in stage |
 | `is_spike_drop = TRUE` | Account | `Spike_Drop_Flag__c` | Checkbox — triggers CS save plan task |
@@ -732,6 +732,6 @@ Key reports enabled by the current data model:
 | `fact_cacv_monthly` grain table | Medium | Add a monthly-grain fact table (account × month) enabling cohort curves, trend analysis, and any time-series BI report currently blocked by the snapshot grain |
 | SCD Type 2 on `dim_reps` + `dim_contracts` | Medium | Add `valid_from` / `valid_to` and `surrogate_key` — preserves history of territory reassignments and contract amendments without rewriting fact data (see §3.1) |
 | ML churn prediction | High | Predict which At Risk accounts churn at renewal, trained on `fact_cacv_monthly` cohort history |
-| Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time cACV; semantic layer views remain unchanged |
+| Real-time updates via Pub/Sub | High | Move from daily batch to near-real-time Consumption ACV; semantic layer views remain unchanged |
 | Cohort-based multiplier calibration | Medium | Validate health tier thresholds against actual churn cohorts using `fact_cacv_monthly` + renewal outcomes |
 | Feature-depth weighting | Medium | Weight credits by product tier (base NGFW vs. advanced security add-ons) |

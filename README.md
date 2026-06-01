@@ -1,6 +1,6 @@
-# Prisma Cloud · cACV North Star Metric
+# Prisma Cloud · Consumption ACV North Star Metric
 
-**Consumed ACV (cACV)** is a prototype GTM metric for Palo Alto Networks Prisma Cloud's hybrid consumption model. It measures the portion of contracted ACV backed by actual platform usage — turning a bookings number into a leading indicator of renewal health and expansion pipeline.
+**Consumption ACV (Consumption ACV)** is a prototype GTM metric for Palo Alto Networks Prisma Cloud's hybrid consumption model. It measures the portion of contracted ACV backed by actual platform usage — turning a bookings number into a leading indicator of renewal health and expansion pipeline.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cacv-dashboard.streamlit.app)
 
@@ -18,7 +18,7 @@
 | `pipeline_and_tests/dq_tests.py` | 11 automated data quality assertions |
 | `dashboard/app.py` | Streamlit executive dashboard — 4 tabs, BigQuery + CSV demo mode |
 | `dashboard/demo_data/` | Cached CSV snapshot for the live demo (no credentials required) |
-| `comp_model.xlsx` | Spreadsheet model for AE/AM compensation under the cACV framework |
+| `comp_model.xlsx` | Spreadsheet model for AE/AM compensation under the Consumption ACV framework |
 
 ---
 
@@ -29,9 +29,9 @@ The dashboard is deployed on Streamlit Community Cloud and runs on a committed C
 **[https://cacv-dashboard.streamlit.app](https://cacv-dashboard.streamlit.app)**
 
 The demo shows:
-- **Overview** — org-wide KPIs, cACV by region, health tier mix, attainment scatter by rep
+- **Overview** — org-wide KPIs, Consumption ACV by region, health tier mix, attainment scatter by rep
 - **By Region** — region comparison table + health tier stack chart
-- **By Rep** — ranked leaderboard with ACV vs. cACV overlay, full rep table
+- **By Rep** — ranked leaderboard with ACV vs. Consumption ACV overlay, full rep table
 - **Accounts** — per-account scatter (ACV vs. consumption rate), filterable by health tier
 
 ---
@@ -96,9 +96,9 @@ See `specs/technical_spec.md` for the full schema and pipeline documentation.
 ## Key metric
 
 ```
-cACV = MIN(ACV × consumption_rate, ACV)
+Consumption ACV = MIN(ACV × consumption_rate, ACV)
 
 consumption_rate = trailing 90-day average of (monthly_credits_consumed / monthly_credit_allowance)
 ```
 
-A rep with a $500K account at 4% consumption contributes $20K to cACV — not $500K. That's the point.
+A rep with a $500K account at 4% consumption contributes $20K to Consumption ACV — not $500K. That's the point.

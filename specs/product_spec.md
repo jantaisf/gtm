@@ -12,10 +12,10 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
-# Product Spec: cACV — Consumed ACV
+# Product Spec: Consumption ACV
 ## North Star Metric for Prisma Cloud GTM — Hybrid Consumption Model
 
-> **Terminology:** Throughout this spec, **ACV** (Annual Contract Value) refers to the contracted annual commitment. **cACV** (Consumed ACV) is the portion of ACV backed by actual platform usage. The two are distinct: ACV is what was sold; cACV is what is being realized.
+> **Terminology:** Throughout this spec, **ACV** (Annual Contract Value) refers to the contracted annual commitment. **Consumption ACV** (Consumed ACV) is the portion of ACV backed by actual platform usage. The two are distinct: ACV is what was sold; Consumption ACV is what is being realized.
 
 **Version:** 1.0
 **Owner:** Principal PM, Analytics & AI
@@ -40,25 +40,25 @@ Sales leadership needs a single metric that:
 
 ---
 
-## 2. The North Star Metric: Consumed ARR (cACV)
+## 2. The North Star Metric: Consumption ACV
 
 ### 2.1 Definition
 
-**Consumed ARR is the portion of contracted ACV (Annual Contract Value) that is backed by actual platform usage.**
+**Consumption ACV is the portion of contracted ACV (Annual Contract Value) that is backed by actual platform usage.**
 
-It answers the question: *"Of the revenue we've booked, how much is the customer actually realizing?"*
+It answers the question: *"Of the revenue we've booked, how much is the customer actually consuming?"*
 
-> **Naming note:** cACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. Consider labeling it "cACV (GTM metric)" in any materials shared with investors to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
+> **Naming note:** Consumption ACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. Consider labeling it "Consumption ACV (GTM metric)" in any materials shared with investors to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
 
-> **Comp audit trail requirement:** Any cACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §13 Q8). Retroactive cACV corrections after commission payment require CFO sign-off.
+> **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §13 Q8). Retroactive Consumption ACV corrections after commission payment require CFO sign-off.
 
 ### 2.2 Formula
 
 ```
-cACV               = min(ACV × consumption_rate, ACV)
-expansion_signal_acv = max(ACV × consumption_rate − ACV, 0)
+Consumption ACV      = MIN(ACV × consumption_rate, ACV)
+Expansion Signal ACV = MAX(ACV × consumption_rate − ACV, 0)
 
-consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
+consumption_rate     = trailing_90d_avg(monthly_credits_consumed / included_monthly_compute_credits)
 ```
 
 **Where:**
@@ -67,11 +67,11 @@ consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthl
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
 - `trailing_90d_avg` — average consumption rate across the last 3 complete calendar months
 
-**Cap rationale:** cACV is capped at ACV. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric — expansion signal dollars — that feeds the upsell pipeline, not the attainment calculation.
+**Cap rationale:** Consumption ACV is capped at ACV. This preserves the "% of bookings realized" narrative — a portfolio at 105% average consumption rate should not show attainment above 100%. Over-consumption is a positive signal but belongs in a separate metric — expansion signal dollars — that feeds the upsell pipeline, not the attainment calculation.
 
 **Example:**
 
-| Account | ACV | Consumption Rate | cACV | Expansion Signal |
+| Account | ACV | Consumption Rate | Consumption ACV | Expansion Signal |
 |---|---|---|---|---|
 | Healthy customer | $200K | 92% | $184K | — |
 | Shelfware | $300K | 4% | $12K | — |
@@ -82,16 +82,17 @@ consumption_rate   = trailing_90d_avg(monthly_credits_consumed / included_monthl
 
 | Level | Definition |
 |---|---|
-| **Account cACV** | `annual_commit_dollars × consumption_rate` per account |
-| **Rep cACV** | Sum of account cACV across all active accounts owned by the rep |
-| **Region cACV** | Sum of rep cACV within a region |
-| **Org cACV** | Total — the Board-level North Star |
+| **Account Consumption ACV** | `annual_commit_dollars × consumption_rate` per account |
+| **Rep Consumption ACV** | Sum of account Consumption ACV across all active accounts owned by the rep |
+| **Region Consumption ACV** | Sum of rep Consumption ACV within a region |
+| **Org Consumption ACV** | Total — the Board-level North Star |
 
-### 2.4 cACV Attainment Rate
+### 2.4 Consumption ACV Attainment Rate
 
 ```
-cACV Attainment = cACV / ACV
+Consumption ACV Attainment = Consumption ACV / ACV
 ```
+
 
 This is the headline health ratio for the CFO. A portfolio at 78% attainment means 22% of booked ACV is at risk of non-renewal.
 
@@ -99,39 +100,39 @@ This is the headline health ratio for the CFO. A portfolio at 78% attainment mea
 
 ### 2.5 Intended Behavioral Drivers
 
-cACV is designed to shift incentives at every layer of the GTM organization. The behaviors it is explicitly intended to reward — and suppress — are:
+Consumption ACV is designed to shift incentives at every layer of the GTM organization. The behaviors it is explicitly intended to reward — and suppress — are:
 
 **Behaviors to reward**
 
-| Behavior | How cACV Rewards It |
+| Behavior | How Consumption ACV Rewards It |
 |---|---|
-| Selling the right-sized deal | Overselling credits the customer won't use directly lowers cACV; reps are incentivized to right-size commits |
+| Selling the right-sized deal | Overselling credits the customer won't use directly lowers Consumption ACV; reps are incentivized to right-size commits |
 | Fast time-to-value | New accounts ramping to ≥80% consumption within 90 days trigger an activation bonus; slow onboarding costs attainment |
-| Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their cACV |
-| Proactive renewal risk management | Account Managers' quota is tied to cACV, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
+| Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their Consumption ACV |
+| Proactive renewal risk management | Account Managers' quota is tied to Consumption ACV, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
 | Expansion from genuine usage | Accounts consistently consuming more than 120% of their committed credits for 2+ months represent organic demand that has outgrown the contract; reps are credited for converting that signal into a larger deal |
 | Committing to longer contract terms | Multi-year deals earn a term multiplier on ACV quota credit (1.2×–1.5× for 2–5 years) — rewarding the revenue visibility a long-term commit provides without the quota-busting effect of full TCV credit |
 
 **Behaviors to suppress**
 
-| Behavior | How cACV Suppresses It |
+| Behavior | How Consumption ACV Suppresses It |
 |---|---|
-| Overselling / shelfware deals | A $500K deal at 4% consumption contributes only $20K to cACV — the rep's attainment number reflects the shelfware reality |
-| Sandbagging credits at renewal | Renewing flat on a low-consumption account doesn't improve cACV; the rep must drive adoption, not just resign the paper |
-| Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under cACV, onboarding quality is in their comp |
-| Cherry-picking easy renewals | cACV weight for Account Managers is 70%; avoiding at-risk accounts lowers their total attainment |
-| Pushing long terms on weak accounts | A rep who locks in a 5-year deal on a shelfware customer captures the 1.50× multiplier at signing — but poor cACV attainment across the portfolio suppresses their bookings commission rate via the accelerator, offsetting the gain |
+| Overselling / shelfware deals | A $500K deal at 4% consumption contributes only $20K to Consumption ACV — the rep's attainment number reflects the shelfware reality |
+| Sandbagging credits at renewal | Renewing flat on a low-consumption account doesn't improve Consumption ACV; the rep must drive adoption, not just resign the paper |
+| Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under Consumption ACV, onboarding quality is in their comp |
+| Cherry-picking easy renewals | Consumption ACV weight for Account Managers is 70%; avoiding at-risk accounts lowers their total attainment |
+| Pushing long terms on weak accounts | A rep who locks in a 5-year deal on a shelfware customer captures the 1.50× multiplier at signing — but poor Consumption ACV attainment across the portfolio suppresses their bookings commission rate via the accelerator, offsetting the gain |
 
-**Known v1 gaming risk — Account Manager credit-burning:** Account Managers at 70% cACV weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, protect idle servers or decommissioned infrastructure, or otherwise burn credits without delivering security value. cACV cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
+**Known v1 gaming risk — Account Manager credit-burning:** Account Managers at 70% Consumption ACV weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, protect idle servers or decommissioned infrastructure, or otherwise burn credits without delivering security value. Consumption ACV cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
 
 ---
 
 ### 2.6 Retention and Churn as Secondary Metrics
 
-cACV is the North Star, but retention and churn metrics provide the lagging validation that cACV predictions are accurate. Together they form a leading/lagging system:
+Consumption ACV is the North Star, but retention and churn metrics provide the lagging validation that Consumption ACV predictions are accurate. Together they form a leading/lagging system:
 
 ```
-cACV attainment (leading) → predicts → NRR / Gross Retention (lagging)
+Consumption ACV attainment (leading) → predicts → NRR / Gross Retention (lagging)
 ```
 
 **Net Revenue Retention (NRR)**
@@ -140,9 +141,9 @@ cACV attainment (leading) → predicts → NRR / Gross Retention (lagging)
 NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginning ARR
 ```
 
-- cACV attainment rate is the leading indicator; NRR at renewal is the outcome it should predict
-- Target: cACV-based NRR forecast within ±10% of actual NRR (see §9 Success Criteria)
-- PANW disclosed NRR of ~119–120% in FY2024; an org-wide cACV attainment of ≥85% should support similar NRR levels in the consumption model
+- Consumption ACV attainment rate is the leading indicator; NRR at renewal is the outcome it should predict
+- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR (see §9 Success Criteria)
+- PANW disclosed NRR of ~119–120% in FY2024; an org-wide Consumption ACV attainment of ≥85% should support similar NRR levels in the consumption model
 
 **Gross Revenue Retention (GRR)**
 
@@ -160,21 +161,21 @@ GRR = (Beginning ARR - Churned ARR - Contraction ARR) / Beginning ARR
 Logo Churn = Accounts lost at renewal / Total accounts up for renewal
 ```
 
-- A secondary signal for CS prioritization — high cACV attainment should correlate with low logo churn
+- A secondary signal for CS prioritization — high Consumption ACV attainment should correlate with low logo churn
 - Spike & Drop accounts (those flagged for a spike-and-drop consumption pattern) are the highest-risk cohort for logo churn; they consumed heavily at onboarding but have since gone dark
 
 **The leading/lagging relationship**
 
-| cACV Signal | Lagging Metric Risk |
+| Consumption ACV Signal | Lagging Metric Risk |
 |---|---|
 | Org attainment falls below 80% | NRR compression at next renewal cycle |
 | Shelfware rate exceeds 10% | GRR deterioration within 2 quarters |
 | Expansion flag conversion < 30% | NRR plateaus; growth shifts entirely to new logos |
 | Ramping accounts fail to reach Healthy in 90 days | Elevated logo churn at first renewal |
 
-> **v1 note:** The NRR outcome bands in the prediction table above (≥90% → strong renewal, etc.) are starting hypotheses derived from industry analogues, not PANW-specific renewal data. Treat them as directional guidance for v1. The primary value of this framework is establishing the *measurement habit* — tracking cACV attainment alongside NRR outcomes at every renewal cohort — so the bands can be empirically recalibrated after 12–18 months. Plan a formal calibration milestone; commit to adjusting thresholds if the data contradicts them.
+> **v1 note:** The NRR outcome bands in the prediction table above (≥90% → strong renewal, etc.) are starting hypotheses derived from industry analogues, not PANW-specific renewal data. Treat them as directional guidance for v1. The primary value of this framework is establishing the *measurement habit* — tracking Consumption ACV attainment alongside NRR outcomes at every renewal cohort — so the bands can be empirically recalibrated after 12–18 months. Plan a formal calibration milestone; commit to adjusting thresholds if the data contradicts them.
 
-Tracking both cACV (real-time) and NRR/GRR (at renewal) allows the team to validate — and over time calibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
+Tracking both Consumption ACV (real-time) and NRR/GRR (at renewal) allows the team to validate — and over time calibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
 
 ---
 
@@ -235,7 +236,7 @@ PANW's credit model sits at the sophisticated end of this spectrum: unlike pure 
 | [Databricks](https://www.databricks.com/product/pricing) | DBUs | Consumed ACV = annualized trailing DBU usage |
 | [MongoDB](https://www.mongodb.com/pricing) | Queries/ops | Incremental ACV above usage baseline |
 | [OpenAI](https://openai.com/api/pricing/) / [Anthropic](https://www.anthropic.com/pricing) | Tokens | Revenue recognized on actual token consumption |
-| **[PANW Prisma Cloud](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)** | Prisma Cloud Credits | **cACV = ACV × consumption_rate** |
+| **[PANW Prisma Cloud](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)** | Prisma Cloud Credits | **Consumption ACV = ACV × consumption_rate** |
 
 **Snowflake precedent on compensation weighting:**
 - New/greenfield reps: 70% bookings / 30% consumption
@@ -245,7 +246,7 @@ PANW's credit model sits at the sophisticated end of this spectrum: unlike pure 
 
 ## 5. Health Tier Classification
 
-While cACV is a continuous metric, health tiers provide operational clarity for CS and sales prioritization:
+While Consumption ACV is a continuous metric, health tiers provide operational clarity for CS and sales prioritization:
 
 | Health Tier | Consumption Rate | Interpretation | Action |
 |---|---|---|---|
@@ -254,9 +255,9 @@ While cACV is a continuous metric, health tiers provide operational clarity for 
 | **At Risk** | 40–80% | Adoption lag — intervention needed | CS escalation within 30 days |
 | **Shelfware** | 5–40% | Low utilization — churn risk | Executive sponsor outreach |
 | **Inactive** | < 5% | Near-zero usage | Immediate save plan |
-| **Ramping** | < 90 days old | Insufficient history | Excluded from cACV; tracked separately |
+| **Ramping** | < 90 days old | Insufficient history | Excluded from Consumption ACV; tracked separately |
 
-Health tiers are used for **dashboard visualization and CS prioritization only** — cACV itself uses the raw continuous consumption rate, not tiered multipliers.
+Health tiers are used for **dashboard visualization and CS prioritization only** — Consumption ACV itself uses the raw continuous consumption rate, not tiered multipliers.
 
 > **v1 note:** The thresholds above (5% / 40% / 80% / 120%) are starting hypotheses, not empirically validated cutoffs. They are reasonable starting points based on industry analogues but have not been tested against PANW renewal cohort data. Plan a calibration review at 12–18 months once sufficient renewal outcomes are available. Thresholds should not be used as performance targets until validated.
 
@@ -264,28 +265,28 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ## 6. Edge Case Handling
 
-| Anomaly | Business Signal | cACV Treatment |
+| Anomaly | Business Signal | Consumption ACV Treatment |
 |---|---|---|
-| **Shelfware** | Near-zero consumption rate over trailing 90 days | cACV reflects near-zero value; account flagged for save plan |
+| **Shelfware** | Near-zero consumption rate over trailing 90 days | Consumption ACV reflects near-zero value; account flagged for save plan |
 | **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects current inactive state once spike ages out |
-| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | cACV capped at commit; excess reported as expansion signal; expansion flag surfaced to rep for upsell motion |
+| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption ACV capped at commit; excess reported as expansion signal; expansion flag surfaced to rep for upsell motion |
 | **Mid-Year Expansion** | Customer signs additional contract before original expires | ARR and credits summed across all simultaneously active contracts; expansion flag set |
-| **Orphaned Usage** | Usage logs reference an account not in the customer master | Excluded from cACV; surfaced in data quality report |
+| **Orphaned Usage** | Usage logs reference an account not in the customer master | Excluded from Consumption ACV; surfaced in data quality report |
 | **Out-of-contract Usage** | Usage logged before contract start or after contract end | Excluded from consumption rate calculation |
-| **New Accounts** | Contract start within last 90 days — insufficient consumption history | Excluded from cACV; shown as "Ramping" until 90-day window matures |
+| **New Accounts** | Contract start within last 90 days — insufficient consumption history | Excluded from Consumption ACV; shown as "Ramping" until 90-day window matures |
 | **Multi-year Contracts** | 2- or 3-year deal term | ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier. See §12 for v1 ACV basis decision |
 
 ---
 
 ## 7. Proposed Compensation Framework
 
-**Design principle:** Rather than giving cACV its own quota bucket that reps deprioritize, attach cACV outcomes to the thing each role already maximizes — bookings commission rate for AEs, portfolio health for AMs. The quota split is the floor; the accelerators and bonuses below are where behavioral change actually happens.
+**Design principle:** Rather than giving Consumption ACV its own quota bucket that reps deprioritize, attach Consumption ACV outcomes to the thing each role already maximizes — bookings commission rate for AEs, portfolio health for AMs. The quota split is the floor; the accelerators and bonuses below are where behavioral change actually happens.
 
-> **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. cACV comp reform is the thesis of this spec.
+> **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. Consumption ACV comp reform is the thesis of this spec.
 
 ### 7.0 Role Split
 
-| Role | Bookings Weight | cACV Weight | Rationale |
+| Role | Bookings Weight | Consumption ACV Weight | Rationale |
 |---|---|---|---|
 | **Account Executive (AE)** — new logos | 70% | 30% | Primary job is net new; consumption follows logo |
 | **Account Manager (AM)** — renewals/expansion | 30% | 70% | Primary job is value realization and expansion |
@@ -297,9 +298,9 @@ The 70/30 AE split establishes a consumption floor — it penalizes shelfware at
 
 **Mechanism 1 — Bookings commission accelerator (primary lever)**
 
-The AE's bookings commission rate floats based on portfolio cACV attainment. This makes cACV a multiplier on the thing AEs care most about — their bookings payout:
+The AE's bookings commission rate floats based on portfolio Consumption ACV attainment. This makes Consumption ACV a multiplier on the thing AEs care most about — their bookings payout:
 
-| Portfolio cACV Attainment | Bookings Commission Rate |
+| Portfolio Consumption ACV Attainment | Bookings Commission Rate |
 |---|---|
 | Below 60% | 0.85× (penalized) |
 | 60–80% | 1.00× (standard) |
@@ -316,15 +317,15 @@ Any AE whose new account sustains ≥80% consumption rate through month 6 earns 
 
 **Mechanism 3 — Portfolio overachievement floor (with inherited-territory carve-out)**
 
-An AE cannot earn above 100% OTE if portfolio cACV attainment is below 60%. Prevents a rep from chasing new logos while leaving a book full of shelfware unattended.
+An AE cannot earn above 100% OTE if portfolio Consumption ACV attainment is below 60%. Prevents a rep from chasing new logos while leaving a book full of shelfware unattended.
 
-**Carve-out for inherited territories:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio cACV from their inherited baseline, not the absolute attainment level. This prevents the floor from penalizing a rep for their predecessor's shelfware. The carve-out period requires VP of Sales sign-off to activate and is tracked separately in the compensation platform.
+**Carve-out for inherited territories:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio Consumption ACV from their inherited baseline, not the absolute attainment level. This prevents the floor from penalizing a rep for their predecessor's shelfware. The carve-out period requires VP of Sales sign-off to activate and is tracked separately in the compensation platform.
 
 ### 7.2 AM Incentive Mechanisms
 
-**Mechanism 1 — Quarterly cACV attainment (primary lever)**
+**Mechanism 1 — Quarterly Consumption ACV attainment (primary lever)**
 
-Account Managers are paid quarterly on cACV attainment across their portfolio, not on renewal bookings. A single account is insufficient to hit quota by design — the AM needs a healthy portfolio. Base quota = maintain current attainment; stretch quota = grow portfolio cACV by X% through adoption and expansion.
+Account Managers are paid quarterly on Consumption ACV attainment across their portfolio, not on renewal bookings. A single account is insufficient to hit quota by design — the AM needs a healthy portfolio. Base quota = maintain current attainment; stretch quota = grow portfolio Consumption ACV by X% through adoption and expansion.
 
 **Mechanism 2 — Expansion signal bonus**
 
@@ -334,7 +335,7 @@ When an account starts generating over-consumption signal (consuming consistentl
 
 ### 7.3 Multi-Year ACV and Rep Credit
 
-ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The cACV denominator is always the current year's ACV. PANW platformization deals typically run 3–5 years (Arora, Q2 FY2024).
+ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The Consumption ACV denominator is always the current year's ACV. PANW platformization deals typically run 3–5 years (Arora, Q2 FY2024).
 
 Quota credit for multi-year deals uses a **term multiplier** — meaningful incentive to lock in longer commits, without the quota-busting effect of full TCV credit:
 
@@ -347,7 +348,7 @@ Quota credit for multi-year deals uses a **term multiplier** — meaningful ince
 
 *Why not full TCV?* A 3-year $300K ACV deal at full TCV gives 128.6% of a $700K bookings quota on a single customer — the AE has no reason to find another logo. At 1.35× ACV, the same deal gives 57.9%, keeping the AE hunting while rewarding the multi-year commit. *(Modeled in `comp_model.xlsx`.)*
 
-**Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns cACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §13 Q10).
+**Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns Consumption ACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §13 Q10).
 
 ### 7.4 Phasing
 
@@ -357,10 +358,10 @@ Quota credit for multi-year deals uses a **term multiplier** — meaningful ince
 | Term multiplier | ✓ | — |
 | Activation bonus (month 6) | ✓ | — |
 | Portfolio overachievement floor | ✓ | — |
-| Bookings commission accelerator | — | ✓ (requires 2+ quarters of clean cACV data) |
+| Bookings commission accelerator | — | ✓ (requires 2+ quarters of clean Consumption ACV data) |
 | Expansion signal bonus | — | ✓ |
 
-The accelerator and expansion bonus are the sharpest tools but require cACV data to be trusted as a comp modifier — that confidence comes after v1 runs for 2 quarters.
+The accelerator and expansion bonus are the sharpest tools but require Consumption ACV data to be trusted as a comp modifier — that confidence comes after v1 runs for 2 quarters.
 
 **Out of scope:** Compensation design for channel partners and CSMs is a separate workstream not addressed in this spec.
 
@@ -368,31 +369,31 @@ The accelerator and expansion bonus are the sharpest tools but require cACV data
 
 ## 8. Quota Setting and Forecasting
 
-### 8.1 Quota Setting with cACV
+### 8.1 Quota Setting with Consumption ACV
 
-cACV enables quota design that reflects territory health, not just last year's bookings:
+Consumption ACV enables quota design that reflects territory health, not just last year's bookings:
 
 **Account Executive (AE) quotas — quality of sale**
-- Quota includes a cACV ramp component: the new logo must reach a minimum consumption rate (e.g. ≥ 70%) within 90 days of go-live to count as full credit toward attainment
+- Quota includes a Consumption ACV ramp component: the new logo must reach a minimum consumption rate (e.g. ≥ 70%) within 90 days of go-live to count as full credit toward attainment
 - This directly prices in onboarding quality and discourages overselling credits a customer won't use
 
-**Account Manager (AM) quotas — incremental cACV**
-- Base quota = maintain current cACV attainment rate across the portfolio
-- Stretch quota = grow total cACV by X% through expansion and improved utilization
-- Account Managers are measured on *incremental cACV* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
+**Account Manager (AM) quotas — incremental Consumption ACV**
+- Base quota = maintain current Consumption ACV attainment rate across the portfolio
+- Stretch quota = grow total Consumption ACV by X% through expansion and improved utilization
+- Account Managers are measured on *incremental Consumption ACV* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
 
 **Territory sizing and rebalancing**
-- Use total cACV per rep to identify overloaded territories (high cACV, low headroom for growth) vs. underloaded ones (low cACV, high ACV at risk needing intervention)
-- Reassign accounts based on cACV capacity, not just account count or ARR — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
+- Use total Consumption ACV per rep to identify overloaded territories (high Consumption ACV, low headroom for growth) vs. underloaded ones (low Consumption ACV, high ACV at risk needing intervention)
+- Reassign accounts based on Consumption ACV capacity, not just account count or ARR — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
 
 ---
 
-### 8.2 Forecasting with cACV
+### 8.2 Forecasting with Consumption ACV
 
-cACV provides two distinct forecasting signals: **renewal risk** (defensive) and **expansion pipeline** (offensive).
+Consumption ACV provides two distinct forecasting signals: **renewal risk** (defensive) and **expansion pipeline** (offensive).
 
 **Renewal risk forecast**
-- ACV at risk (ACV minus cACV) is the dollar value of committed ACV not backed by consumption
+- ACV at risk (ACV minus Consumption ACV) is the dollar value of committed ACV not backed by consumption
 - Accounts in the At Risk, Shelfware, or Inactive health tiers with a renewal within 90–180 days are the highest-priority save plays
 - The org-level ACV at risk total is the CFO's leading indicator: if it trends above ~15% of total ACV, NRR will compress at the next renewal cycle
 
@@ -401,16 +402,16 @@ cACV provides two distinct forecasting signals: **renewal risk** (defensive) and
 - Expansion pipeline value (sum of ACV for flagged accounts) quantifies the near-term expansion opportunity the team should be working
 
 **NRR prediction**
-- Trailing cACV attainment rate is a leading indicator of net revenue retention at renewal:
+- Trailing Consumption ACV attainment rate is a leading indicator of net revenue retention at renewal:
 
-| Trailing cACV Attainment | Expected NRR Outcome |
+| Trailing Consumption ACV Attainment | Expected NRR Outcome |
 |---|---|
 | ≥ 90% | Strong renewal; likely expansion |
 | 70–90% | Renewal probable; flat or slight compression |
 | 50–70% | Renewal at risk; CS intervention required |
 | < 50% | High churn probability; executive save plan |
 
-- Target: cACV-based NRR forecast within ±10% of actual NRR at renewal (see §9 Success Criteria)
+- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR at renewal (see §9 Success Criteria)
 
 **Cohort-based calibration (v2)**
 - Once sufficient renewal cohorts accumulate (12–18 months of data), regression against actual churn outcomes will allow the thresholds above to be empirically validated and refined per segment (Enterprise vs. Mid-Market) and industry vertical
@@ -423,11 +424,11 @@ cACV provides two distinct forecasting signals: **renewal risk** (defensive) and
 
 | KPI | Target | Window |
 |---|---|---|
-| Org-wide cACV Attainment | ≥ 85% | Rolling 90 days |
+| Org-wide Consumption ACV Attainment | ≥ 85% | Rolling 90 days |
 | Shelfware rate | ≤ 8% of active accounts | Monthly |
 | Expansion flag conversion | ≥ 30% of flagged accounts → upsell within 180 days | Semi-annual |
 | New account activation | ≥ 70% reach Healthy tier within 90 days of go-live | Quarterly |
-| cACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal |
+| Consumption ACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal |
 | Pipeline data freshness | Snapshot ≤ 24 hours old at time of dashboard load | Every pipeline run |
 | DQ test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run |
 
@@ -437,18 +438,18 @@ cACV provides two distinct forecasting signals: **renewal risk** (defensive) and
 
 ## 10. v1 Scope
 
-This section makes explicit what is and is not in scope for the initial launch of cACV. The metric is designed to ship, not to be perfect.
+This section makes explicit what is and is not in scope for the initial launch of Consumption ACV. The metric is designed to ship, not to be perfect.
 
 ### In scope for v1
 
-- cACV calculation at account, rep, region, and org level
+- Consumption ACV calculation at account, rep, region, and org level
 - Health tier classification (6 tiers) based on trailing 90-day consumption rate
-- Expansion signal dollars as a separate metric for over-consuming accounts (cACV itself capped at commit)
-- AE / AM comp weighting (bookings vs. cACV), with activation bonus at month 6 and multi-year term multiplier
+- Expansion signal dollars as a separate metric for over-consuming accounts (Consumption ACV itself capped at commit)
+- AE / AM comp weighting (bookings vs. Consumption ACV), with activation bonus at month 6 and multi-year term multiplier
 - Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
 - Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
 - Data quality framework (11 automated assertions) with orphaned and rogue usage handling
-- Multi-year contract treatment: Year 1 ACV as the cACV basis *(v1 decision — see §13)*
+- Multi-year contract treatment: Year 1 ACV as the Consumption ACV basis *(v1 decision — see §13)*
 
 ### Explicitly out of scope for v1
 
@@ -460,13 +461,13 @@ This section makes explicit what is and is not in scope for the initial launch o
 | Health tier threshold calibration | Requires 12–18 months of renewal cohort data to validate | v2 milestone |
 | NRR prediction band validation | Same dependency on renewal cohort data | v2 milestone |
 | Multi-region currency normalization | Not relevant to current territory structure | v2 if needed |
-| cACV as an externally reported metric | Requires audit trail, definition consistency, and investor alignment | CFO decision (§13 Q6) |
+| Consumption ACV as an externally reported metric | Requires audit trail, definition consistency, and investor alignment | CFO decision (§13 Q6) |
 
 ---
 
 ## 11. Executive Dashboard
 
-The cACV dashboard is the primary operational interface for sales leadership. It serves four distinct audiences, each with different questions and a different level of granularity.
+The Consumption ACV dashboard is the primary operational interface for sales leadership. It serves four distinct audiences, each with different questions and a different level of granularity.
 
 ---
 
@@ -479,10 +480,10 @@ The cACV dashboard is the primary operational interface for sales leadership. It
 - Which regions are healthy and which are lagging?
 
 **Metrics needed:**
-- Total ACV vs. total cACV and overall attainment rate
+- Total ACV vs. total Consumption ACV and overall attainment rate
 - ACV at risk (committed dollars not backed by consumption)
 - Expansion pipeline (ARR from accounts consistently over-consuming)
-- cACV attainment and account health mix broken out by region
+- Consumption ACV attainment and account health mix broken out by region
 - Rep attainment distribution — are outliers pulling the average, or is underperformance broad?
 
 ---
@@ -490,12 +491,12 @@ The cACV dashboard is the primary operational interface for sales leadership. It
 ### Audience 2: Regional VPs / Sales Ops — Region Breakdown
 
 **Key questions:**
-- How does my region compare to others on cACV attainment?
+- How does my region compare to others on Consumption ACV attainment?
 - What percentage of my portfolio is at risk of churn?
 - Which health tiers dominate my region — do I have a shelfware problem or an expansion opportunity?
 
 **Metrics needed:**
-- cACV, ACV, and attainment rate per region, ranked
+- Consumption ACV, ACV, and attainment rate per region, ranked
 - ACV at risk and risk percentage of total ACV
 - Health tier mix (% of accounts in each tier) per region
 - Expansion pipeline by region
@@ -511,7 +512,7 @@ The cACV dashboard is the primary operational interface for sales leadership. It
 - Who has expansion opportunities they should be working?
 
 **Metrics needed:**
-- Rep-level cACV and attainment rate, ranked within region and org
+- Rep-level Consumption ACV and attainment rate, ranked within region and org
 - ACV at risk per rep
 - Health tier account counts per rep (expansion, healthy, at risk, shelfware, inactive)
 - Expansion opportunity count and pipeline value per rep
@@ -527,7 +528,7 @@ The cACV dashboard is the primary operational interface for sales leadership. It
 - Which new accounts are ramping as expected vs. stalling?
 
 **Metrics needed:**
-- Per-account consumption rate (trailing 90 days), health tier, and cACV
+- Per-account consumption rate (trailing 90 days), health tier, and Consumption ACV
 - ACV at risk per account
 - Expansion flag (2+ months over commit) and spike/drop anomaly flag
 - Contract start and end dates for renewal timing context
@@ -538,7 +539,7 @@ The cACV dashboard is the primary operational interface for sales leadership. It
 
 ## 12. Downstream System Integrations
 
-cACV is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day. Four downstream systems consume cACV data, each serving a distinct audience and purpose.
+Consumption ACV is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day. Four downstream systems consume Consumption ACV data, each serving a distinct audience and purpose.
 
 ---
 
@@ -546,13 +547,13 @@ cACV is most valuable when it flows beyond the dashboard into the systems reps a
 
 **Primary audience:** Sales reps, sales managers, revenue operations
 
-**Purpose:** Surface cACV health signals in the tool reps use daily — so they can act on consumption trends without leaving their workflow. Key outcomes:
+**Purpose:** Surface Consumption ACV health signals in the tool reps use daily — so they can act on consumption trends without leaving their workflow. Key outcomes:
 - Account health tier is visible on every Account record, informing renewal conversations
 - Accounts flagged for expansion automatically generate an Opportunity, ensuring the signal gets worked
 - Accounts with anomalous consumption patterns (spike & drop, near-zero usage) are flagged for CS review before they become surprises at renewal
-- cACV attainment drives the renewal forecast category (Commit / Upside / Risk), giving the CFO a consumption-grounded pipeline view
+- Consumption ACV attainment drives the renewal forecast category (Commit / Upside / Risk), giving the CFO a consumption-grounded pipeline view
 
-An important attribution rule: the rep who currently owns the account gets cACV quota credit, but the rep who originally signed the deal retains comp attribution for that contract. Both ownership records are maintained and synced to Salesforce separately.
+An important attribution rule: the rep who currently owns the account gets Consumption ACV quota credit, but the rep who originally signed the deal retains comp attribution for that contract. Both ownership records are maintained and synced to Salesforce separately.
 
 ---
 
@@ -561,8 +562,8 @@ An important attribution rule: the rep who currently owns the account gets cACV 
 **Primary audience:** Finance, sales reps, sales managers
 
 **Purpose:** Ensure quota attainment and commission calculations reflect consumption performance, not just bookings. Key outcomes:
-- Account Manager quota attainment is calculated from cACV, not renewal bookings — a rep who resigns a shelfware account at flat ACV does not receive full attainment credit
-- Accelerator and decelerator tiers are triggered by cACV attainment rate, rewarding reps whose portfolios over-consume and penalizing persistent underperformance
+- Account Manager quota attainment is calculated from Consumption ACV, not renewal bookings — a rep who resigns a shelfware account at flat ACV does not receive full attainment credit
+- Accelerator and decelerator tiers are triggered by Consumption ACV attainment rate, rewarding reps whose portfolios over-consume and penalizing persistent underperformance
 - The activation bonus is paid when a new account reaches ≥80% consumption within 90 days of go-live — directly incentivizing onboarding quality
 - Expansion SPIFs are tied to accounts with sustained over-consumption, rewarding reps for converting organic demand signals into new contracts
 
@@ -584,12 +585,12 @@ An important attribution rule: the rep who currently owns the account gets cACV 
 
 **Primary audience:** CFO, Board of Directors, VP of Sales
 
-**Purpose:** Enable board-level visibility into whether the consumption model is working — and provide the analytical foundation to validate and calibrate cACV thresholds over time. Key reports:
-- **NRR forecast:** Org-wide cACV attainment as the leading indicator of next-period net revenue retention
+**Purpose:** Enable board-level visibility into whether the consumption model is working — and provide the analytical foundation to validate and calibrate Consumption ACV thresholds over time. Key reports:
+- **NRR forecast:** Org-wide Consumption ACV attainment as the leading indicator of next-period net revenue retention
 - **Renewal risk register:** Accounts with high ARR at risk and near-term contract expirations, for executive review
 - **Expansion pipeline:** Accounts consistently over-consuming, quantified by ARR, for offensive planning
-- **Cohort churn analysis:** cACV attainment by contract start quarter — the primary tool for validating whether health tier thresholds accurately predict actual churn outcomes
-- **QBR regional pack:** cACV vs. ARR by region and rep for quarterly business reviews
+- **Cohort churn analysis:** Consumption ACV attainment by contract start quarter — the primary tool for validating whether health tier thresholds accurately predict actual churn outcomes
+- **QBR regional pack:** Consumption ACV vs. ARR by region and rep for quarterly business reviews
 
 *For field-level mappings, sync frequencies, and integration architecture — see the Technical Spec §9.*
 
@@ -597,17 +598,17 @@ An important attribution rule: the rep who currently owns the account gets cACV 
 
 ## 13. Open Questions for Executive Alignment
 
-The following decisions require VP of Sales and/or CFO sign-off before cACV can be operationalized.
+The following decisions require VP of Sales and/or CFO sign-off before Consumption ACV can be operationalized.
 
 1. **Comp go-live timing** *(VP of Sales)* — Same-year comp launch or shadow-track for 1–2 quarters first before paying on it?
-2. **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + cACV weighted) or two separate quota lines?
+2. **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + Consumption ACV weighted) or two separate quota lines?
 3. **Overage revenue recognition** *(CFO)* — Recognize expansion signal dollars in-period or defer to contract amendment?
-4. **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the cACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
+4. **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the Consumption ACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
 5. **Phased vs. big-bang rollout** *(VP of Sales)* — Full launch across all regions or pilot one region/segment first?
 6. **Quota relief for ramping accounts** *(VP of Sales)* — Do new accounts in the 90-day ramp window reduce the quota denominator during that period?
-7. **Portfolio attainment floor** *(VP of Sales)* — Does sustained low cACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
+7. **Portfolio attainment floor** *(VP of Sales)* — Does sustained low Consumption ACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
 8. **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
-9. **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of cACV?
+9. **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of Consumption ACV?
 10. **Multi-year account ownership and clawback** *(VP of Sales)* — When does the AE-to-AM handoff occur, and what portion of the term multiplier is clawed back if the account churns before term end?
 
 ---
