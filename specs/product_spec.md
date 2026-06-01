@@ -108,6 +108,7 @@ cACV is designed to shift incentives at every layer of the GTM organization. The
 | Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their cACV |
 | Proactive renewal risk management | Account Managers' quota is tied to cACV, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
 | Expansion from genuine usage | Expansion flag accounts (2+ months >120%) represent organic demand; reps are credited for converting that signal into a larger contract |
+| Committing to longer contract terms | Multi-year deals earn a term multiplier on ACV quota credit (1.2×–1.5× for 2–5 years) — rewarding the revenue visibility a long-term commit provides without the quota-busting effect of full TCV credit |
 
 **Behaviors to suppress**
 
@@ -117,6 +118,7 @@ cACV is designed to shift incentives at every layer of the GTM organization. The
 | Sandbagging credits at renewal | Renewing flat on a low-consumption account doesn't improve cACV; the rep must drive adoption, not just resign the paper |
 | Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under cACV, onboarding quality is in their comp |
 | Cherry-picking easy renewals | cACV weight for Account Managers is 70%; avoiding at-risk accounts lowers their total attainment |
+| Pushing long terms on weak accounts | A rep who locks in a 5-year deal on a shelfware customer captures the 1.50× multiplier at signing — but poor cACV attainment across the portfolio suppresses their bookings commission rate via the accelerator, offsetting the gain |
 
 **Known v1 gaming risk — Account Manager credit-burning:** Account Managers at 70% cACV weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, protect idle servers or decommissioned infrastructure, or otherwise burn credits without delivering security value. cACV cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
 
