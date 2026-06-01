@@ -202,7 +202,7 @@ The star schema is designed to be **queried through views, not directly**. Each 
 This pattern provides:
 - **Storage efficiency** — dimension attributes (rep name, region, company name) stored once in dim tables, not repeated in every fact row
 - **Slowly Changing Dimension support** — if a rep's territory is reassigned or an account is renamed, the dim table is updated once; historical fact rows are unaffected, preserving audit history
-- **BI tool compatibility** — Looker LookML and Tableau both model natively against star schemas (both are confirmed in PANW's GTM analytics stack); the views expose a flat surface while the underlying joins remain maintainable
+- **BI tool compatibility** — the views expose a flat surface that any SQL-compatible BI platform can query without joins; production dashboards will be built on PANW's existing BI tooling
 - **Blast-radius isolation** — adding a column to `dim_reps` (e.g., `hire_date`, `manager_id`) requires no changes to `fact_cacv_snapshot`
 - **dbt-ready lineage** — `dim_*` and `fact_*` are first-class dbt model types; the view layer maps directly to dbt exposures
 - **Aggregation correctness** — grain is explicit in the fact table; rollup views aggregate from a clean grain rather than pre-aggregated rows, eliminating double-counting risk
@@ -562,7 +562,7 @@ python3 pipeline_and_tests/run_pipeline.py --as-of-date 2025-06-30  # historical
 |---|---|---|---|
 | **Data warehouse** | BigQuery | Snowflake, Redshift | Free sandbox tier; serverless; strong Python client |
 | **Pipeline style** | SQL (dbt-style) | PySpark, Pandas | Readable, auditable, portable to dbt in production |
-| **Dashboard** | Streamlit + Plotly | Looker, Tableau | Fastest iteration for prototype; no BI license required. Production would connect directly to PANW's existing Tableau and Looker environment (both confirmed in PANW's GTM analytics stack) |
+| **Dashboard** | Streamlit + Plotly | PANW's existing BI platform | Fastest iteration for prototype; no BI license required. Production dashboards will be rebuilt on PANW's existing BI tooling, which connects directly to the BigQuery semantic layer views |
 | **DQ framework** | Custom Python assertions | Great Expectations, dbt tests | Lower dependency overhead; same pattern ports to dbt tests |
 | **Credit pricing model** | Option A (monthly bucket) | Annual pool, rollover | Clearest shelfware/overage signal; standard PANW contract structure |
 
@@ -739,7 +739,7 @@ Key field mapping from `gold.vw_account_detail`:
 
 ---
 
-### 11.5 BI / Board Reporting (Tableau and Looker — PANW's confirmed GTM analytics tools)
+### 11.5 BI / Board Reporting (PANW's existing BI platform)
 
 **Source:** `gold.fact_cacv_snapshot` + `gold.dim_*` directly — the BI layer bypasses the semantic layer views and joins at will, enabling any aggregation not pre-built into the views.
 
