@@ -1,7 +1,9 @@
-streamlit==1.36.0
-google-cloud-bigquery==3.25.0
-google-cloud-bigquery-storage==2.25.0
-pandas==2.2.2
-pyarrow==16.1.0
-db-dtypes==1.2.0
-plotly==5.22.0
+streamlit>=1.36.0
+plotly>=5.22.0
+pandas>=2.2.0
+pyarrow>=16.0.0
+
+# BigQuery — required only for live data mode; demo mode runs on CSV snapshots
+google-cloud-bigquery>=3.25.0
+google-cloud-bigquery-storage>=2.25.0
+db-dtypes>=1.2.0
