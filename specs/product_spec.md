@@ -275,7 +275,11 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ## 7. Proposed Compensation Framework
 
-Modeled on Snowflake's territory-weighted hybrid approach:
+**Design principle:** Rather than giving cACV its own quota bucket that reps deprioritize, attach cACV outcomes to the thing each role already maximizes — bookings commission rate for AEs, portfolio health for AMs. The quota split is the floor; the accelerators and bonuses below are where behavioral change actually happens.
+
+> **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. cACV comp reform is the thesis of this spec.
+
+### 7.0 Role Split
 
 | Role | Bookings Weight | cACV Weight | Rationale |
 |---|---|---|---|
@@ -283,27 +287,74 @@ Modeled on Snowflake's territory-weighted hybrid approach:
 | **Account Manager (AM)** — renewals/expansion | 30% | 70% | Primary job is value realization and expansion |
 | **Sales Engineer (SE)** — consumption overlay | 0% | 100% | Purely accountable for consumption growth |
 
-**Activation bonus:** Any AE whose new account sustains ≥80% consumption rate through month 6 (not month 3) earns a one-time SPIF. The 6-month tenure requirement is intentional: paying at 90 days creates a Spike & Drop exploit where reps push aggressive onboarding in the window and the customer drops off after the bonus clears. Month 6 requires sustained adoption, not a burst.
+The 70/30 AE split establishes a consumption floor — it penalizes shelfware at the portfolio level — but is not sufficient on its own to change deal-by-deal behavior. The mechanisms below are where the incentive sharpens.
 
-**Incremental cACV (MongoDB model):** Account Managers are paid quarterly on incremental cACV above the account's baseline — usage growth driven by sales activity, not organic expansion.
+### 7.1 AE Incentive Mechanisms
 
-### 7.1 Multi-Year ACV and Rep Credit
+**Mechanism 1 — Bookings commission accelerator (primary lever)**
 
-ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The cACV denominator is always the current year's ACV — independent of term length.
+The AE's bookings commission rate floats based on portfolio cACV attainment. This makes cACV a multiplier on the thing AEs care most about — their bookings payout:
 
-Quota credit for multi-year deals includes a **term multiplier** to reward locking in long-term commits:
-
-| Contract Term | ACV Quota Credit Multiplier |
+| Portfolio cACV Attainment | Bookings Commission Rate |
 |---|---|
-| 1 year | 1.00× ACV |
-| 2 years | 1.10× ACV |
-| 3 years | 1.15× ACV |
+| Below 60% | 0.85× (penalized) |
+| 60–80% | 1.00× (standard) |
+| 80–100% | 1.10× (accelerated) |
+| Above 100% | 1.20× (accelerated) |
 
-**How it works:** An AE who closes a 3-year, $120K ACV deal receives $138K in quota credit at signing (1.15×). The cACV metric still uses $120K as the denominator each year — the multiplier is a comp incentive only, not a metric inflation.
+*Example impact:* A $300K ACV deal at the 1.20× rate vs. 0.85× rate is a $105K difference in quota credit — large enough to materially change behavior across a portfolio.
 
-**Account ownership through multi-year terms:** The AE who signs a multi-year deal receives the term multiplier credit at signing. From Year 2 onward, the assigned AM earns cACV attainment credit for that account. If the account churns before the committed term ends, a portion of the term multiplier is subject to clawback from the AE. Clawback terms and the Year 1→AM handoff timing require VP of Sales sign-off (see §13 Q10).
+**Mechanism 2 — Activation bonus at month 6**
 
-**Out of scope for v1:** Compensation design for channel partners and CSMs is a separate workstream and is not addressed in this spec. These roles interact with consumption outcomes but require distinct quota structures and attribution rules.
+Any AE whose new account sustains ≥80% consumption rate through month 6 earns a one-time SPIF. The 6-month requirement prevents Spike & Drop gaming: paying at 90 days incentivizes a burst of onboarding activity followed by drop-off. Month 6 requires sustained adoption.
+
+**Mechanism 3 — Portfolio overachievement floor**
+
+An AE cannot earn above 100% OTE if portfolio cACV attainment is below 60%. Prevents a rep from chasing new logos while leaving a book full of shelfware unattended.
+
+### 7.2 AM Incentive Mechanisms
+
+**Mechanism 1 — Quarterly cACV attainment (primary lever)**
+
+Account Managers are paid quarterly on cACV attainment across their portfolio, not on renewal bookings. A single account is insufficient to hit quota by design — the AM needs a healthy portfolio. Base quota = maintain current attainment; stretch quota = grow portfolio cACV by X% through adoption and expansion.
+
+**Mechanism 2 — Expansion signal bonus**
+
+When an account enters `expansion_signal_acv > 0` territory (consumption consistently above 100% of ACV), the AM earns a SPIF for surfacing the upsell opportunity — independent of whether the AE closes the expansion deal. This creates a direct financial incentive to flag over-consuming accounts proactively rather than waiting for the AE to notice.
+
+*Rationale:* The expansion signal is the AM's most valuable output after retention. Without a bonus, AMs have no incentive to surface it — the upside goes to the AE who closes the upsell.
+
+### 7.3 Multi-Year ACV and Rep Credit
+
+ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The cACV denominator is always the current year's ACV. PANW platformization deals typically run 3–5 years (Arora, Q2 FY2024).
+
+Quota credit for multi-year deals uses a **term multiplier** — meaningful incentive to lock in longer commits, without the quota-busting effect of full TCV credit:
+
+| Contract Term | ACV Quota Credit | vs. Full TCV |
+|---|---|---|
+| 1 year | 1.00× ACV | = TCV |
+| 2 years | 1.20× ACV | 40% less than TCV |
+| 3 years | 1.35× ACV | 55% less than TCV |
+| 5 years | 1.50× ACV | 70% less than TCV |
+
+*Why not full TCV?* A 3-year $300K ACV deal at full TCV gives 128.6% of a $700K bookings quota on a single customer — the AE has no reason to find another logo. At 1.35× ACV, the same deal gives 57.9%, keeping the AE hunting while rewarding the multi-year commit. *(Modeled in `comp_model.xlsx`.)*
+
+**Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns cACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §13 Q10).
+
+### 7.4 Phasing
+
+| Mechanism | v1 | v2 |
+|---|---|---|
+| Role split (70/30 AE, 30/70 AM) | ✓ | — |
+| Term multiplier | ✓ | — |
+| Activation bonus (month 6) | ✓ | — |
+| Portfolio overachievement floor | ✓ | — |
+| Bookings commission accelerator | — | ✓ (requires 2+ quarters of clean cACV data) |
+| Expansion signal bonus | — | ✓ |
+
+The accelerator and expansion bonus are the sharpest tools but require cACV data to be trusted as a comp modifier — that confidence comes after v1 runs for 2 quarters.
+
+**Out of scope:** Compensation design for channel partners and CSMs is a separate workstream not addressed in this spec.
 
 ---
 
