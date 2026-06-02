@@ -466,31 +466,31 @@ Consumption ACV is designed to ship and build trust before expanding. v1 establi
 
 ### v2 — Calibrate and Deepen
 
-v1 ships with reasonable hypotheses. v2 is about replacing them with evidence — and making the signal sharper once that evidence exists. The first two items are gated on 12–18 months of renewal cohort data; the rest can be tackled in parallel as the pipeline matures.
+v1 ships with reasonable hypotheses. v2 is about replacing them with evidence — and making the signal sharper once that evidence exists. Items are organized by the same three dimensions used to measure v1 success.
 
-| Item | What unlocks it |
-|---|---|
-| Health tier threshold calibration | Tests whether the 5% / 40% / 80% / 120% cutoffs actually predict churn — replacing industry-analogue starting points with PANW-specific evidence |
-| NRR prediction band validation | Same renewal cohort dependency — empirically recalibrates the attainment → NRR outcome bands against real renewal results |
-| Engagement quality signal | Distinguishes active platform use from passive credit burn (login events, alerts acted on, policies deployed) — addresses the v1 risk that inflated consumption rate doesn't always mean real security value |
-| Segment-specific windows and targets | Enterprise, Mid-Market, and SMB ramp at different speeds — a single 90-day window and org-wide attainment target will be miscalibrated for at least one segment |
-| Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
+| Dimension | Item | What unlocks it |
+|---|---|---|
+| **Metric Accuracy** | Health tier threshold calibration | Tests whether the 5% / 40% / 80% / 120% cutoffs actually predict churn — replacing industry-analogue starting points with PANW-specific evidence *(gated on 12–18 months of renewal cohort data)* |
+| **Metric Accuracy** | NRR prediction band validation | Empirically recalibrates the attainment → NRR outcome bands against real renewal results *(same renewal cohort dependency)* |
+| **Metric Accuracy** | Engagement quality signal | Distinguishes active platform use from passive credit burn (login events, alerts acted on, policies deployed) — addresses the v1 risk that an inflated consumption rate doesn't always mean real security value |
+| **Business Outcomes** | Segment-specific windows and targets | Enterprise, Mid-Market, and SMB ramp at different speeds — a single 90-day window and org-wide attainment target will be miscalibrated for at least one segment |
+| **Data Reliability** | Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
 
 ### Beyond v2 — Long-Term Vision
 
-Once Consumption ACV is trusted internally and calibrated against real outcomes, the opportunity expands in three directions: broader accountability across the full customer-facing team, strategic recognition as an external metric, and AI that transforms the metric from a number you look at into a system that tells you what to do.
+Once reliability and accuracy are solved in v1/v2, the long-term vision skews heavily toward Business Outcomes — expanding the impact of the metric across more roles, more products, and ultimately the full deal lifecycle. Items are organized by the same three dimensions.
 
-| Item | Why it matters |
-|---|---|
-| Channel partner and CSM comp integration | Closes the gap where partners and CSMs influence adoption but aren't measured on it — extending the consumption accountability model to the full customer-facing team |
-| Cross-product consumption correlation | A customer consuming deeply across Prisma Cloud and Cortex is a fundamentally different retention profile than one relying on a single module — unlocks a platform-level view of health |
-| Consumption ACV as an externally reported metric | A metric that earns CFO trust and audit readiness could become a board-level disclosure alongside NRR, shifting the narrative from "we think customers are healthy" to "here is the data" *(CFO decision — see §11 Q6)* |
-| Predictive churn scoring | Uses consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
-| AI-powered adoption recommendations | Surfaces the specific features an account hasn't deployed and benchmarks them against similar accounts — giving the account team a concrete action, not just a flag |
-| Deal coaching at point of sale | Flags oversell risk at deal structuring by comparing the proposed commit against historical consumption profiles for similar accounts — catching shelfware before it's created |
-| Contract right-sizing at renewal | Recommends the optimal credit commit based on trailing consumption trajectory and planned expansion — shifting the renewal conversation from backward-looking to forward-looking |
-| Natural language querying | Reps and executives ask questions conversationally ("which of my accounts are most likely to churn this quarter?") rather than navigating dashboard filters — lowering the barrier to acting on signals from hours to seconds |
-| Real-time consumption updates | Near-real-time pipeline enables intra-quarter intervention — catching a spike-and-drop pattern while there's still time to act, rather than discovering it in the next daily batch |
+| Dimension | Item | Why it matters |
+|---|---|---|
+| **Business Outcomes** | Channel partner and CSM comp integration | Closes the gap where partners and CSMs influence adoption but aren't measured on it — extending the consumption accountability model to the full customer-facing team |
+| **Business Outcomes** | Cross-product consumption correlation | A customer consuming deeply across Prisma Cloud and Cortex is a fundamentally different retention profile than one relying on a single module — unlocks a platform-level view of health |
+| **Business Outcomes** | Predictive churn scoring | Uses consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
+| **Business Outcomes** | AI-powered adoption recommendations | Surfaces the specific features an account hasn't deployed and benchmarks them against similar accounts — giving the account team a concrete action, not just a flag |
+| **Business Outcomes** | Deal coaching at point of sale | Flags oversell risk at deal structuring by comparing the proposed commit against historical consumption profiles — catching shelfware before it's created |
+| **Business Outcomes** | Contract right-sizing at renewal | Recommends the optimal credit commit based on trailing consumption trajectory and planned expansion — shifting the renewal conversation from backward-looking to forward-looking |
+| **Business Outcomes** | Natural language querying | Reps and executives ask questions conversationally rather than navigating dashboard filters — lowering the barrier to acting on signals from hours to seconds |
+| **Metric Accuracy** | Consumption ACV as an externally reported metric | A metric that earns CFO trust and audit readiness could become a board-level disclosure alongside NRR, shifting the narrative from "we think customers are healthy" to "here is the data" *(CFO decision — see §11 Q6)* |
+| **Data Reliability** | Real-time consumption updates | Near-real-time pipeline enables intra-quarter intervention — catching a spike-and-drop pattern while there's still time to act, rather than discovering it in the next daily batch |
 
 ---
 
