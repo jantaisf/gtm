@@ -561,7 +561,7 @@ How ACV is defined and how overages are treated flows into every downstream calc
 
 - **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the Consumption ACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
 - **Overage revenue recognition** *(CFO)* — Recognize Consumption Overage in-period or defer to contract amendment?
-- **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number.
+- **Consumption ACV cap** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number.
 
 ### Rollout & Reporting
 Decisions about sequencing the launch, integrating with comp, and when the metric is mature enough for external disclosure.
