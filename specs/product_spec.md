@@ -480,7 +480,7 @@ An important attribution rule: the rep who currently owns the account gets Consu
 
 ---
 
-### Business Intelligence / Board Reporting (e.g., Tableau, Looker)
+### Business Intelligence / Board Reporting
 
 **Primary audience:** CFO, Board of Directors, VP of Sales
 
