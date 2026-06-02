@@ -53,7 +53,7 @@ The spec covers: background and market context (§2); the full metric definition
   - [3.5 Intended Behavioral Drivers](#35-intended-behavioral-drivers)
   - [3.6 Retention and Churn as Secondary Metrics](#36-retention-and-churn-as-secondary-metrics)
 - [4. Health Tier Classification](#4-health-tier-classification)
-- [5. Edge Case Handling](#5-edge-case-handling)
+- [5. Lifecycle Management with Consumption ACV](#5-lifecycle-management-with-consumption-acv)
 - [6. Proposed Compensation Framework](#6-proposed-compensation-framework)
   - [6.0 Role Definitions and Rules of Engagement](#60-role-definitions-and-rules-of-engagement)
   - [6.1 AE Incentive Mechanisms](#61-ae-incentive-mechanisms)
@@ -325,18 +325,20 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ---
 
-## 5. Edge Case Handling
+## 5. Lifecycle Management with Consumption ACV
 
-| Anomaly | Business Signal | Consumption ACV Treatment |
+Consumption ACV is designed to reflect where a customer actually is in their adoption journey — not just what they signed. The table below defines how the metric behaves at each stage of the customer lifecycle.
+
+| Lifecycle Stage / Event | Consumption Signal | How Consumption ACV Responds |
 |---|---|---|
+| **Onboarding (Ramp)** | Contract start within last 90 days — insufficient consumption history | Excluded from Consumption ACV and portfolio rate; shown as Ramping until the 90-day window matures |
+| **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects the current inactive state once the spike ages out |
 | **Shelfware** | Near-zero consumption rate over trailing 90 days | Consumption ACV reflects near-zero value; account flagged for save plan |
-| **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects current inactive state once spike ages out |
 | **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep for upsell motion |
-| **Mid-Year Expansion** | Customer signs additional contract before original expires | ARR and credits summed across all simultaneously active contracts; expansion flag set |
-| **Orphaned Usage** | Usage logs reference an account not in the customer master | Excluded from Consumption ACV; surfaced in data quality report |
-| **Out-of-contract Usage** | Usage logged before contract start or after contract end | Excluded from consumption rate calculation |
-| **New Accounts** | Contract start within last 90 days — insufficient consumption history | Excluded from Consumption ACV; shown as "Ramping" until 90-day window matures |
-| **Multi-year Contracts** | 2- or 3-year deal term | ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier. See §12 for v1 ACV basis decision |
+| **Mid-Year Expansion** | Customer signs additional contract before original expires | ACV and credits summed across all simultaneously active contracts; expansion flag set |
+| **Multi-year Contracts** | 2- or 3-year deal term | ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier — see §12 for v1 ACV basis decision |
+
+> **Data quality:** Usage records that cannot be matched to a customer lifecycle stage are excluded from Consumption ACV and surfaced in the data quality report rather than distorting the metric. This covers orphaned usage (logs referencing an account not in the customer master) and out-of-contract usage (logs falling before contract start or after contract end). Pipeline implementation details are in the Technical Spec.
 
 ---
 
