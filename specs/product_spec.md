@@ -34,7 +34,7 @@ Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based m
 
 This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the account team must close before contract renewal.
 
-The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); quota setting and compensation implications (§6); a four-audience executive dashboard (§8); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§9). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §11.
+The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); quota setting and compensation implications (§6); a four-audience executive dashboard (§8); and downstream integrations with Salesforce, Xactly/CaptivateIQ, and Gainsight (§9). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §11.
 
 **Status: Proposed — pending executive alignment.**
 
@@ -438,60 +438,13 @@ The Consumption ACV dashboard serves four distinct audiences, each with a differ
 
 ## 9. Downstream System Integrations
 
-Consumption ACV is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day. Four downstream systems consume Consumption ACV data, each serving a distinct audience and purpose.
+Consumption ACV is most valuable when it flows into the systems reps and CS teams work in every day — not just a separate dashboard. *For field-level mappings, sync frequencies, and integration architecture — see the Technical Spec §9.*
 
----
-
-### Salesforce CRM
-
-**Primary audience:** Sales reps, sales managers, revenue operations
-
-**Purpose:** Surface Consumption ACV health signals in the tool reps use daily — so they can act on consumption trends without leaving their workflow. Key outcomes:
-- Account health tier is visible on every Account record, informing renewal conversations
-- Accounts flagged for expansion automatically generate an Opportunity, ensuring the signal gets worked
-- Accounts with anomalous consumption patterns (spike & drop, near-zero usage) are flagged for CS review before they become surprises at renewal
-- Consumption ACV attainment drives the renewal forecast category (Commit / Upside / Risk), giving the CFO a consumption-grounded pipeline view
-
-An important attribution rule: the rep who currently owns the account gets Consumption ACV quota credit, but the rep who originally signed the deal retains comp attribution for that contract. Both ownership records are maintained and synced to Salesforce separately.
-
----
-
-### Compensation Platform (e.g., Xactly, CaptivateIQ)
-
-**Primary audience:** Finance, sales reps, sales managers
-
-**Purpose:** Ensure quota attainment and commission calculations reflect consumption performance, not just bookings. Key outcomes:
-- Account Manager quota attainment is calculated from Consumption ACV, not renewal bookings — a rep who resigns a shelfware account at flat ACV does not receive full attainment credit
-- Accelerator and decelerator tiers are triggered by Consumption ACV attainment rate, rewarding reps whose portfolios over-consume and penalizing persistent underperformance
-- The activation bonus is paid when a new account reaches ≥80% consumption within 90 days of go-live — directly incentivizing onboarding quality
-- Expansion SPIFs are tied to accounts with sustained over-consumption, rewarding reps for converting organic demand signals into new contracts
-
----
-
-### Customer Success Platform (e.g., Gainsight, Totango)
-
-**Primary audience:** CS managers, Customer Success Managers (CSMs)
-
-**Purpose:** Translate health tiers into automated playbooks so every at-risk account gets a timely, standardized intervention — without relying on manual review. Key outcomes:
-- Health tier drives a CS health score, giving CSMs a single number that reflects consumption reality
-- Each tier triggers a defined playbook: expansion accounts are handed off to AEs, at-risk accounts get a CS escalation within 30 days, shelfware accounts trigger executive sponsor outreach, and inactive accounts immediately escalate to VP CS
-- Ramping accounts enter an onboarding playbook with 90-day activation milestones
-- Data confidence is surfaced alongside the health score — an account with only 1 month of history is treated differently from one with 12 months
-
----
-
-### Business Intelligence / Board Reporting
-
-**Primary audience:** CFO, Board of Directors, VP of Sales
-
-**Purpose:** Enable board-level visibility into whether the consumption model is working — and provide the analytical foundation to validate and calibrate Consumption ACV thresholds over time. Key reports:
-- **NRR forecast:** Org-wide Consumption ACV attainment as the leading indicator of next-period net revenue retention
-- **Renewal risk register:** Accounts with high ARR at risk and near-term contract expirations, for executive review
-- **Expansion pipeline:** Accounts consistently over-consuming, quantified by ARR, for offensive planning
-- **Cohort churn analysis:** Consumption ACV attainment by contract start quarter — the primary tool for validating whether health tier thresholds accurately predict actual churn outcomes
-- **QBR regional pack:** Consumption ACV vs. ARR by region and rep for quarterly business reviews
-
-*For field-level mappings, sync frequencies, and integration architecture — see the Technical Spec §9.*
+| System | Audience | What Consumption ACV enables |
+|---|---|---|
+| **Salesforce CRM** | Sales reps, managers, RevOps | Health tier visible on every Account record; expansion flags auto-generate Opportunities; anomalous accounts flagged for review; attainment drives renewal forecast category (Commit / Upside / Risk). Attribution note: current account owner receives quota credit; original closing rep retains comp attribution — both records synced separately. |
+| **Compensation Platform** (e.g., Xactly, CaptivateIQ) | Finance, sales reps, managers | AM quota attainment calculated from Consumption ACV, not renewal bookings; accelerator/decelerator tiers triggered by attainment rate; activation bonus paid at ≥80% consumption by day 90; expansion SPIFs tied to sustained over-consumption. |
+| **Customer Success Platform** (e.g., Gainsight, Totango) | CS managers, CSMs | Health tier drives a CS health score; each tier triggers a defined playbook (expansion → AE handoff, at-risk → escalation within 30 days, shelfware → executive sponsor outreach, inactive → VP CS escalation); ramping accounts enter a 90-day onboarding playbook; data confidence surfaced alongside the score. |
 
 ---
 
@@ -508,7 +461,7 @@ Consumption ACV is designed to ship and build trust before expanding. v1 establi
 | **Lifecycle management** (§5) | Six lifecycle stages tracked — from Onboarding through Consistent Overages and Multi-year Contracts — with detection windows and action triggers so teams act early rather than waiting for the 90-day trailing window to confirm what's visible sooner. |
 | **Quota and comp signals** (§6) | Consumption ACV fed to the compensation platform to enable AE and AM attainment tracking. Quota design examples (ramp components, portfolio attainment) documented as illustrative starting points for VP of Sales and Finance alignment. |
 | **Executive dashboard** (§8) | Four views covering portfolio overview (VP of Sales / CFO), regional breakdown (Sales Directors), rep leaderboard, and account detail (CS Leads / AEs). Built in Streamlit; runs locally against synthetic data with no BigQuery credentials required. |
-| **Downstream integrations** (§9) | Consumption ACV signals flow to four systems: Salesforce CRM (health tier on every account record), compensation platform (attainment tracking), Customer Success platform (automated playbook triggers), and BI layer (cohort and trend analysis). |
+| **Downstream integrations** (§9) | Consumption ACV signals flow to three systems: Salesforce CRM (health tier on every account record, expansion Opportunities auto-generated), compensation platform (attainment and commission calculations), and Customer Success platform (automated tier-triggered playbooks). |
 | **Data quality** | 11 automated assertions covering orphaned usage, out-of-contract usage, negative consumption, stale snapshots, and more. Zero ERROR-tier failures required before any pipeline output feeds comp or exec reporting. |
 
 ### v2 — Calibrate and Deepen
