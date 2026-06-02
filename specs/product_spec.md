@@ -290,20 +290,17 @@ Logo Churn = Accounts lost at renewal / Total accounts up for renewal
 
 **The leading/lagging relationship**
 
-In a BI implementation this table should be colour-coded: green rows indicate signals that predict strong retention outcomes; red rows indicate risk signals. Both directions are shown here.
+Per-account retention signals are shown in the Health Tier table in §4. At the org level, the key leading signals are:
 
-| Direction | Consumption ACV Signal | Lagging Metric Outcome |
-|---|---|---|
-| ✅ Positive | Org attainment ≥ 90% and trending up | Strong NRR at next renewal cycle; expansion pipeline active |
-| ✅ Positive | Shelfware + Inactive rate falls below 5% | GRR improvement within 2 quarters; fewer save plays required |
-| ✅ Positive | Expansion flag conversion ≥ 30% within 180 days | NRR accelerates above 100%; net-new logo dependency decreases |
-| ✅ Positive | ≥ 80% of ramping accounts reach Healthy tier within 90 days | Low logo churn at first renewal; strong activation cohort |
-| ⚠️ Risk | Org attainment falls below 80% | NRR compression at next renewal cycle |
-| ⚠️ Risk | Shelfware + Inactive rate exceeds 10% | GRR deterioration within 2 quarters |
-| ⚠️ Risk | Expansion flag conversion < 30% | NRR plateaus; growth depends entirely on new logos |
-| ⚠️ Risk | Ramping accounts fail to reach Healthy in 90 days | Elevated logo churn at first renewal |
+- ✅ Org attainment ≥ 90% and trending up → strong NRR at next renewal cycle
+- ✅ Shelfware + Inactive rate < 5% → GRR improvement within 2 quarters
+- ✅ Expansion flag conversion ≥ 30% within 180 days → NRR above 100%
+- ✅ ≥ 80% of ramping accounts reach Healthy within 90 days → low logo churn at first renewal
+- ⚠️ Org attainment < 80% → NRR compression at next renewal cycle
+- ⚠️ Shelfware + Inactive rate > 10% → GRR deterioration within 2 quarters
+- ⚠️ Expansion conversion < 30% → NRR plateaus; growth depends entirely on new logos
 
-> **v1 note:** The NRR outcome bands in the prediction table above (≥90% → strong renewal, etc.) are starting hypotheses derived from industry analogues, not PANW-specific renewal data. Treat them as directional guidance for v1. The primary value of this framework is establishing the *measurement habit* — tracking Consumption ACV attainment alongside NRR outcomes at every renewal cohort — so the bands can be empirically recalibrated after 12–18 months. Plan a formal calibration milestone; commit to adjusting thresholds if the data contradicts them.
+> **v1 note:** The NRR outcome bands above are starting hypotheses derived from industry analogues, not PANW-specific renewal data. The primary value of this framework is establishing the *measurement habit* — tracking Consumption ACV attainment alongside NRR outcomes at every renewal cohort — so the bands can be empirically recalibrated after 12–18 months.
 
 Tracking both Consumption ACV (real-time) and NRR/GRR (at renewal) allows the team to validate — and over time calibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
 
@@ -313,14 +310,14 @@ Tracking both Consumption ACV (real-time) and NRR/GRR (at renewal) allows the te
 
 While Consumption ACV is a continuous metric, health tiers provide operational clarity for CS and sales prioritization:
 
-| Health Tier | Consumption Rate | Interpretation | Action |
-|---|---|---|---|
-| **Expansion** | > 120% | Consistently over commit — upsell signal | Rep-led expansion motion |
-| **Healthy** | 80–120% | On-track, full value realization | Maintain cadence |
-| **At Risk** | 40–80% | Adoption lag — intervention needed | CS escalation within 30 days |
-| **Shelfware** | 5–40% | Low utilization — churn risk | Executive sponsor outreach |
-| **Inactive** | < 5% | Near-zero usage | Immediate save plan |
-| **Ramping** | < 90 days old | Insufficient history | Excluded from Consumption ACV; tracked separately |
+| Health Tier | Consumption Rate | Interpretation | Retention Signal | Action |
+|---|---|---|---|---|
+| **Expansion** | > 120% | Consistently over commit — upsell signal | NRR accelerator; expansion candidate | Rep-led expansion motion |
+| **Healthy** | 80–120% | On-track, full value realization | GRR anchor; renewal likely | Maintain cadence |
+| **At Risk** | 40–80% | Adoption lag — intervention needed | GRR risk; NRR compression at renewal | CS escalation within 30 days |
+| **Shelfware** | 5–40% | Low utilization — churn risk | GRR headwind; elevated logo churn risk | Executive sponsor outreach |
+| **Inactive** | < 5% | Near-zero usage | High logo churn risk | Immediate save plan |
+| **Ramping** | < 90 days old | Insufficient history | Excluded from NRR/GRR metrics | Tracked separately until window matures |
 
 Health tiers are used for **dashboard visualization and CS prioritization only** — Consumption ACV itself uses the raw continuous consumption rate, not tiered multipliers.
 
