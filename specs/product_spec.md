@@ -32,7 +32,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based model where customers commit to an annual credit pool rather than a fixed seat count. This creates a measurement gap: two $500K contracts look identical in ARR yet can represent entirely different business realities — one fully consumed and on track to expand, the other untouched and quietly becoming a churn liability.
 
-This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the sales rep and CS team must close before contract renewal.
+This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the account team must close before contract renewal.
 
 The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§6); quota setting and forecasting methodology (§7); a four-audience executive dashboard (§10); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§11). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §12.
 
@@ -179,7 +179,7 @@ Consumed ACV Rate = Total Consumption ACV / Total ACV
 | **Portfolio total** | **$940K** | **62.4%** | **$587K** | |
 | *SMB E (excluded)* | *$40K* | *—* | *—* | *Ramping — contract < 90 days* |
 
-This is the headline health ratio for the CFO. A portfolio at **62.4%** means **$587K of the $940K booked ACV is being consumed — and $353K is not**. That $353K gap is the renewal exposure the sales rep and CS team must actively manage before contract renewal.
+This is the headline health ratio for the CFO. A portfolio at **62.4%** means **$587K of the $940K booked ACV is being consumed — and $353K is not**. That $353K gap is the renewal exposure the account team must actively manage before contract renewal.
 
 Note that Enterprise B alone ($300K ACV at 4%) pulls the Consumed ACV Rate from ~87% down to ~62%. A low Consumed ACV Rate at the portfolio level may trace back to a smaller number of low-consumption accounts — worth investigating before drawing broader conclusions.
 
@@ -314,7 +314,7 @@ While Consumption ACV is a continuous metric, health tiers provide operational c
 |---|---|---|---|---|
 | **Expansion** | > 120% | Consistently over commit — upsell signal | NRR accelerator; expansion candidate | Rep-led expansion motion |
 | **Healthy** | 80–120% | On-track, full value realization | GRR anchor; renewal likely | Maintain cadence |
-| **At Risk** | 40–80% | Adoption lag — intervention needed | GRR risk; NRR compression at renewal | CS escalation within 30 days |
+| **At Risk** | 40–80% | Adoption lag — intervention needed | GRR risk; NRR compression at renewal | Account team escalation within 30 days |
 | **Shelfware** | 5–40% | Low utilization — churn risk | GRR headwind; elevated logo churn risk | Executive sponsor outreach |
 | **Inactive** | < 5% | Near-zero usage | High logo churn risk | Immediate save plan |
 | **Ramping** | < 90 days old | Insufficient history | Excluded from NRR/GRR metrics | Tracked separately until window matures |
@@ -331,8 +331,8 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 
 | Lifecycle Stage / Event | Consumption Signal | How Consumption ACV Responds | Detection & Action Window |
 |---|---|---|---|
-| **Onboarding (Ramp)** | Contract start within last 90 days | Excluded from portfolio rate; WoW credit growth monitored as the leading onboarding health signal | Flag if WoW growth is flat for 2 consecutive weeks (~day 14) → CS outreach; escalate if still flat at day 45; graduate at day 90 if ≥ 80% |
-| **Spike & Drop** | High consumption in month 1, then collapses | Trailing 90-day window reflects current inactive state once the spike ages out | MoM decline > 40% in month 2 vs month 1 triggers flag (~day 45–60) → CS intervention within 14 days of flag |
+| **Onboarding (Ramp)** | Contract start within last 90 days | Excluded from portfolio rate; WoW credit growth monitored as the leading onboarding health signal | Flag if WoW growth is flat for 2 consecutive weeks (~day 14) → account team outreach; escalate if still flat at day 45; graduate at day 90 if ≥ 80% |
+| **Spike & Drop** | High consumption in month 1, then collapses | Trailing 90-day window reflects current inactive state once the spike ages out | MoM decline > 40% in month 2 vs month 1 triggers flag (~day 45–60) → account team intervention within 14 days of flag |
 | **Shelfware** | Near-zero consumption rate | Consumption ACV reflects near-zero value; account flagged for save plan | Flag after 30 consecutive days of < 5% consumption — don't wait for the 90-day trailing window to confirm what's visible at day 30 → executive sponsor outreach within 14 days |
 | **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep | Month 1 overage noted as early signal; confirmed at month 2 (~day 60) → expansion motion initiated within 14 days |
 | **Mid-Year Expansion** | Customer signs additional contract before original expires | Contracted ACV and credits summed across all simultaneously active contracts; expansion flag set | Event-driven — applied immediately on contract execution |
@@ -550,7 +550,7 @@ Consumption ACV provides two distinct forecasting signals: **renewal risk** (def
 |---|---|
 | ≥ 90% | Strong renewal; likely expansion |
 | 70–90% | Renewal probable; flat or slight compression |
-| 50–70% | Renewal at risk; CS intervention required |
+| 50–70% | Renewal at risk; account team intervention required |
 | < 50% | High churn probability; executive save plan |
 
 - Target: Consumption ACV-based NRR forecast within ±10% of actual NRR at renewal (see §8 Success Criteria)
