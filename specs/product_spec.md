@@ -340,19 +340,18 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 
 ### 6.1 Quota Setting with Consumption ACV
 
-Consumption ACV enables quota design that reflects territory health, not just last year's bookings:
+Consumption ACV enables quota design that reflects territory health, not just last year's bookings. The examples below illustrate how the metric could be applied — specific thresholds and structures require VP of Sales and Finance alignment before adoption:
 
 **Account Executive (AE) quotas — quality of sale**
-- Quota includes a Consumption ACV ramp component: the new logo must reach a minimum consumption rate (e.g. ≥ 70%) within 90 days of go-live to count as full credit toward attainment
+- *Example:* Quota includes a Consumption ACV ramp component — the new logo must reach a minimum consumption rate (e.g. ≥ 70%) within 90 days of go-live to count as full credit toward attainment
 - This directly prices in onboarding quality and discourages overselling credits a customer won't use
 
 **Account Manager (AM) quotas — incremental Consumption ACV**
-- Base quota = maintain current Consumption ACV attainment rate across the portfolio
-- Stretch quota = grow total Consumption ACV by X% through expansion and improved utilization
-- Account Managers are measured on *incremental Consumption ACV* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
+- *Example:* Base quota = maintain current Consumption ACV attainment rate across the portfolio; stretch quota = grow total Consumption ACV by X% through expansion and improved utilization
+- Account Managers would be measured on *incremental Consumption ACV* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
 
 **Territory sizing and rebalancing**
-- Use total Consumption ACV per rep to identify overloaded territories (high Consumption ACV, low headroom for growth) vs. underloaded ones (low Consumption ACV, high ACV at risk needing intervention)
+- *Example:* Use total Consumption ACV per rep to identify overloaded territories (high Consumption ACV, low headroom for growth) vs. underloaded ones (low Consumption ACV, high ACV at risk needing intervention)
 - Reassign accounts based on Consumption ACV capacity, not just account count or ARR — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
 
 ---
