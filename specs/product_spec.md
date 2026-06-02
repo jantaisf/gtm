@@ -34,7 +34,7 @@ Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based m
 
 This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the account team must close before contract renewal.
 
-The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); quota setting and compensation implications (§6); a four-audience executive dashboard (§9); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§10). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §11.
+The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); quota setting and compensation implications (§6); a four-audience executive dashboard (§8); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§9). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §11.
 
 **Status: Proposed — pending executive alignment.**
 
@@ -56,9 +56,9 @@ The spec covers: background and market context (§2); the full metric definition
 - [5. Lifecycle Management with Consumption ACV](#5-lifecycle-management-with-consumption-acv)
 - [6. Quota Setting and Compensation](#6-quota-setting-and-compensation)
 - [7. Success Criteria](#7-success-criteria)
-- [8. Scope and Roadmap](#8-scope-and-roadmap)
-- [9. Executive Dashboard](#9-executive-dashboard)
-- [10. Downstream System Integrations](#10-downstream-system-integrations)
+- [8. Executive Dashboard](#8-executive-dashboard)
+- [9. Downstream System Integrations](#9-downstream-system-integrations)
+- [10. Scope and Roadmap](#10-scope-and-roadmap)
 - [11. Open Questions for Executive Alignment](#11-open-questions-for-executive-alignment)
 - [12. Sources](#12-sources)
 
@@ -421,123 +421,22 @@ Success for this initiative is measured across three dimensions: **business outc
 
 ---
 
-## 8. Scope and Roadmap
-
-Consumption ACV is designed to ship and build trust before expanding. v1 establishes the core metric and measurement habit; subsequent versions layer in calibration, quality signals, and commercial sophistication as the data matures.
-
-### v1 — Launch
-
-| What ships | Detail |
-|---|---|
-| **The metric** (§3) | Consumption ACV calculated as `ACV × consumption_rate(W)` at account, rep, region, segment, and org level. The headline portfolio measure — Consumed ACV Rate — gives the CFO a forward-looking renewal health indicator. Default window W = 90 days, aligned to PANW's quarterly comp cycle; 7-day and 30-day windows stored for monitoring. |
-| **Health tiers** (§4) | Six tiers — Expansion, Healthy, At Risk, Shelfware, Inactive, Ramping — each with a defined consumption rate range, renewal forecast signal, and action. Thresholds (5% / 40% / 80% / 120%) are starting hypotheses to be calibrated in v2. |
-| **Lifecycle management** (§5) | Six lifecycle stages tracked — from Onboarding through Consistent Overages and Multi-year Contracts — with detection windows and action triggers so teams act early rather than waiting for the 90-day trailing window to confirm what's visible sooner. |
-| **Quota and comp signals** (§6) | Consumption ACV fed to the compensation platform to enable AE and AM attainment tracking. Quota design examples (ramp components, portfolio attainment) documented as illustrative starting points for VP of Sales and Finance alignment. |
-| **Executive dashboard** (§9) | Four views covering portfolio overview (VP of Sales / CFO), regional breakdown (Sales Directors), rep leaderboard, and account detail (CS Leads / AEs). Built in Streamlit; runs locally against synthetic data with no BigQuery credentials required. |
-| **Downstream integrations** (§10) | Consumption ACV signals flow to four systems: Salesforce CRM (health tier on every account record), compensation platform (attainment tracking), Customer Success platform (automated playbook triggers), and BI layer (cohort and trend analysis). |
-| **Data quality** | 11 automated assertions covering orphaned usage, out-of-contract usage, negative consumption, stale snapshots, and more. Zero ERROR-tier failures required before any pipeline output feeds comp or exec reporting. |
-
-### v2 — Calibrate and Deepen
-
-| Item | What unlocks it |
-|---|---|
-| Health tier threshold calibration | 12–18 months of renewal cohort data — validates whether the 5% / 40% / 80% / 120% cutoffs predict churn accurately |
-| NRR prediction band validation | Same renewal cohort dependency — empirically recalibrates the attainment → NRR outcome bands |
-| Engagement quality signal | Distinguishes active usage from passive credit burn (login events, alerts acted on, policies deployed); addresses the v1 credit-burning risk |
-| Real-time consumption updates | Daily batch is sufficient for v1; near-real-time enables intra-quarter intervention for at-risk accounts |
-| Segment-specific windows and targets | Enterprise, Mid-Market, and SMB may warrant different W windows and attainment targets once sufficient data has accumulated |
-| Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
-
-### Beyond v2 — Long-Term Vision
-
-| Item | Why it matters |
-|---|---|
-| Consumption ACV as an externally reported metric | If the metric earns CFO trust and audit readiness, it could become a board-level disclosure alongside NRR — similar to Snowflake's trailing consumption reporting *(CFO decision — see §11 Q6)* |
-| Predictive churn scoring | Use consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
-| Channel partner and CSM comp integration | Extend the consumption accountability model to the full customer-facing team, not just AEs and AMs |
-| Cross-product consumption correlation | As PANW expands its platform, correlate Prisma Cloud consumption with Cortex and other product lines — a customer consuming deeply across products is a fundamentally different retention profile |
-| AI-powered adoption recommendations | Rather than just flagging low consumption, an AI layer surfaces the specific features or workloads an account hasn't deployed — giving the account team a concrete action ("this account has 0% Code Security adoption; similar accounts that activated it reached Healthy tier within 45 days") |
-| Deal coaching at point of sale | At deal structuring, an AI model compares the proposed credit commit and use case against historical consumption profiles for similar accounts — flagging oversell risk before the contract is signed rather than catching shelfware after the fact |
-| Contract right-sizing at renewal | At renewal, AI recommends the optimal credit commit based on trailing consumption trajectory, seasonality patterns, and planned workload expansion — shifting the renewal conversation from "how much did you use?" to "here's what you'll need" |
-| Natural language querying | Reps and executives query Consumption ACV data conversationally ("which of my accounts are most likely to churn this quarter?") rather than navigating dashboard filters — lowering the barrier to acting on consumption signals |
-
----
-
-## 9. Executive Dashboard
+## 8. Executive Dashboard
 
 **🔗 Prototype:** Run locally with `streamlit run dashboard/app.py` — no BigQuery credentials required, loads from the included synthetic data snapshot.
 
-The Consumption ACV dashboard is the primary operational interface for sales leadership. It serves four distinct audiences, each with different questions and a different level of granularity.
+The Consumption ACV dashboard serves four distinct audiences, each with a different set of questions and level of granularity. *For implementation details — stack, data flow, caching strategy, and fallback behavior — see the Technical Spec §8.*
+
+| Audience | Key Questions | Metrics |
+|---|---|---|
+| **VP of Sales / CFO** — Portfolio Overview | How much of our booked ACV is being consumed? What is our total churn exposure? Where is expansion pipeline coming from? | Total ACV vs. Consumption ACV; ACV at risk; expansion pipeline; attainment and health mix by region; rep attainment distribution |
+| **Regional VPs / Sales Ops** — Region Breakdown | How does my region compare on attainment? What % of my portfolio is at churn risk? Do I have a shelfware problem or an expansion opportunity? | Consumption ACV and attainment rate per region ranked; ACV at risk; health tier mix by region; expansion pipeline by region |
+| **Sales Managers** — Rep Leaderboard | Who are my top performers? Which rep has the most at-risk ACV and needs coaching now? Who has expansion opportunities they should be working? | Rep-level Consumption ACV and attainment rate ranked; ACV at risk per rep; health tier account counts per rep; expansion opportunity count and pipeline value |
+| **CS Leads / AEs** — Account Detail | Which accounts are shelfware? Which are ready for an expansion conversation? What is the consumption trend heading into renewal? Which new accounts are stalling on ramp? | Per-account consumption rate, health tier, and Consumption ACV; ACV at risk; expansion flag; spike/drop anomaly flag; contract start and end dates |
 
 ---
 
-### Audience 1: VP of Sales / CFO — Portfolio Overview
-
-**Key questions:**
-- How much of our booked ARR is actually being consumed?
-- What is our total churn exposure right now, in dollars?
-- Where is our expansion pipeline coming from?
-- Which regions are healthy and which are lagging?
-
-**Metrics needed:**
-- Total ACV vs. total Consumption ACV and overall attainment rate
-- ACV at risk (committed dollars not backed by consumption)
-- Expansion pipeline (ARR from accounts consistently over-consuming)
-- Consumption ACV attainment and account health mix broken out by region
-- Rep attainment distribution — are outliers pulling the average, or is underperformance broad?
-
----
-
-### Audience 2: Regional VPs / Sales Ops — Region Breakdown
-
-**Key questions:**
-- How does my region compare to others on Consumption ACV attainment?
-- What percentage of my portfolio is at risk of churn?
-- Which health tiers dominate my region — do I have a shelfware problem or an expansion opportunity?
-
-**Metrics needed:**
-- Consumption ACV, ACV, and attainment rate per region, ranked
-- ACV at risk and risk percentage of total ACV
-- Health tier mix (% of accounts in each tier) per region
-- Expansion pipeline by region
-
----
-
-### Audience 3: Sales Managers — Rep Leaderboard
-
-**Key questions:**
-- Who are my top performers this quarter?
-- Which rep has the most at-risk ARR and needs coaching now?
-- How does each rep's book of business break down by health tier?
-- Who has expansion opportunities they should be working?
-
-**Metrics needed:**
-- Rep-level Consumption ACV and attainment rate, ranked within region and org
-- ACV at risk per rep
-- Health tier account counts per rep (expansion, healthy, at risk, shelfware, inactive)
-- Expansion opportunity count and pipeline value per rep
-
----
-
-### Audience 4: CS Leads / AEs — Account Detail
-
-**Key questions:**
-- Which of my accounts are shelfware and haven't logged in for months?
-- Which accounts are consistently over-consuming and ready for an expansion conversation?
-- What is the consumption trend for a specific account heading into renewal?
-- Which new accounts are ramping as expected vs. stalling?
-
-**Metrics needed:**
-- Per-account consumption rate (trailing 90 days), health tier, and Consumption ACV
-- ACV at risk per account
-- Expansion flag (2+ months over commit) and spike/drop anomaly flag
-- Contract start and end dates for renewal timing context
-
-*For implementation details — stack, data flow, caching strategy, and fallback behavior — see the Technical Spec §8.*
-
----
-
-## 10. Downstream System Integrations
+## 9. Downstream System Integrations
 
 Consumption ACV is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day. Four downstream systems consume Consumption ACV data, each serving a distinct audience and purpose.
 
@@ -593,6 +492,48 @@ An important attribution rule: the rep who currently owns the account gets Consu
 - **QBR regional pack:** Consumption ACV vs. ARR by region and rep for quarterly business reviews
 
 *For field-level mappings, sync frequencies, and integration architecture — see the Technical Spec §9.*
+
+---
+
+## 10. Scope and Roadmap
+
+Consumption ACV is designed to ship and build trust before expanding. v1 establishes the core metric and measurement habit; subsequent versions layer in calibration, quality signals, and commercial sophistication as the data matures.
+
+### v1 — Launch
+
+| What ships | Detail |
+|---|---|
+| **The metric** (§3) | Consumption ACV calculated as `ACV × consumption_rate(W)` at account, rep, region, segment, and org level. The headline portfolio measure — Consumed ACV Rate — gives the CFO a forward-looking renewal health indicator. Default window W = 90 days, aligned to PANW's quarterly comp cycle; 7-day and 30-day windows stored for monitoring. |
+| **Health tiers** (§4) | Six tiers — Expansion, Healthy, At Risk, Shelfware, Inactive, Ramping — each with a defined consumption rate range, renewal forecast signal, and action. Thresholds (5% / 40% / 80% / 120%) are starting hypotheses to be calibrated in v2. |
+| **Lifecycle management** (§5) | Six lifecycle stages tracked — from Onboarding through Consistent Overages and Multi-year Contracts — with detection windows and action triggers so teams act early rather than waiting for the 90-day trailing window to confirm what's visible sooner. |
+| **Quota and comp signals** (§6) | Consumption ACV fed to the compensation platform to enable AE and AM attainment tracking. Quota design examples (ramp components, portfolio attainment) documented as illustrative starting points for VP of Sales and Finance alignment. |
+| **Executive dashboard** (§8) | Four views covering portfolio overview (VP of Sales / CFO), regional breakdown (Sales Directors), rep leaderboard, and account detail (CS Leads / AEs). Built in Streamlit; runs locally against synthetic data with no BigQuery credentials required. |
+| **Downstream integrations** (§9) | Consumption ACV signals flow to four systems: Salesforce CRM (health tier on every account record), compensation platform (attainment tracking), Customer Success platform (automated playbook triggers), and BI layer (cohort and trend analysis). |
+| **Data quality** | 11 automated assertions covering orphaned usage, out-of-contract usage, negative consumption, stale snapshots, and more. Zero ERROR-tier failures required before any pipeline output feeds comp or exec reporting. |
+
+### v2 — Calibrate and Deepen
+
+| Item | What unlocks it |
+|---|---|
+| Health tier threshold calibration | 12–18 months of renewal cohort data — validates whether the 5% / 40% / 80% / 120% cutoffs predict churn accurately |
+| NRR prediction band validation | Same renewal cohort dependency — empirically recalibrates the attainment → NRR outcome bands |
+| Engagement quality signal | Distinguishes active usage from passive credit burn (login events, alerts acted on, policies deployed); addresses the v1 credit-burning risk |
+| Real-time consumption updates | Daily batch is sufficient for v1; near-real-time enables intra-quarter intervention for at-risk accounts |
+| Segment-specific windows and targets | Enterprise, Mid-Market, and SMB may warrant different W windows and attainment targets once sufficient data has accumulated |
+| Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
+
+### Beyond v2 — Long-Term Vision
+
+| Item | Why it matters |
+|---|---|
+| Consumption ACV as an externally reported metric | If the metric earns CFO trust and audit readiness, it could become a board-level disclosure alongside NRR — similar to Snowflake's trailing consumption reporting *(CFO decision — see §11 Q6)* |
+| Predictive churn scoring | Use consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
+| Channel partner and CSM comp integration | Extend the consumption accountability model to the full customer-facing team, not just AEs and AMs |
+| Cross-product consumption correlation | As PANW expands its platform, correlate Prisma Cloud consumption with Cortex and other product lines — a customer consuming deeply across products is a fundamentally different retention profile |
+| AI-powered adoption recommendations | Rather than just flagging low consumption, an AI layer surfaces the specific features or workloads an account hasn't deployed — giving the account team a concrete action ("this account has 0% Code Security adoption; similar accounts that activated it reached Healthy tier within 45 days") |
+| Deal coaching at point of sale | At deal structuring, an AI model compares the proposed credit commit and use case against historical consumption profiles for similar accounts — flagging oversell risk before the contract is signed rather than catching shelfware after the fact |
+| Contract right-sizing at renewal | At renewal, AI recommends the optimal credit commit based on trailing consumption trajectory, seasonality patterns, and planned workload expansion — shifting the renewal conversation from "how much did you use?" to "here's what you'll need" |
+| Natural language querying | Reps and executives query Consumption ACV data conversationally ("which of my accounts are most likely to churn this quarter?") rather than navigating dashboard filters — lowering the barrier to acting on consumption signals |
 
 ---
 
