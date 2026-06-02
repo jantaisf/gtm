@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="How We Validated">
+    <p:bg>
+      <p:bgPr>
+        <a:solidFill><a:srgbClr val="F8FAFF"/></a:solidFill>
+      </p:bgPr>
+    </p:bg>
+    <p:spTree>
+      <p:nvGrpSpPr>
+        <p:cNvPr id="1" name=""/>
+        <p:cNvGrpSpPr/>
+        <p:nvPr/>
+      </p:nvGrpSpPr>
+      <p:grpSpPr>
+        <a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm>
+      </p:grpSpPr>
+      <!-- TOP NAV BAR -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="TopBar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="9144000" cy="502920"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="3" name="Eyebrow"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="0"/><a:ext cx="8229600" cy="502920"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1100" b="1" spc="300" kern="0" dirty="0">
+                <a:solidFill><a:srgbClr val="CADCFC"/></a:solidFill>
+              </a:rPr>
+              <a:t>04 / EVALUATION &amp; RESULTS</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- TITLE -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="4" name="Title"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="594360"/><a:ext cx="8229600" cy="502920"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="3000" b="1" dirty="0">
+                <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+              </a:rPr>
+              <a:t>How We Validated</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- 3 layer callout intro -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="5" name="Intro"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="1188720"/><a:ext cx="8229600" cy="228600"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1400" dirty="0">
+                <a:solidFill><a:srgbClr val="4A5568"/></a:solidFill>
+              </a:rPr>
+              <a:t>Three independent test layers — each gates the next stage of the pipeline</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Layer 1: DQ -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="10" name="Layer1Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="1554480"/><a:ext cx="2651760" cy="1920240"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+          <a:effectLst><a:outerShdw blurRad="101600" dist="38100" dir="8100000" algn="bl" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="10000"/></a:srgbClr></a:outerShdw></a:effectLst>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="11" name="Layer1Bar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="1554480"/><a:ext cx="2651760" cy="54864"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="10B981"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="12" name="Layer1Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="1627680"/><a:ext cx="2468880" cy="1737360"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="91440" rIns="0" bIns="0" rtlCol="0" anchor="t"/>
+          <a:lstStyle/>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1400" b="1" dirty="0"><a:solidFill><a:srgbClr val="10B981"/></a:solidFill></a:rPr><a:t>Layer 1</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1300" b="1" dirty="0"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill></a:rPr><a:t>Data Quality</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1100" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>11 automated assertions on Bronze tables</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1100" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t/></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="EF4444"/></a:solidFill></a:rPr><a:t>6 ERROR blocks</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="F97316"/></a:solidFill></a:rPr><a:t>2 WARNING checks</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="94A3B8"/></a:solidFill></a:rPr><a:t>3 INFO checks</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" i="1" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>Gates pipeline before Silver loads</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Layer 2: Metric Correctness -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="20" name="Layer2Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="3200400" y="1554480"/><a:ext cx="2651760" cy="1920240"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+          <a:effectLst><a:outerShdw blurRad="101600" dist="38100" dir="8100000" algn="bl" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="10000"/></a:srgbClr></a:outerShdw></a:effectLst>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="21" name="Layer2Bar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="3200400" y="1554480"/><a:ext cx="2651760" cy="54864"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="8B5CF6"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="22" name="Layer2Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="3292080" y="1627680"/><a:ext cx="2468880" cy="1737360"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="91440" rIns="0" bIns="0" rtlCol="0" anchor="t"/>
+          <a:lstStyle/>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1400" b="1" dirty="0"><a:solidFill><a:srgbClr val="8B5CF6"/></a:solidFill></a:rPr><a:t>Layer 2</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1300" b="1" dirty="0"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill></a:rPr><a:t>Metric Correctness</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1100" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>9 regression scenarios</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>healthy / shelfware / inactive</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>expansion / ramping / spike-drop</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" i="1" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>If cARR changes unexpectedly, something broke</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" i="1" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>Gates dashboard deploy</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Layer 3: Dashboard Smoke -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="30" name="Layer3Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="6035040" y="1554480"/><a:ext cx="2651760" cy="1920240"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+          <a:effectLst><a:outerShdw blurRad="101600" dist="38100" dir="8100000" algn="bl" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="10000"/></a:srgbClr></a:outerShdw></a:effectLst>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="31" name="Layer3Bar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="6035040" y="1554480"/><a:ext cx="2651760" cy="54864"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="F97316"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="32" name="Layer3Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="6126720" y="1627680"/><a:ext cx="2468880" cy="1737360"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="91440" rIns="0" bIns="0" rtlCol="0" anchor="t"/>
+          <a:lstStyle/>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1400" b="1" dirty="0"><a:solidFill><a:srgbClr val="F97316"/></a:solidFill></a:rPr><a:t>Layer 3</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1300" b="1" dirty="0"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill></a:rPr><a:t>Dashboard Smoke</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1100" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>All 4 tabs render without errors</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>Rate window fallback if columns missing</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>Validates 4-audience executive view</a:t></a:r></a:p>
+          <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr><a:r><a:rPr lang="en-US" sz="1000" i="1" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>Run after every pipeline deploy</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Bottom banner -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="40" name="BottomBanner"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="3566160"/><a:ext cx="8412480" cy="274320"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="182880" tIns="0" rIns="182880" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r><a:rPr lang="en-US" sz="1100" b="1" dirty="0"><a:solidFill><a:srgbClr val="0D9488"/></a:solidFill></a:rPr><a:t xml:space="preserve">CI integration: </a:t></a:r>
+            <a:r><a:rPr lang="en-US" sz="1100" dirty="0"><a:solidFill><a:srgbClr val="CADCFC"/></a:solidFill></a:rPr><a:t>DQ tests gate the pipeline run  ·  metric tests gate the dashboard deploy</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- FOOTER -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="70" name="FooterBar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="4759200"/><a:ext cx="9144000" cy="384048"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="71" name="FooterText"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="4759200"/><a:ext cx="8412480" cy="384048"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1000" dirty="0">
+                <a:solidFill><a:srgbClr val="CADCFC"/></a:solidFill>
+              </a:rPr>
+              <a:t>Palo Alto Networks  ·  Prisma Cloud  ·  Principal PM, Analytics &amp; AI  ·  May 2026</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+  <p:clrMapOvr>
+    <a:masterClrMapping/>
+  </p:clrMapOvr>
+</p:sld>

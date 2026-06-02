@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld name="Hard Truths Learned">
+    <p:bg>
+      <p:bgPr>
+        <a:solidFill><a:srgbClr val="F8FAFF"/></a:solidFill>
+      </p:bgPr>
+    </p:bg>
+    <p:spTree>
+      <p:nvGrpSpPr>
+        <p:cNvPr id="1" name=""/>
+        <p:cNvGrpSpPr/>
+        <p:nvPr/>
+      </p:nvGrpSpPr>
+      <p:grpSpPr>
+        <a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm>
+      </p:grpSpPr>
+      <!-- TOP NAV BAR -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="TopBar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="9144000" cy="502920"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="3" name="Eyebrow"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="0"/><a:ext cx="8229600" cy="502920"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1100" b="1" spc="300" kern="0" dirty="0">
+                <a:solidFill><a:srgbClr val="CADCFC"/></a:solidFill>
+              </a:rPr>
+              <a:t>04 / EVALUATION &amp; RESULTS</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- TITLE -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="4" name="Title"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="594360"/><a:ext cx="8229600" cy="502920"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="3000" b="1" dirty="0">
+                <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+              </a:rPr>
+              <a:t>Hard Truths Learned</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- Subtitle -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="5" name="Subtitle"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="457200" y="1188720"/><a:ext cx="8229600" cy="228600"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1400" dirty="0">
+                <a:solidFill><a:srgbClr val="4A5568"/></a:solidFill>
+              </a:rPr>
+              <a:t>Design constraints and honest v1 limitations — documented upfront, not discovered in QBR</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Truth 1 -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="10" name="T1Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="1480680"/><a:ext cx="8412480" cy="18000"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="F97316"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="11" name="T1Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="1498680"/><a:ext cx="8412480" cy="457200"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="9525"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="182880" tIns="91440" rIns="182880" bIns="91440" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r><a:rPr lang="en-US" sz="1200" b="1" dirty="0"><a:solidFill><a:srgbClr val="92400E"/></a:solidFill></a:rPr><a:t xml:space="preserve">Health tier thresholds are industry starting points, not PANW-validated. </a:t></a:r>
+            <a:r><a:rPr lang="en-US" sz="1200" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>The 5%/40%/80%/120% breakpoints need 12–18 months of PANW cohort data to validate. Until then, thresholds are calibrated, not proven.</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Truth 2 -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="20" name="T2Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="2011680"/><a:ext cx="8412480" cy="18000"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="8B5CF6"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="21" name="T2Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="2029680"/><a:ext cx="8412480" cy="457200"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="9525"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="182880" tIns="91440" rIns="182880" bIns="91440" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r><a:rPr lang="en-US" sz="1200" b="1" dirty="0"><a:solidFill><a:srgbClr val="5B21B6"/></a:solidFill></a:rPr><a:t xml:space="preserve">Consumption rate ≠ security value. </a:t></a:r>
+            <a:r><a:rPr lang="en-US" sz="1200" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>A customer burning credits on idle workloads looks identical to active threat response. Engagement quality signal (alerts acted on, policies deployed) is a v2 addition.</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Truth 3 -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="30" name="T3Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="2542680"/><a:ext cx="8412480" cy="18000"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="10B981"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="31" name="T3Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="2560680"/><a:ext cx="8412480" cy="457200"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="9525"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="182880" tIns="91440" rIns="182880" bIns="91440" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r><a:rPr lang="en-US" sz="1200" b="1" dirty="0"><a:solidFill><a:srgbClr val="065F46"/></a:solidFill></a:rPr><a:t xml:space="preserve">SCD Type 1 in v1 overwrites territory history. </a:t></a:r>
+            <a:r><a:rPr lang="en-US" sz="1200" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>Territory reassignment history is lost. Cohort reporting by original territory is unreliable until SCD Type 2 is implemented in v2.</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+
+      <!-- Truth 4 -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="40" name="T4Bg"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="3073680"/><a:ext cx="8412480" cy="18000"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="EF4444"/></a:solidFill>
+          <a:ln><a:noFill/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="41" name="T4Text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="3091680"/><a:ext cx="8412480" cy="548640"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+          <a:ln w="9525"><a:solidFill><a:srgbClr val="E2E8F0"/></a:solidFill></a:ln>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="182880" tIns="91440" rIns="182880" bIns="91440" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r><a:rPr lang="en-US" sz="1200" b="1" dirty="0"><a:solidFill><a:srgbClr val="991B1B"/></a:solidFill></a:rPr><a:t xml:space="preserve">Comp integration is infrastructure-ready but process-blocked. </a:t></a:r>
+            <a:r><a:rPr lang="en-US" sz="1200" dirty="0"><a:solidFill><a:srgbClr val="4A5568"/></a:solidFill></a:rPr><a:t>The data model is built. But Finance and RevOps must define the correction workflow, clawback policy, and dispute process before the first live comp period. CFO sign-off required on retroactive corrections.</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- FOOTER -->
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="70" name="FooterBar"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="4759200"/><a:ext cx="9144000" cy="384048"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="1E2761"/></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="1E2761"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="71" name="FooterText"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="365760" y="4759200"/><a:ext cx="8412480" cy="384048"/></a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:noFill/><a:ln/>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="ctr"/>
+          <a:lstStyle/>
+          <a:p>
+            <a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+            <a:r>
+              <a:rPr lang="en-US" sz="1000" dirty="0">
+                <a:solidFill><a:srgbClr val="CADCFC"/></a:solidFill>
+              </a:rPr>
+              <a:t>Palo Alto Networks  ·  Prisma Cloud  ·  Principal PM, Analytics &amp; AI  ·  May 2026</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+  <p:clrMapOvr>
+    <a:masterClrMapping/>
+  </p:clrMapOvr>
+</p:sld>
