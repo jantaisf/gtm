@@ -327,16 +327,16 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ## 5. Lifecycle Management with Consumption ACV
 
-Consumption ACV is designed to reflect where a customer actually is in their adoption journey — not just what they signed. The table below defines how the metric behaves at each stage of the customer lifecycle.
+Consumption ACV is designed to reflect where a customer actually is in their adoption journey — not just what they signed. The table below defines how the metric behaves at each stage of the customer lifecycle, and when to act — not just what to eventually notice.
 
-| Lifecycle Stage / Event | Consumption Signal | How Consumption ACV Responds |
-|---|---|---|
-| **Onboarding (Ramp)** | Contract start within last 90 days — insufficient consumption history | Excluded from Consumption ACV and portfolio rate; week-over-week credit consumption growth is monitored during the ramp window as the leading signal of healthy onboarding. Account graduates to the portfolio rate once the 90-day window matures and consumption reaches the Healthy tier (≥ 80%) |
-| **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects the current inactive state once the spike ages out |
-| **Shelfware** | Near-zero consumption rate over trailing 90 days | Consumption ACV reflects near-zero value; account flagged for save plan |
-| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep for upsell motion |
-| **Mid-Year Expansion** | Customer signs additional contract before original expires | Contracted ACV and credits summed across all simultaneously active contracts; expansion flag set |
-| **Multi-year Contracts** | 2- or 3-year deal term | Contracted ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier — see §12 for v1 ACV basis decision |
+| Lifecycle Stage / Event | Consumption Signal | How Consumption ACV Responds | Detection & Action Window |
+|---|---|---|---|
+| **Onboarding (Ramp)** | Contract start within last 90 days | Excluded from portfolio rate; WoW credit growth monitored as the leading onboarding health signal | Flag if WoW growth is flat for 2 consecutive weeks (~day 14) → CS outreach; escalate if still flat at day 45; graduate at day 90 if ≥ 80% |
+| **Spike & Drop** | High consumption in month 1, then collapses | Trailing 90-day window reflects current inactive state once the spike ages out | MoM decline > 40% in month 2 vs month 1 triggers flag (~day 45–60) → CS intervention within 14 days of flag |
+| **Shelfware** | Near-zero consumption rate | Consumption ACV reflects near-zero value; account flagged for save plan | Flag after 30 consecutive days of < 5% consumption — don't wait for the 90-day trailing window to confirm what's visible at day 30 → executive sponsor outreach within 14 days |
+| **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep | Month 1 overage noted as early signal; confirmed at month 2 (~day 60) → expansion motion initiated within 14 days |
+| **Mid-Year Expansion** | Customer signs additional contract before original expires | Contracted ACV and credits summed across all simultaneously active contracts; expansion flag set | Event-driven — applied immediately on contract execution |
+| **Multi-year Contracts** | 2- or 3-year deal term | Contracted ACV used as-is (already annualized); term stored for renewal forecasting and comp multiplier — see §12 for v1 ACV basis decision | Event-driven — applied at contract signing |
 
 > **Data quality:** Usage records that cannot be matched to a customer lifecycle stage are excluded from Consumption ACV and surfaced in the data quality report rather than distorting the metric. This covers orphaned usage (logs referencing an account not in the customer master) and out-of-contract usage (logs falling before contract start or after contract end). Pipeline implementation details are in the Technical Spec.
 
