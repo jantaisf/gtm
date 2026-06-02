@@ -126,7 +126,7 @@ Consumed ACV Rate = Total Consumption ACV / Total ACV
 | **Portfolio total** | **$940K** | **62.4%** | **$587K** | |
 | *SMB E (excluded)* | *$40K* | *—* | *—* | *Ramping — contract < 90 days* |
 
-This is the headline health ratio for the CFO. A portfolio at **62.4%** means **37.6% ($353K) of booked ACV is not yet backed by consumption** — that dollar amount is the renewal exposure the CS team needs to address.
+This is the headline health ratio for the CFO. A portfolio at **62.4%** means **$587K of the $940K booked ACV is being consumed — and $353K is not**. That $353K gap is the renewal exposure the sales rep and CS team must actively manage before contract renewal.
 
 Note that Enterprise B alone ($300K ACV at 4%) pulls the Consumed ACV Rate from ~87% down to ~62%. A low Consumed ACV Rate at the portfolio level almost always traces to a small number of large, low-consumption accounts — which is where CS and manager attention should focus first.
 
