@@ -129,15 +129,15 @@ The following are explicit v1 design decisions, not empirically validated parame
 >
 > Additional aggregation dimensions — by industry vertical, product module, contract cohort, or customer segment (Enterprise / Mid-Market / SMB) — could be added in v2 without changing the base formula. Whether those cut-points are operationally useful is an open question for Sales Ops and Finance; they are not required for v1.
 
-### 2.4 ACV Utilization Rate
+### 2.4 Consumed ACV Rate
 
 ```
-ACV Utilization Rate = Total Consumption ACV / Total ACV
+Consumed ACV Rate = Total Consumption ACV / Total ACV
 ```
 
-> **Naming note:** "ACV Utilization Rate" is the preferred label in executive and investor materials — it maps directly to the intuition of *how much of what was contracted is actually being used*. In the dashboard and §9 success criteria this is also referred to as "Consumption ACV Attainment," which is acceptable in internal sales operations contexts (it reads as the portfolio's attainment of full ACV utilization). Either label is fine; the important distinction is from *quota attainment* (a rep's Consumption ACV vs. their quota target), which is a different concept. Avoid "Coverage Rate," which reads as pipeline coverage or insurance coverage.
+> **Naming note:** "Consumed ACV Rate" is the preferred label — it reads directly as *what fraction of ACV has been consumed*. In the dashboard and §9 success criteria this is also referred to as "Consumption ACV Attainment," which is acceptable in internal sales operations contexts. The important distinction is from *quota attainment* (a rep's Consumption ACV vs. their quota target), which is a different concept.
 
-This is the headline health ratio for the CFO. A portfolio at 78% utilization means 22% of booked ACV is not yet backed by consumption — that dollar amount is the renewal exposure the CS team needs to address.
+This is the headline health ratio for the CFO. A portfolio at 78% means 22% of booked ACV is not yet backed by consumption — that dollar amount is the renewal exposure the CS team needs to address.
 
 **The metric is ACV-weighted, not account-count-weighted.** A large shelfware account with $500K ACV at 4% consumption has far more impact on the portfolio rate than ten small healthy accounts at $10K ACV each. This is intentional — the CFO cares about dollar risk, not account count. For a worked example showing this weighting effect:
 
@@ -149,9 +149,9 @@ This is the headline health ratio for the CFO. A portfolio at 78% utilization me
 | Mid-Market D | $60K | 75% | $45K | Approaching At Risk threshold |
 | SMB E | $40K | — | Excluded | Ramping — contract < 90 days |
 
-**Portfolio (excluding Ramping):** Total ACV = $940K · Total Consumption ACV = $587K · **ACV Utilization Rate = 62.4%**
+**Portfolio (excluding Ramping):** Total ACV = $940K · Total Consumption ACV = $587K · **Consumed ACV Rate = 62.4%**
 
-Note that Enterprise B alone ($300K ACV at 4%) pulls the utilization rate from ~87% down to ~62%. A utilization rate problem at the portfolio level almost always traces to a small number of large, low-consumption accounts — which is where CS and manager attention should focus first.
+Note that Enterprise B alone ($300K ACV at 4%) pulls the Consumed ACV Rate from ~87% down to ~62%. A low Consumed ACV Rate at the portfolio level almost always traces to a small number of large, low-consumption accounts — which is where CS and manager attention should focus first.
 
 ---
 
