@@ -335,8 +335,8 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 | **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects the current inactive state once the spike ages out |
 | **Shelfware** | Near-zero consumption rate over trailing 90 days | Consumption ACV reflects near-zero value; account flagged for save plan |
 | **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep for upsell motion |
-| **Mid-Year Expansion** | Customer signs additional contract before original expires | ACV and credits summed across all simultaneously active contracts; expansion flag set |
-| **Multi-year Contracts** | 2- or 3-year deal term | ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier — see §12 for v1 ACV basis decision |
+| **Mid-Year Expansion** | Customer signs additional contract before original expires | Contracted ACV and credits summed across all simultaneously active contracts; expansion flag set |
+| **Multi-year Contracts** | 2- or 3-year deal term | Contracted ACV used as-is (already annualized in contract); term stored for renewal forecasting and comp multiplier — see §12 for v1 ACV basis decision |
 
 > **Data quality:** Usage records that cannot be matched to a customer lifecycle stage are excluded from Consumption ACV and surfaced in the data quality report rather than distorting the metric. This covers orphaned usage (logs referencing an account not in the customer master) and out-of-contract usage (logs falling before contract start or after contract end). Pipeline implementation details are in the Technical Spec.
 
