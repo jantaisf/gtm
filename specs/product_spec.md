@@ -211,7 +211,7 @@ Consumption ACV is designed to shift incentives at every layer of the GTM organi
 | Expansion from genuine usage | Accounts consistently consuming more than 120% of their committed credits for 2+ months represent organic demand that has outgrown the contract; reps are credited for converting that signal into a larger deal. **v1 assumption:** the expansion motion requires a signed contract amendment or new order — PAYG overage alone does not qualify. This preserves the intent of Consumption ACV as a metric of *contracted* consumption, and ensures the rep's incentive is to formalize demand, not leave it in open-ended overage billing. Whether this is the right commercial process for PANW (vs. automatic true-up) is an open question for Sales and Finance. |
 | Committing to longer contract terms | Longer multi-year contracts provide PANW with revenue visibility and reduce renewal overhead. This behavior can be reinforced through a paired mechanism in the comp plan — a term multiplier on ACV quota credit applied at signing — while the consumption weight holds the rep accountable for actual usage over the full term. The two work together: the multiplier rewards the commitment, the consumption weight rewards the realization. |
 
-**Behaviors to suppress**
+**Behaviors to discourage**
 
 | Behavior | How Consumption ACV Suppresses It |
 |---|---|

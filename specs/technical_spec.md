@@ -1018,7 +1018,7 @@ This spec is scoped to **v1 only**. The items below are design considerations fo
 
 ## 13. Testing & Quality Checks
 
-The test suite spans three layers. Each layer catches a different class of failure: bad source data (Layer 1), broken pipeline logic (Layer 2), and broken dashboard rendering (Layer 3).
+The test suite spans three layers. Each layer catches a different class of failure: bad source data (Layer 1), broken pipeline logic (Layer 2), and broken BI connectivity or metric rendering (Layer 3).
 
 ```
 Layer 1 — Data Quality (dq_tests.py)
@@ -1030,8 +1030,9 @@ Layer 2 — Metric Correctness (pipeline unit tests)
     known input scenarios (§5). Catches regressions in SQL logic.
 
 Layer 3 — Dashboard Health Checks
-    Confirms the Streamlit app loads, queries BigQuery, and renders
-    all four pages without an unhandled exception.
+    Confirms the BI tool (Looker or Tableau) connects to the semantic
+    layer views, returns expected row counts, and surfaces no NULL
+    values on key metric columns.
 ```
 
 ---
@@ -1102,15 +1103,18 @@ The scenarios in §5 define the exact expected output for nine representative ac
 
 ### 13.3 Layer 3 — Dashboard Health Checks
 
-Minimal end-to-end checks that confirm the dashboard connects to the data and renders correctly against a live (or mock) BigQuery connection. For the Streamlit prototype, these checks confirm the app loads and all views render without errors. For the production BI platform build, the equivalent is confirming that each semantic layer view returns expected row counts and no NULL values on key metric columns — these can be added as dbt exposures or as scheduled BigQuery queries.
+Minimal end-to-end checks that confirm the BI tool (Looker or Tableau) connects to the semantic layer views and renders key metrics correctly. These checks are not about UI rendering logic — they validate that the semantic layer views return the expected data shape and that the BI tool's connection, filters, and calculated fields behave as intended. They can be implemented as scheduled BigQuery queries, dbt exposures, or Looker/Tableau data-driven alerts.
 
 | Check | Description |
 |---|---|
-| App boots | `streamlit run dashboard/app.py` exits with code 0 on `--server.headless true` |
-| All four pages load | Summary, Renewal Risk, Consumption Overage, and Account Detail each render without an unhandled exception |
-| Empty-state handling | App degrades gracefully when `fact_cacv_snapshot` returns zero rows (e.g., new environment with no data) |
-| Rate window fallback | When `trailing_7d_avg_rate` or `trailing_30d_avg_rate` columns are absent (older data schema), the app silently falls back to `trailing_90d_avg_rate` |
-| Non-90d info banner | Selecting a 7d or 30d window in the sidebar surfaces the comp-window notice in Account Detail |
+| Semantic layer connectivity | Each of the five semantic views (`vw_rep_portfolio`, `vw_account_detail`, `vw_comp_input`, `vw_renewal_pipeline`, `vw_org_summary`) returns at least one row for the current `as_of_date` — confirms the BI connection to BigQuery is live and the views are not broken |
+| Row count sanity | `vw_rep_portfolio` row count matches the expected rep headcount (±5%); `vw_account_detail` row count matches the account universe — catches silent view truncation or misconfigured connection filters |
+| No NULLs on key metric columns | `cacv`, `acv_at_risk`, `health_tier`, and `cacv_attainment_rate` return no NULLs for mature (non-Ramping) accounts in `vw_account_detail` |
+| Consumption ACV cap holds in view | No row in `vw_account_detail` has `cacv > annual_commit_dollars` — confirms the cap logic in the Gold layer is not overridden by a BI-layer calculated field |
+| `as_of_date` filter behaviour | Filtering the dashboard to a prior snapshot date (e.g., last month-end) returns historically consistent row counts — confirms the `as_of_date` parameter is passed through correctly and does not default to today |
+| Attainment rate range | `cacv_attainment_rate` values in `vw_rep_portfolio` fall within [0, 1.5] — catches unit errors (e.g., rate expressed as percentage instead of decimal) introduced by BI-layer field definitions |
+| Ramping exclusion visible | `vw_comp_input` contains no rows where `health_tier = 'Ramping'` — confirms the comp view correctly excludes accounts still in the 90-day ramp window |
+| Empty-state handling | When `fact_cacv_snapshot` returns zero rows for a given `as_of_date` (e.g., a pipeline run did not complete), the BI views return zero rows rather than stale data from a prior snapshot |
 
 ---
 
