@@ -427,14 +427,15 @@ Consumption ACV is designed to ship and build trust before expanding. v1 establi
 
 ### v1 — Launch
 
-- Consumption ACV calculation at account, rep, region, and org level
-- Health tier classification (6 tiers) based on trailing 90-day consumption rate
-- Expansion signal dollars as a separate metric for over-consuming accounts (Consumption ACV itself capped at commit)
-- Consumption ACV signals fed to the compensation platform to enable AE / AM attainment tracking
-- Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
-- Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
-- Data quality framework (11 automated assertions) with orphaned and rogue usage handling
-- Multi-year contract treatment: Year 1 ACV as the Consumption ACV basis *(v1 decision — see §11)*
+| What ships | Detail |
+|---|---|
+| **The metric** (§3) | Consumption ACV calculated as `ACV × consumption_rate(W)` at account, rep, region, segment, and org level. The headline portfolio measure — Consumed ACV Rate — gives the CFO a forward-looking renewal health indicator. Default window W = 90 days, aligned to PANW's quarterly comp cycle; 7-day and 30-day windows stored for monitoring. |
+| **Health tiers** (§4) | Six tiers — Expansion, Healthy, At Risk, Shelfware, Inactive, Ramping — each with a defined consumption rate range, renewal forecast signal, and action. Thresholds (5% / 40% / 80% / 120%) are starting hypotheses to be calibrated in v2. |
+| **Lifecycle management** (§5) | Six lifecycle stages tracked — from Onboarding through Consistent Overages and Multi-year Contracts — with detection windows and action triggers so teams act early rather than waiting for the 90-day trailing window to confirm what's visible sooner. |
+| **Quota and comp signals** (§6) | Consumption ACV fed to the compensation platform to enable AE and AM attainment tracking. Quota design examples (ramp components, portfolio attainment) documented as illustrative starting points for VP of Sales and Finance alignment. |
+| **Executive dashboard** (§9) | Four views covering portfolio overview (VP of Sales / CFO), regional breakdown (Sales Directors), rep leaderboard, and account detail (CS Leads / AEs). Built in Streamlit; runs locally against synthetic data with no BigQuery credentials required. |
+| **Downstream integrations** (§10) | Consumption ACV signals flow to four systems: Salesforce CRM (health tier on every account record), compensation platform (attainment tracking), Customer Success platform (automated playbook triggers), and BI layer (cohort and trend analysis). |
+| **Data quality** | 11 automated assertions covering orphaned usage, out-of-contract usage, negative consumption, stale snapshots, and more. Zero ERROR-tier failures required before any pipeline output feeds comp or exec reporting. |
 
 ### v2 — Calibrate and Deepen
 
