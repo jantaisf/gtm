@@ -55,8 +55,6 @@ The spec covers: background and market context (§2); the full metric definition
 - [4. Health Tier Classification](#4-health-tier-classification)
 - [5. Lifecycle Management with Consumption ACV](#5-lifecycle-management-with-consumption-acv)
 - [6. Quota Setting and Compensation](#6-quota-setting-and-compensation)
-  - [6.1 Quota Setting with Consumption ACV](#61-quota-setting-with-consumption-acv)
-  - [6.2 Compensation Implications](#62-compensation-implications)
 - [7. Success Criteria](#7-success-criteria)
 - [8. v1 Scope](#8-v1-scope)
 - [9. Executive Dashboard](#9-executive-dashboard)
@@ -338,33 +336,21 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 
 ## 6. Quota Setting and Compensation
 
-### 6.1 Quota Setting with Consumption ACV
+PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). TCV comp rewards signing without accountability for consumption — a rep can close a $500K shelfware account and never revisit it. Consumption ACV is designed to fix this. The examples below illustrate how the metric could be applied — specific thresholds and structures require VP of Sales and Finance alignment before adoption.
 
-Consumption ACV enables quota design that reflects territory health, not just last year's bookings. The examples below illustrate how the metric could be applied — specific thresholds and structures require VP of Sales and Finance alignment before adoption:
-
-**Account Executive (AE) quotas — quality of sale**
+**Account Executives (AEs) — quality of sale**
 - *Example:* Quota includes a Consumption ACV ramp component — the new logo must reach a minimum consumption rate (e.g. ≥ 70%) within 90 days of go-live to count as full credit toward attainment
-- This directly prices in onboarding quality and discourages overselling credits a customer won't use
+- A portion of variable comp tied to consumption attainment incentivizes right-sized deals, proper onboarding, and early activation rather than overselling credits a customer won't use
+- An activation bonus structure (e.g., sustained ≥80% consumption rate at month 6) directly rewards quality of sale
 
-**Account Manager (AM) quotas — incremental Consumption ACV**
+**Account Managers (AMs) — portfolio health**
 - *Example:* Base quota = maintain current Consumption ACV attainment rate across the portfolio; stretch quota = grow total Consumption ACV by X% through expansion and improved utilization
-- Account Managers would be measured on *incremental Consumption ACV* above baseline each quarter, not bookings — consumption growth driven by their activity, not contract auto-renewal
+- AMs measured on incremental Consumption ACV above baseline each quarter — not bookings — so an AM who resigns a shelfware account at flat ACV does not receive full attainment credit
+- Surfacing over-consumption signals becomes financially meaningful: the AM has a direct incentive to flag expansion opportunities proactively
 
-**Territory sizing and rebalancing**
-- *Example:* Use total Consumption ACV per rep to identify overloaded territories (high Consumption ACV, low headroom for growth) vs. underloaded ones (low Consumption ACV, high ACV at risk needing intervention)
-- Reassign accounts based on Consumption ACV capacity, not just account count or ARR — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
-
----
-
-### 6.2 Compensation Implications
-
-PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). TCV comp rewards signing without accountability for consumption — a rep can close a $500K shelfware account and never revisit it.
-
-Consumption ACV is designed to fix this. By making platform consumption a measurable, role-level signal, it unlocks incentive structures that were not previously possible:
-
-**For Account Executives (AEs):** A portion of variable comp can be tied to consumption attainment on the accounts they close — incentivizing right-sized deals, proper onboarding, and early activation rather than overselling credits a customer won't use. An activation bonus structure (e.g., sustained ≥80% consumption rate at month 6) directly rewards quality of sale.
-
-**For Account Managers (AMs):** Quota can be set on portfolio Consumption ACV attainment, not just renewal bookings. An AM who resigns a shelfware account at flat ACV should not receive full attainment credit. Conversely, surfacing over-consumption signals (Consumption Overage accounts) becomes financially meaningful — the AM has an incentive to flag expansion opportunities proactively.
+**Territory sizing**
+- *Example:* Use total Consumption ACV per rep to identify overloaded vs. underloaded territories — a rep carrying 20 Inactive accounts needs different support than one carrying 20 Healthy accounts
+- Reassign accounts based on Consumption ACV capacity, not just account count or ARR
 
 **Behaviors the metric suppresses:** Overselling credits to inflate TCV, neglecting onboarding once a deal is signed, and renewing shelfware accounts without addressing underlying adoption gaps.
 
