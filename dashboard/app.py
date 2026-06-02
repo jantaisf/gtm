@@ -685,32 +685,37 @@ def page_reps(rep_df: pd.DataFrame):
 
     filtered = rep_df.sort_values("total_cacv", ascending=False).reset_index(drop=True)
     if not filtered.empty:
-        # Left tile: top performer by attainment rate (min 2 accounts to exclude small books)
         qualified = filtered[filtered["cacv_attainment_rate"].notna()]
-        top_att = qualified.loc[qualified["cacv_attainment_rate"].idxmax()]
 
-        # Right tile: rep with the largest dollar gap to the 85% target
+        # Top 3 by attainment rate
+        top3 = qualified.nlargest(min(3, len(qualified)), "cacv_attainment_rate")
+
+        # Bottom 3 by dollar gap to 85% target
         filtered["_gap_to_target"] = (filtered["total_acv"] * 0.85 - filtered["total_cacv"]).clip(lower=0)
-        most_gap = filtered.loc[filtered["_gap_to_target"].idxmax()]
+        bottom3 = filtered[filtered["cacv_attainment_rate"].notna()].nlargest(min(3, len(filtered)), "_gap_to_target")
 
         c1, c2 = st.columns(2)
         with c1:
-            st.success(
-                f"**Top attainment · {top_att['rep_name']}** · {top_att['region']}  \n"
-                f"Attainment **{fmt_pct(top_att['cacv_attainment_rate'])}** · "
-                f"Consumption ACV **{fmt_m(top_att['total_cacv'])}**"
-            )
+            st.markdown("**🏆 Top Attainment**")
+            for _, row in top3.iterrows():
+                st.success(
+                    f"**{row['rep_name']}** · {row['region']}  \n"
+                    f"Attainment **{fmt_pct(row['cacv_attainment_rate'])}** · "
+                    f"Consumption ACV **{fmt_m(row['total_cacv'])}**"
+                )
         with c2:
-            gap = most_gap["_gap_to_target"]
-            att = most_gap["cacv_attainment_rate"]
-            body = (
-                f"**Largest gap to target · {most_gap['rep_name']}** · {most_gap['region']}  \n"
-                f"Gap **{fmt_m(gap)}** to 85% target · Attainment **{fmt_pct(att)}**"
-            )
-            if pd.notna(att) and att < 0.6:
-                st.error(body)
-            else:
-                st.warning(body)
+            st.markdown("**⚠️ Largest Gap to Target**")
+            for _, row in bottom3.iterrows():
+                att = row["cacv_attainment_rate"]
+                body = (
+                    f"**{row['rep_name']}** · {row['region']}  \n"
+                    f"Gap **{fmt_m(row['_gap_to_target'])}** to 85% target · "
+                    f"Attainment **{fmt_pct(att)}**"
+                )
+                if pd.notna(att) and att < 0.6:
+                    st.error(body)
+                else:
+                    st.warning(body)
 
     # ── Coaching Priorities ──────────────────────────────────────────────────
     below_target = filtered[filtered["cacv_attainment_rate"].notna() &
