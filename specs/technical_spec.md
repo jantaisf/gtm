@@ -23,6 +23,46 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
+> **Document Context**
+> - This spec covers **v1 implementation only** — the prototype pipeline and data model.
+> - It is the technical companion to `product_spec.md`, which defines the metric, health tiers, and success criteria.
+> - Design considerations for v2 scalability are captured in §12.
+
+---
+
+## Table of Contents
+
+- [§1 Architecture Overview](#1-architecture-overview)
+- [§2 BigQuery Schema](#2-bigquery-schema)
+- [§3 History Tracking](#3-history-tracking)
+- [§4 Pipeline Step-by-Step Logic](#4-pipeline-step-by-step-logic)
+- [§5 Metric Correctness Test Cases](#5-metric-correctness-test-cases)
+- [§6 as_of_date Parameter](#6-as_of_date-parameter)
+- [§7 Implementation Context](#7-implementation-context)
+- [§8 File Structure](#8-file-structure)
+- [§9 Running the Pipeline](#9-running-the-pipeline)
+- [§10 Executive Dashboard](#10-executive-dashboard)
+- [§11 Downstream System Integrations](#11-downstream-system-integrations)
+- [§12 v2 Design Considerations](#12-v2-design-considerations)
+- [§13 Testing & Quality Checks](#13-testing--quality-checks)
+- [§14 Semantic Layer Build-Out](#14-semantic-layer-build-out)
+
+---
+
+## Scope at a Glance
+
+| Area | What this spec covers |
+|---|---|
+| Architecture | Medallion architecture (Bronze → Silver → Gold → Semantic), star schema design, BigQuery implementation |
+| Data Model | Bronze source tables, Silver conformed tables, Gold dimension + fact tables, semantic layer views |
+| Pipeline Logic | Step-by-step SQL logic for all pipeline stages, edge case handling |
+| History & Audit | SCD strategy for dimension tables, comp audit trail, source data change logs |
+| Testing | Three-layer test suite: data quality, metric correctness, dashboard smoke tests |
+| Integrations | Reverse ETL to Salesforce, compensation platform, CS platform; executive dashboard |
+| Operations | Refresh schedule, upstream data dependencies, CI integration |
+
+---
+
 ## 1. Architecture Overview
 
 The pipeline follows a **medallion architecture** (Bronze → Silver → Gold) with a **star schema** at the Gold layer. A semantic layer sits above Gold, joining dimension and fact tables into denormalized views — so downstream consumers (dashboard, BI tools, Salesforce) see a single flat table, while the underlying model retains the scalability and flexibility of a proper star schema.
@@ -39,7 +79,7 @@ The pipeline follows a **medallion architecture** (Bronze → Silver → Gold) w
 ┌──────────────────────────────────────────────────────────────┐
 │  SILVER  ·  cleaned, conformed, edge cases resolved           │
 │                                                              │
-│  silver.active_contracts   silver.monthly_consumption        │
+│  silver.active_contracts   silver.daily_consumption          │
 └───────────────────────────┬──────────────────────────────────┘
                             │ SQL: build dimensions + calculate metrics
                             ▼
@@ -60,13 +100,14 @@ The pipeline follows a **medallion architecture** (Bronze → Silver → Gold) w
 │  gold.vw_rep_portfolio   (dashboard + comp platform)         │
 │  gold.vw_account_detail  (CS platform + Salesforce)          │
 └───────────────────────────┬──────────────────────────────────┘
-                            │ Python BigQuery client
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
 │  CONSUMERS                                                   │
-│  Streamlit Dashboard · Salesforce · Comp Platform · BI layer │
+│  Executive Dashboard · Salesforce · Comp Platform · BI Platform │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+> **Access pattern:** BI tools (Looker, Tableau, PANW's existing BI platform) connect to the semantic layer views directly via BigQuery's native connector — no Python intermediary required. The prototype dashboard uses the BigQuery Python client (`google-cloud-bigquery`) as a convenience; production replaces this with direct BI platform connectivity.
 
 ---
 
@@ -79,14 +120,20 @@ The pipeline follows a **medallion architecture** (Bronze → Silver → Gold) w
 As-landed data. No transforms applied. Pipeline reads from here; nothing writes back.
 
 #### `bronze.sales_reps`
+
+> **Source system:** **Salesforce Users** / HRIS (e.g., Workday) — `employee_id` maps to Salesforce User ID
+
 | Column | Type | Notes |
 |---|---|---|
 | `employee_id` | STRING | Primary Key — UUID |
 | `name` | STRING | |
-| `region` | STRING | Northeast / Southeast / Midwest / West / International |
-| `segment` | STRING | Enterprise / Mid-Market |
+| `region` | STRING | NAMER / EMEA / APAC / LATAM / Public Sector |
+| `segment` | STRING | Enterprise / Commercial (Mid-Market + SMB) / Public Sector (Gov/SLED) |
 
 #### `bronze.accounts`
+
+> **Source system:** **Salesforce Accounts** — `account_id` maps to Salesforce Account ID (18-char)
+
 | Column | Type | Notes |
 |---|---|---|
 | `account_id` | STRING | Primary Key — UUID |
@@ -95,6 +142,9 @@ As-landed data. No transforms applied. Pipeline reads from here; nothing writes 
 | `employee_id` | STRING | Foreign Key → dim_reps.employee_id (current owner; may differ from signing owner after reassignment) |
 
 #### `bronze.contracts`
+
+> **Source system:** **Salesforce CPQ** — likely a custom object (e.g., `PANW_Contract__c`) rather than the standard Salesforce Contract object, which is typically used for post-signature documents rather than deal terms. Validate the exact object name with RevOps/Sales Ops before connecting the pipeline.
+
 | Column | Type | Notes |
 |---|---|---|
 | `contract_id` | STRING | Primary Key — UUID |
@@ -108,6 +158,9 @@ As-landed data. No transforms applied. Pipeline reads from here; nothing writes 
 | `contract_type` | STRING | `base` / `expansion` / `renewal` / `additional` |
 
 #### `bronze.daily_usage_logs`
+
+> **Source system:** **Prisma Cloud platform telemetry** — daily usage metering exported from the product's internal credit-consumption tracking. Exact API or export format to be confirmed with the Platform Data Engineering team.
+
 | Column | Type | Notes |
 |---|---|---|
 | `log_id` | STRING | Primary Key — format `LOG-NNNNNNN` |
@@ -123,8 +176,12 @@ Edge cases resolved. One canonical row per grain. No business metrics yet.
 
 | Table | Grain | What it does |
 |---|---|---|
-| `silver.active_contracts` | One row per account | Resolves overlapping contracts; sums credits for mid-year expansions |
-| `silver.monthly_consumption` | One row per account × month | Aggregates daily usage; applies orphan + rogue usage guards; zero-fills months with no logs |
+| `silver.active_contracts` | One row per account (collapsed) | Resolves overlapping contracts; sums credits for mid-year expansions |
+| `silver.daily_consumption` | One row per account × calendar day | Applies orphan and rogue usage guards at the daily grain; zero-fills days with no logs. All three rate windows (7d, 30d, 90d) compute from this single silver table — eliminating the need for Step 4 to read bronze.daily_usage_logs directly. |
+
+> **Note on grain (silver.active_contracts):** An account can have multiple simultaneously active contracts (e.g., a base contract plus a mid-year expansion). This table resolves those to a single canonical row per account by summing ACV and credits across all active contracts. The underlying contract records remain in `bronze.contracts`; this table is the "effective contract" used for rate calculations.
+
+> **Why daily grain (silver.daily_consumption)?** Supporting 7-day, 30-day, and 90-day lookback windows requires daily-resolution data. A monthly-grain silver table would force the pipeline to bypass the silver layer and read Bronze directly for the 7d and 30d rates — a design inconsistency. Daily grain keeps all rate calculations in the same lineage path.
 
 ---
 
@@ -148,7 +205,7 @@ Calendar + PANW fiscal calendar spine, 2000-01-01 → 2030-12-31. See Step 0 for
 | `employee_id` | STRING | Primary Key |
 | `name` | STRING | |
 | `region` | STRING | |
-| `segment` | STRING | Enterprise / Mid-Market |
+| `segment` | STRING | Enterprise / Commercial (Mid-Market + SMB) / Public Sector (Gov/SLED) |
 
 #### `gold.dim_contracts`
 | Column | Type | Notes |
@@ -182,8 +239,8 @@ Measurable events and metrics at the lowest useful grain.
 | `trailing_7d_avg_rate` | FLOAT | Consumption rate — 7-day trailing avg (last 7 days of daily usage ÷ daily credit allowance); weekly monitoring only |
 | `trailing_30d_avg_rate` | FLOAT | Consumption rate — 30-day trailing avg (last 30 days of daily usage ÷ monthly credit allowance); monthly monitoring only |
 | `trailing_90d_avg_rate` | FLOAT | Consumption rate — 90-day trailing avg (last 3 complete calendar months); **comp basis** |
-| `cacv` | FLOAT | `ACV × trailing_90d_avg_rate`; NULL if ramping. Always uses 90d rate — see §2.2.1 |
-| `expansion_signal_acv` | FLOAT | Consumption Overage: `MAX(Consumption ACV − ACV, 0)`; NULL if ramping |
+| `cacv` | FLOAT | ACV × trailing_90d_avg_rate, capped at ACV; NULL if ramping (< 90 days of data) |
+| `consumption_overage_acv` | FLOAT | Consumption Overage: MAX(ACV × trailing_90d_avg_rate − ACV, 0). Calculated for all accounts including Ramping (see note below); NULL only if cacv is NULL and no rate data exists |
 | `acv_at_risk` | FLOAT | `ACV − Consumption ACV`; NULL if ramping |
 | `health_tier` | STRING | Expansion / Healthy / At Risk / Shelfware / Inactive / Ramping |
 | `is_new_account` | BOOLEAN | Contract start within last 90 days |
@@ -195,6 +252,8 @@ Measurable events and metrics at the lowest useful grain.
 | `early_shelfware_flag` | BOOLEAN | 30+ consecutive days with consumption rate <5%; early-warning before full shelfware health tier is assigned |
 | `onboarding_stall_flag` | BOOLEAN | Ramping account with WoW rate flat (delta <2%) for 2+ consecutive weeks; signals activation risk |
 | `spike_drop_early_flag` | BOOLEAN | MoM rate decline >40% in any single month; early-warning for Spike & Drop lifecycle stage |
+
+> **Ramping accounts and overage/churn:** A Ramping account can over-consume its credits before the 90-day window closes. `consumption_overage_acv` and `acv_at_risk` are calculated for Ramping accounts using whatever rate data is available (even < 90 days), but are flagged as **informational only** — they do not flow to comp. `cacv` (the comp-basis metric) remains NULL until the account exits the Ramping period. This ensures CSMs can see early overage signals without contaminating comp calculations.
 
 ---
 
@@ -215,11 +274,15 @@ This pattern provides:
 | `gold.vw_rep_portfolio` | Dashboard Tab 2–3, comp platform | `fact_cacv_snapshot` + `dim_reps` aggregated to rep level |
 | `gold.vw_account_detail` | Dashboard Tab 4, CS platform, Salesforce | `fact_cacv_snapshot` + `dim_accounts` + `dim_reps` + `dim_contracts` |
 
+> **Views vs. materialized views:** The semantic layer is implemented as regular BigQuery views for v1 (always fresh, zero storage cost, compute on each query). For production, **materialized views** are recommended — they pre-compute the join and aggregation once per pipeline run, making dashboard and BI queries ~10–100x faster on large tables. Tradeoff: materialized views have a refresh lag (acceptable when the pipeline runs 3x daily) and incur additional storage cost. BigQuery supports scheduled materialized view refresh natively; the refresh should be triggered immediately after the pipeline completes.
+
 ---
 
 ## 3. History Tracking
 
 The pipeline captures three distinct types of history, each serving a different purpose. These are not interchangeable — collapsing them into a single pattern produces a model that is weak at all three jobs.
+
+**Slowly Changing Dimension (SCD)** is a data warehousing pattern for managing how dimension attribute changes (like a rep's territory reassignment) are stored — the choice of SCD type determines whether history is overwritten or preserved.
 
 | History type | Question it answers | Pattern |
 |---|---|---|
@@ -248,6 +311,8 @@ The pipeline captures three distinct types of history, each serving a different 
 
 When Type 2 is active, `fact_cacv_snapshot` stores `surrogate_key` (not the natural key) as its Foreign Key, so each fact row is permanently bound to the dimension version that was current when the metric was calculated.
 
+> **Storage approach for Type 2:** Each change creates a *new row* (rather than updating the existing one) with `valid_from` and `valid_to` dates. The current version has `valid_to = NULL` and `is_current = TRUE`. Historical versions have `valid_to` set to the day before the next version became active. This append-only pattern means the table grows over time but historical fact rows always join to the dimension version that was active at the time of measurement.
+
 **Priority by table:**
 - `dim_reps` — highest value; territory reassignments are frequent and directly affect regional reporting accuracy
 - `dim_contracts` — high value; contract amendments change the ACV denominator retroactively
@@ -259,6 +324,8 @@ When Type 2 is active, `fact_cacv_snapshot` stores `surrogate_key` (not the natu
 
 Consumption ACV drives compensation. That means **every figure that influences a paycheck must be fully auditable** — traceable from the commission record back to the raw source data, with an immutable record of any retroactive change. This is a finance and legal requirement, not an analytics nice-to-have (see product_spec.md §3 and §3.2.2).
 
+> **Scope note:** The exact correction workflow, dispute resolution process, and clawback policy are subject to the compensation design decisions documented in product_spec.md §11. The data model below provides the *infrastructure* for a full audit trail; the process requirements will be finalized when the compensation design is confirmed.
+
 The audit trail has four layers, each described below:
 
 1. **Pipeline provenance** — every metric value is linked to the pipeline run that produced it (`pipeline_run_log`)
@@ -266,15 +333,7 @@ The audit trail has four layers, each described below:
 3. **Ownership history** — who owned each account at each point in time, for correct rep attribution (`account_ownership_history`, §3.3)
 4. **Contract amendments** — changes to ACV or credit allowance that affect the denominator (`contract_amendments`, §3.3)
 
-Before integrating with the compensation platform, Finance and RevOps must define and document:
-- The correction workflow and required approvals at each tier (see product_spec.md §11 — Compensation Design)
-- The rep dispute resolution process (how a rep challenges a calculated figure)
-- The clawback policy and what events trigger a `clawback_triggered = TRUE` record
-- The comp period cut-off rule (which pipeline run "locks" the comp period for a given quarter)
-
-These process decisions cannot be inferred from the data model — they must be codified before the first live comp period.
-
-**Pre-integration checklist** — gate on these before the first comp platform sync:
+**Pre-integration checklist (draft — pending comp design finalization)** — gate on these before the first comp platform sync:
 
 | # | Requirement | Owner | Status |
 |---|---|---|---|
@@ -326,6 +385,13 @@ Any Consumption ACV figure flowing to a compensation platform must be traceable 
 | `clawback_amount` | FLOAT | NULL if clawback not triggered |
 | `approved_by` | STRING | CFO sign-off required for corrections that affect already-paid commissions |
 
+> **How retroactive corrections flow:**
+> 1. A correction is identified (e.g., wrong usage data, contract amendment backdated)
+> 2. A new pipeline run is triggered with `is_correction = TRUE` and the `correction_note` and `correction_approved_by` fields populated in `pipeline_run_log`
+> 3. The corrected pipeline run overwrites the `fact_cacv_snapshot` rows for the affected `account_id × as_of_date`, setting `is_correction = TRUE` on those rows
+> 4. A new row is appended to `fact_cacv_corrections` capturing old vs. new values, the affected comp period, and whether a clawback is triggered
+> 5. The comp platform is re-synced with the corrected `vw_rep_portfolio` data; `approved_by` in `fact_cacv_corrections` must be populated (CFO sign-off) before the sync proceeds
+
 **Changes to `fact_cacv_snapshot`** — add two fields:
 
 | Field | Type | Notes |
@@ -360,6 +426,8 @@ This table is what makes the `signing_owner_id` / current `employee_id` split on
 
 > **Data collection note:** This table must be populated from day one. Ownership history that isn't captured at time of reassignment cannot be reconstructed retroactively from the warehouse — it lives only in Salesforce's audit log or HR records.
 
+> **Salesforce native history:** Salesforce tracks field-level changes on Account records natively via the `AccountHistory` object (queryable via SOQL). Rather than maintaining a separate Bronze table, the pipeline can read ownership history directly from Salesforce's `AccountHistory` API. For the Bronze layer, this table represents a materialized snapshot of that Salesforce history, ensuring the warehouse has a local copy for audit purposes even if the Salesforce connection is unavailable.
+
 **New table: `bronze.contract_amendments`** — every change to ACV, credit allowance, or contract term after the original contract is written:
 
 | Field | Type | Notes |
@@ -378,9 +446,13 @@ This table is what makes the `signing_owner_id` / current `employee_id` split on
 
 An ACV amendment changes the Consumption ACV denominator going forward. Without this table, a drop in attainment after a mid-year downsell looks identical to a drop caused by the customer reducing consumption — two situations that require completely different responses.
 
+> **Salesforce custom object history:** Salesforce supports field history tracking on custom objects (up to 20 fields per object, configurable in Setup → Object Manager). If contracts are stored as a custom object (e.g., `PANW_Contract__c`), field history can be enabled on key fields (`ACV__c`, `End_Date__c`, `Credit_Allowance__c`). Validate with the Salesforce admin that history tracking is enabled on the fields that feed the Consumption ACV denominator before relying on this as an audit source.
+
 ---
 
 ### 3.4 Priority and Phasing
+
+The table below sequences the history and audit additions by delivery priority. P0 items block go-live; P1 items must start on day one but don't block the first pipeline run; P2/P3 items are v2.
 
 | Addition | Priority | Phase | Rationale |
 |---|---|---|---|
@@ -397,6 +469,8 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 ## 4. Pipeline Step-by-Step Logic
 
 ### Step 0 — `dim_dates`
+
+**Used by:** `silver.daily_consumption` (zero-fill date spine), `fact_cacv_snapshot` (fiscal calendar fields for QBR/board reporting), and all downstream BI reports that filter or group by PANW fiscal period.
 
 **Purpose:** Build a calendar dimension table covering 2000-01-01 through 2030-12-31 used for date spine joins and fiscal calendar alignment.
 
@@ -433,26 +507,59 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 - Mid-year expansions → both ACV and credits summed across all active contracts
 - Malformed contracts → excluded via `end_date >= start_date` guard
 
+```sql
+-- Simplified pseudocode
+SELECT
+  account_id,
+  SUM(annual_commit_dollars)              AS annual_commit_dollars,
+  SUM(included_monthly_compute_credits)   AS monthly_credits,
+  MIN(start_date)                         AS contract_start_date,  -- primary contract
+  MAX(end_date)                           AS contract_end_date,
+  COUNT(*) > 1                            AS has_expansion
+FROM bronze.contracts
+WHERE @as_of_date BETWEEN start_date AND end_date
+  AND end_date >= start_date  -- exclude malformed
+GROUP BY account_id
+```
+
 ---
 
-### Step 2 — `silver.monthly_consumption`
+### Step 2 — `silver.daily_consumption`
 
-**Purpose:** Aggregate daily usage to monthly totals per account, with edge case filtering.
+**Purpose:** Resolve daily usage per account, with edge case filtering and zero-fill for days with no logs.
 
-**Reads from:** `bronze.daily_usage_logs`, `bronze.accounts`, `bronze.contracts`
+**Reads from:** `bronze.daily_usage_logs`, `bronze.accounts`, `bronze.contracts`, `gold.dim_dates` (date spine)
 
 **Logic:**
-1. **Orphan guard:** `INNER JOIN bronze.accounts` — logs with unknown `account_id` are excluded
-2. **Rogue usage guard:** `JOIN bronze.contracts ON date BETWEEN start_date AND end_date` — out-of-window logs excluded
-3. Aggregate: `SUM(compute_credits_consumed)` grouped by `account_id`, `DATE_TRUNC(date, MONTH)`
-4. **Shelfware guard:** `LEFT JOIN` from contract months — accounts with zero logs get `credits_consumed = 0`
-5. Compute `consumption_rate = credits_consumed / included_monthly_compute_credits` (cap at 2.0 to limit outlier distortion)
-6. Flag `is_zero_usage_month = TRUE` for months with no consumption
+1. **Orphan guard:** INNER JOIN bronze.accounts — logs with unknown account_id excluded
+2. **Rogue usage guard:** JOIN bronze.contracts ON date BETWEEN start_date AND end_date — out-of-window logs excluded
+3. **Date spine join:** LEFT JOIN gold.dim_dates for the full contract period — days with no logs get credits_consumed = 0
+4. Output: one row per account × calendar day with daily_credits_consumed (0 for zero-log days) and daily_consumption_rate = credits_consumed / (included_monthly_compute_credits / 30)
 
 **Edge cases handled:**
 - Orphaned usage → excluded via INNER JOIN
 - Out-of-contract usage → excluded via date-range JOIN
-- Shelfware (zero logs) → LEFT JOIN produces 0 consumption rate
+- Shelfware (zero logs) → date spine LEFT JOIN produces 0 daily consumption rate
+
+```sql
+-- Simplified pseudocode
+WITH date_spine AS (
+  SELECT date FROM gold.dim_dates
+  WHERE date BETWEEN @contract_start AND @as_of_date
+)
+SELECT
+  c.account_id,
+  d.date,
+  COALESCE(SUM(l.compute_credits_consumed), 0)  AS daily_credits_consumed,
+  COALESCE(SUM(l.compute_credits_consumed), 0)
+    / (c.monthly_credits / 30.0)                AS daily_consumption_rate
+FROM silver.active_contracts c
+CROSS JOIN date_spine d
+LEFT JOIN bronze.daily_usage_logs l
+  ON l.account_id = c.account_id
+  AND l.date = d.date
+GROUP BY c.account_id, d.date, c.monthly_credits
+```
 
 ---
 
@@ -473,29 +580,26 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 
 **Purpose:** Compute account-level Consumption ACV (using 90-day rate for comp) and all three monitoring rates, then write the fact table.
 
-**Reads from:** `silver.active_contracts`, `silver.monthly_consumption`, `gold.dim_dates`, `bronze.daily_usage_logs`
+**Reads from:** `silver.active_contracts`, `silver.daily_consumption`, `gold.dim_dates`
 
 **Logic:**
 
-1. **7-day rate** — from raw daily usage logs:
-   ```sql
-   trailing_7d_avg_rate =
-     SUM(daily_credits_consumed, last 7 days) /
-     (7.0 / 30.0 * included_monthly_compute_credits)
+1. **7-day rate** — from silver.daily_consumption:
    ```
-   Reads `bronze.daily_usage_logs` directly; not aggregated through `silver.monthly_consumption`.
-
-2. **30-day rate** — from raw daily usage logs:
-   ```sql
-   trailing_30d_avg_rate =
-     SUM(daily_credits_consumed, last 30 days) / included_monthly_compute_credits
+   SUM(daily_credits_consumed, last 7 days) / (7/30 × monthly_credits)
    ```
 
-3. **90-day rate** — from pre-aggregated monthly data (existing logic):
-   ```sql
-   trailing_90d_avg_rate = AVG(monthly_consumption_rate, last 3 complete calendar months)
+2. **30-day rate** — from silver.daily_consumption:
    ```
-   Uses `silver.monthly_consumption` — the same edge-case-guarded aggregation as before. This is the only rate used to compute `cacv` and health tiers (see product_spec.md §3.2).
+   SUM(daily_credits_consumed, last 30 days) / monthly_credits
+   ```
+
+3. **90-day rate** — from silver.daily_consumption:
+   ```
+   AVG(monthly_consumption_rate per complete calendar month, last 3 months)
+   where monthly_consumption_rate = SUM(daily_credits for month) / monthly_credits
+   ```
+   This is the only rate used to compute `cacv` and health tiers (see product_spec.md §3.2).
 
 4. Apply health tier classification using `trailing_90d_avg_rate` (see product_spec.md §4).
 5. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
@@ -503,18 +607,16 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
    ```sql
    cacv = CASE
      WHEN is_new_account THEN NULL
-     ELSE ROUND(annual_commit_dollars * trailing_90d_avg_rate, 2)
+     ELSE ROUND(LEAST(annual_commit_dollars * trailing_90d_avg_rate,
+                      annual_commit_dollars), 2)
    END
 
    -- Consumption Overage
-   expansion_signal_acv = CASE
-     WHEN is_new_account THEN NULL
-     ELSE ROUND(GREATEST(
-           annual_commit_dollars * trailing_90d_avg_rate - annual_commit_dollars,
-           0), 2)
-   END
+   consumption_overage_acv = ROUND(GREATEST(
+     annual_commit_dollars * trailing_90d_avg_rate - annual_commit_dollars,
+     0), 2)
    ```
-   Over-consumption above the contracted commit is reported separately as Consumption Overage (`expansion_signal_acv`). `cacv` and `expansion_signal_acv` use `trailing_90d_avg_rate` exclusively — comp integrity requires this.
+   Over-consumption above the contracted commit is reported separately as Consumption Overage (`consumption_overage_acv`). `cacv` uses `trailing_90d_avg_rate` exclusively — comp integrity requires this. `consumption_overage_acv` is calculated for all accounts including Ramping; it is informational-only for Ramping accounts and does not flow to comp.
 
 7. Compute `acv_at_risk = annual_commit_dollars - cacv`
 8. Flag `expansion_flag = TRUE` if `overage_months >= 2`
@@ -546,9 +648,41 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 **Edge cases handled:**
 - Spike & Drop → trailing 90-day window smooths spike once it ages out; 7d/30d rates will reflect the drop immediately (useful early-warning signal)
 - New accounts → excluded from Consumption ACV with `is_new_account` flag; 7d/30d rates still populated for activation monitoring
-- Consistent overages → `expansion_flag` surfaced; Consumption Overage reported in `expansion_signal_acv`
+- Consistent overages → `expansion_flag` surfaced; Consumption Overage reported in `consumption_overage_acv`
 
 > **Dashboard note:** The 7-day and 30-day rates are exposed as monitoring columns in `vw_account_detail`. The dashboard rate window selector switches which column is displayed for consumption rate fields — Consumption ACV values never change regardless of the selected window.
+
+```
+Object Relationships — Pipeline Flow
+─────────────────────────────────────────────────────────────
+bronze.sales_reps          bronze.accounts         bronze.contracts
+      │                          │                       │
+      └──────────────────────────┼───────────────────────┘
+                                 │
+                     silver.active_contracts          bronze.daily_usage_logs
+                     (one row per account,    ◄──────  (orphan + rogue guards
+                      ACV + credits summed)             applied here)
+                                 │                          │
+                                 └─────────────┬────────────┘
+                                               │
+                                    silver.daily_consumption
+                                    (one row per account × day,
+                                     zero-filled, guarded)
+                                               │
+                              ┌────────────────┼──────────────────┐
+                              │                │                  │
+                    gold.dim_accounts  gold.dim_reps   gold.dim_contracts
+                              │                │                  │
+                              └────────────────┼──────────────────┘
+                                               │
+                                  gold.fact_cacv_snapshot
+                                  (one row per account × as_of_date)
+                                               │
+                              ┌────────────────┼──────────────────┐
+                              │                                    │
+                    gold.vw_rep_portfolio            gold.vw_account_detail
+                    (rep-level rollup)               (account-level detail)
+```
 
 ---
 
@@ -559,7 +693,7 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 **`vw_rep_portfolio`** — aggregates `fact_cacv_snapshot` to rep level, joining `dim_reps`:
 - `total_acv`, `total_cacv`, `cacv_attainment_rate`
 - Health tier account counts: `accounts_expansion`, `accounts_healthy`, `accounts_at_risk`, `accounts_shelfware`, `accounts_inactive`, `accounts_ramping`
-- `expansion_opportunities`, `total_acv_at_risk`, `total_expansion_signal_acv` (Consumption Overage)
+- `expansion_opportunities`, `total_acv_at_risk`, `total_consumption_overage_acv` (Consumption Overage)
 - `region_rank` and `org_rank` window functions for leaderboard
 - Rep name, region, segment from `dim_reps`
 
@@ -575,7 +709,14 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 
 ## 5. Metric Correctness Test Cases
 
-These scenarios define the expected Consumption ACV output for given inputs. Use them as regression tests during refactors — if Consumption ACV changes unexpectedly on any of these, something broke.
+ > **How to read this table:** These are nine example accounts with known inputs, used to verify pipeline output is correct. Treat them as regression fixtures — if any output changes unexpectedly after a code change, something broke.
+>
+> **Column definitions:**
+> - **ACV** — contracted Annual Contract Value (the denominator; not Consumption ACV)
+> - **M-3 / M-2 / M-1** — monthly consumption rate for the 3rd, 2nd, and 1st complete calendar months prior to `as_of_date` (e.g., if today is June 30: M-1 = May, M-2 = April, M-3 = March)
+> - **Trailing Avg** — AVG(M-3, M-2, M-1) — the 90-day rate used for Consumption ACV and health tier
+> - **Expected Consumption ACV** — the expected `cacv` value; capped at ACV for over-consuming accounts
+> - **Expected Consumption Overage** — the expected `consumption_overage_acv`; the amount consumed above the ACV cap
 
 | Scenario | ACV | M-3 Rate | M-2 Rate | M-1 Rate | Trailing Avg | Expected Consumption ACV | Expected Consumption Overage |
 |---|---|---|---|---|---|---|---|
@@ -592,8 +733,8 @@ These scenarios define the expected Consumption ACV output for given inputs. Use
 **Key assertions to encode as pipeline tests:**
 - `cacv` is never NULL for a non-ramping account with ≥ 1 month of data
 - `cacv <= annual_commit_dollars` always (cap holds)
-- `expansion_signal_acv >= 0` always (Consumption Overage is never negative)
-- `cacv + expansion_signal_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows
+- `consumption_overage_acv >= 0` always (Consumption Overage is never negative)
+- `cacv + consumption_overage_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows
 - `acv_at_risk = annual_commit_dollars - cacv` for all non-NULL rows
 
 ---
@@ -601,6 +742,8 @@ These scenarios define the expected Consumption ACV output for given inputs. Use
 ## 6. as_of_date Parameter
 
 **Default: today's date.** Running the pipeline or data quality tests without specifying `--as-of-date` produces a snapshot for the current calendar date. Explicitly passing `--as-of-date YYYY-MM-DD` overrides this for point-in-time analysis or backfills.
+
+> Although the pipeline defaults to today's date and runs on a daily schedule, the `as_of_date` parameter serves three production use cases that make it worth keeping explicit: **(1) Comp period close** — Finance locks the comp period by running the pipeline with a specific month-end date and archiving the output; the parameter makes this deterministic and auditable. **(2) Retroactive corrections** — if a data error is discovered, a correction run is triggered for the original `as_of_date`, not today, preserving the historical snapshot. **(3) Backfill** — when the pipeline is first deployed against historical data, `as_of_date` iterates over past dates to build the snapshot history. For day-to-day operations, the scheduled pipeline passes today's date automatically and no manual parameter is needed.
 
 ```bash
 python3 pipeline_and_tests/run_pipeline.py                        # snapshot for today
@@ -615,15 +758,15 @@ python3 pipeline_and_tests/run_pipeline.py --as-of-date 2025-06-30  # historical
 
 ---
 
-## 7. Technology Choices & Rationale
+## 7. Implementation Context
 
-| Decision | Chosen | Alternatives Considered | Rationale |
-|---|---|---|---|
-| **Data warehouse** | BigQuery | Snowflake, Redshift | Free sandbox tier; serverless; strong Python client |
-| **Pipeline style** | SQL (dbt-style) | PySpark, Pandas | Readable, auditable, portable to dbt in production |
-| **Dashboard** | Streamlit + Plotly | PANW's existing BI platform | Fastest iteration for prototype; no BI license required. Production dashboards will be rebuilt on PANW's existing BI tooling, which connects directly to the BigQuery semantic layer views |
-| **Data Quality framework** | Custom Python assertions | Great Expectations, dbt tests | Lower dependency overhead; same pattern ports to dbt tests |
-| **Credit pricing model** | Option A (monthly bucket) | Annual pool, rollover | Clearest shelfware/overage signal; standard PANW contract structure |
+> **Pipeline and warehouse:** The pipeline is built on **BigQuery** and plain SQL (dbt-style), targeting PANW's existing data infrastructure. SQL was chosen over PySpark/Pandas for readability, auditability, and direct portability to dbt in production. The star schema at the Gold layer maps directly to dbt model types (`dim_*` and `fact_*`), and the semantic layer views map to dbt exposures.
+>
+> **Dashboard:** The prototype dashboard is built in **Streamlit + Plotly** for rapid iteration — it requires no BI platform license and can be stood up against a live BigQuery connection in minutes. Production dashboards will be rebuilt on **PANW's existing BI platform**, which connects directly to the BigQuery semantic layer views via a native connector. No pipeline changes are required for this transition; the semantic layer views are the stable handoff point.
+>
+> **Data quality:** Custom Python assertions (`dq_tests.py`) are used in the prototype to keep dependencies minimal. The same assertions port directly to `dbt test` definitions in `schema.yml` when the pipeline is moved to dbt.
+>
+> **Credit model:** Monthly bucket (use-it-or-lose-it per month) — standard PANW contract structure. Produces the clearest shelfware and overage signal vs. annual pool or rollover alternatives.
 
 ---
 
@@ -686,28 +829,9 @@ python3 pipeline_and_tests/dq_tests.py --fail-on-error --output results.json
 streamlit run dashboard/app.py
 ```
 
-### 9.1 Refresh Schedule
+The pipeline is **event-driven by design** — each run should be triggered by a completion signal from the upstream ingestion job (Pub/Sub message, Airflow sensor, or dbt source freshness check) rather than a fixed clock. This prevents the pipeline from executing against incomplete data if the upstream job is delayed. If event-driven triggering is not available at initial rollout, the fixed UTC schedule below is used as a fallback.
 
-All pipeline runs are scheduled in **UTC** to avoid DST ambiguity across PANW's global operations. Three runs per day ensure each major region receives a fresh snapshot at both the start and end of its business day.
-
-| Run | UTC Time | Americas | EMEA | APAC | Regional role |
-|-----|----------|----------|------|------|---------------|
-| 1 | 00:00 UTC | 5 PM PT / 8 PM ET (prior day) | 1 AM CET | 8 AM SGT | Americas EOD · APAC BOD |
-| 2 | 08:00 UTC | 1 AM PT / 4 AM ET | 9 AM CET | 4 PM SGT | EMEA BOD · APAC EOD |
-| 3 | 16:00 UTC | 9 AM PT / 12 PM ET | 5 PM CET | Midnight SGT | Americas BOD · EMEA EOD |
-
-> **Note — Run 1 timing:** The 00:00 UTC run depends on upstream usage logs being fully ingested before midnight UTC. If daily usage data from cloud providers is not available until 01:00–02:00 UTC (a common pattern for usage metering pipelines), Run 1 should be shifted accordingly or skipped in favour of Runs 2 and 3. Validate ingestion SLAs with the platform data engineering team before setting the production schedule.
-
-### 9.2 Upstream Data Dependencies
-
-The pipeline is designed to be **event-driven** — each run should be triggered by a completion signal from the upstream ingestion job rather than on a fixed clock. If the upstream job is delayed, the pipeline run defers to the next scheduled window rather than starting against incomplete data.
-
-| Source Table | Source System | Typical Ingestion Cadence | Pipeline Dependency |
-|---|---|---|---|
-| `bronze.daily_usage_logs` | Prisma Cloud metering API | Daily batch (last-mile, closes ~23:00 UTC prior day) | **Critical — pipeline must not start until this table is confirmed complete** |
-| `bronze.contracts` | CRM (e.g., Salesforce CPQ) | Near-real-time CDC or nightly batch | Non-blocking after initial load; changes propagate on next run |
-| `bronze.accounts` | CRM / MDM | Near-real-time CDC or nightly batch | Non-blocking after initial load |
-| `bronze.sales_reps` | HRIS (e.g., Workday) | Daily or on-change | Non-blocking; rep roster changes are low-frequency |
+**Data dependencies:** The critical upstream dependency is `bronze.daily_usage_logs` (Prisma Cloud metering, typically closes ~23:00 UTC prior day). `bronze.contracts` and `bronze.accounts` sync from Salesforce (near-real-time CDC or nightly batch); `bronze.sales_reps` syncs from HRIS (Workday, daily or on-change). Only the usage logs are blocking; the others are non-blocking after initial load.
 
 **Recommended trigger pattern:**
 
@@ -719,41 +843,70 @@ upstream_ingestion_job completes
     → on data quality failure, on-call alert is raised; downstream Gold tables are not refreshed
 ```
 
-If event-driven triggering is not available at initial rollout, the fixed UTC schedule in §9.1 can be used as a fallback, with the understanding that Run 1 may occasionally execute before `bronze.daily_usage_logs` is fully populated.
+### 9.1 Refresh Schedule
+
+> **Schedule alignment:** The pipeline refresh schedule should follow the upstream product telemetry and Salesforce data refresh schedules — run immediately after both are confirmed complete. The goal is **3 runs per day** to ensure each major region receives a fresh snapshot at the start and end of its business day. The UTC times below achieve this while respecting PANW's global footprint. Adjust if PANW's Salesforce or product telemetry refresh SLAs differ.
+
+All pipeline runs are scheduled in **UTC** to avoid DST ambiguity across PANW's global operations.
+
+| Run | UTC Time | Americas | EMEA | APAC | Regional role |
+|-----|----------|----------|------|------|---------------|
+| 1 | 00:00 UTC | 5 PM PT / 8 PM ET (prior day) | 1 AM CET | 8 AM SGT | Americas EOD · APAC BOD |
+| 2 | 08:00 UTC | 1 AM PT / 4 AM ET | 9 AM CET | 4 PM SGT | EMEA BOD · APAC EOD |
+| 3 | 16:00 UTC | 9 AM PT / 12 PM ET | 5 PM CET | Midnight SGT | Americas BOD · EMEA EOD |
+
+> **Note — Run 1 timing:** The 00:00 UTC run depends on upstream usage logs being fully ingested before midnight UTC. If daily usage data from cloud providers is not available until 01:00–02:00 UTC (a common pattern for usage metering pipelines), Run 1 should be shifted accordingly or skipped in favour of Runs 2 and 3. Validate ingestion SLAs with the platform data engineering team before setting the production schedule.
 
 ---
 
-## 10. Dashboard Implementation
+## 10. Executive Dashboard
 
-### Stack
+### Delivery approach
+
+The v1 prototype dashboard is built in **Streamlit + Plotly** for speed — a working prototype can be validated against real data before committing to a full BI platform build. Once the metric and data model are validated, production dashboards will be rebuilt on **PANW's existing BI platform**, which connects directly to the BigQuery semantic layer views via a native connector. No pipeline changes are required for this transition.
+
+### Prototype dashboard (Streamlit)
 - **Frontend:** Streamlit (Python) — single-file app (`dashboard/app.py`)
 - **Charting:** Plotly Express + Plotly Graph Objects
 - **Data:** BigQuery Python client (`google-cloud-bigquery`); queries cached with `@st.cache_data(ttl=300)`
-- **Auth:** Google Application Default Credentials (ADC) — `gcloud auth application-default login`
+- **Auth:** Google Application Default Credentials (ADC)
 
-### Data Flow
+### Production dashboard (PANW BI platform)
+The production dashboard uses the same semantic layer views as the prototype. No SQL or pipeline changes are needed — the BI platform connects directly to BigQuery:
+- `gold.vw_rep_portfolio` → rep-level portfolio view (Tab 2–3 equivalent)
+- `gold.vw_account_detail` → account drill-down (Tab 4 equivalent)
+- `gold.vw_renewal_pipeline` → renewal risk register
+- `gold.vw_expansion_signals` → expansion pipeline
 
-```
-BigQuery                    Streamlit App
-──────────────────────────────────────────────────────
-gtm.cacv_rep_rollup    →    load_rep_rollup(as_of_date)   → sidebar rep list, all rep-level charts
-gtm.cacv_account       →    load_accounts(as_of_date,      → account scatter, account detail table
-                                region, employee_id)
-gtm.cacv_rep_rollup    →    load_available_dates()         → as-of-date selector in sidebar
-raw.sales_reps         →    joined inside load_accounts()  → rep_name, region, segment on account rows
-```
+### BI / Board Reporting
 
-### Caching Strategy
-- `load_rep_rollup` and `load_accounts`: 5-minute TTL — balances freshness with BQ query cost
-- `load_available_dates`: 10-minute TTL — changes only when pipeline reruns
-- `get_bq_client`: `@st.cache_resource` — single client instance per session (no reconnect overhead)
+Board and finance reporting is delivered through PANW's existing BI platform, which connects to the Gold layer directly. Key reports enabled:
 
-### Fallback Behavior
-If `cacv_rep_rollup` has no rows for the requested `as_of_date`, the app falls back to the latest available data (`ORDER BY calculated_at DESC`). `load_accounts` similarly falls back to a full table scan with in-memory filtering if the date-filtered query returns nothing.
+| Report | Source | Key Fields |
+|---|---|---|
+| Board NRR forecast | `vw_rep_portfolio` | `total_cacv / total_acv` org-wide as NRR leading indicator |
+| Renewal risk register | `fact_cacv_snapshot` + `dim_contracts` | `acv_at_risk`, `contract_end_date`, `health_tier` |
+| Expansion pipeline | `fact_cacv_snapshot` + `dim_accounts` + `dim_reps` | `expansion_flag`, `annual_commit_dollars`, rep name |
+| QBR regional pack | `vw_rep_portfolio` | `region`, `total_acv`, `total_cacv`, `accounts_at_risk` |
+
+### Data flow
+- Dashboard queries `gold.vw_rep_portfolio` for rep-level views and leaderboard
+- Dashboard queries `gold.vw_account_detail` for account scatter, detail table, and lifecycle flags
+- All metric values (Consumption ACV, health tier, consumption rate) come from the Gold layer — never calculated in the dashboard layer
+
+### Caching (prototype only)
+- `load_rep_rollup` and `load_accounts`: 5-minute TTL
+- `load_available_dates`: 10-minute TTL
+- `get_bq_client`: `@st.cache_resource` — single client instance per session
+
+### Fallback behavior
+If no data exists for the requested `as_of_date`, the app falls back to the latest available snapshot (`ORDER BY calculated_at DESC`).
 
 ---
 
 ## 11. Downstream System Integrations
+
+All downstream exports follow a **reverse ETL** pattern — data flows from the warehouse (BigQuery Gold layer) out to operational systems (Salesforce, compensation platform, CS platform), not the other way around.
 
 ### 11.1 Integration Architecture
 
@@ -763,7 +916,7 @@ BigQuery (gold dataset — semantic layer views)
         ├─── Nightly export ──► Salesforce CRM        (vw_account_detail)
         ├─── Monthly export ──► Compensation platform  (vw_rep_portfolio)
         ├─── Daily export ───► CS platform             (vw_account_detail)
-        └─── On-demand ──────► BI layer                (fact_cacv_snapshot + dim_* directly)
+        └─── Post-pipeline ──► BI Platform (PANW stack)
 ```
 
 All operational exports read from the semantic layer views — `vw_account_detail` for account-level consumers, `vw_rep_portfolio` for rep-level consumers. The BI layer queries the underlying `fact_cacv_snapshot` and dim tables directly for maximum aggregation flexibility.
@@ -799,6 +952,8 @@ All operational exports read from the semantic layer views — `vw_account_detai
 | `total_acv` | ACV quota denominator for attainment % |
 | `expansion_arr_pipeline` | Expansion SPIF eligibility flag |
 
+**Why monthly?** The compensation platform processes attainment and payouts on a monthly cycle aligned to PANW's comp periods. Intra-month syncs would produce partial-period numbers that could be misread as final attainment. The monthly sync runs after the comp period close pipeline run (month-end `as_of_date`) and requires `correction_approved_by` to be populated in `pipeline_run_log` before the export proceeds.
+
 **Activation bonus** (requires `gold.fact_cacv_snapshot` joined to `gold.vw_account_detail`):
 ```sql
 -- Accounts that hit ≥80% consumption within 90 days of contract start
@@ -809,6 +964,8 @@ WHERE f.is_new_account = FALSE                           -- just aged out of ram
   AND f.as_of_date = @as_of_date
   AND f.trailing_90d_avg_rate >= 0.80
 ```
+
+**Sync frequency rationale:** Salesforce syncs nightly because CRM data is used for operational pipeline management, not real-time decisions. The CS platform syncs daily so CSMs have fresh health tier and early-warning flags each morning. The compensation platform syncs monthly because comp periods are monthly. All three ultimately read from the same Gold layer — frequency is tuned to consumer needs, not pipeline capability.
 
 ---
 
@@ -829,7 +986,7 @@ WHERE f.is_new_account = FALSE                           -- just aged out of ram
 Key field mapping from `gold.vw_account_detail`:
 - `trailing_90d_avg_rate` → CS health score (normalized 0–100)
 - `months_of_data` → data confidence level (see table below)
-- `is_zero_usage_month` (from `silver.monthly_consumption`) → trigger for proactive outreach if ≥ 2 consecutive months flagged
+- `is_zero_usage_month` (derived from `silver.daily_consumption`) → trigger for proactive outreach if ≥ 2 consecutive months flagged
 - `early_shelfware_flag`, `onboarding_stall_flag`, `spike_drop_early_flag` → lifecycle early-warning triggers for CS automated playbooks
 
 **Data confidence levels** — governs how the CS platform surfaces Consumption ACV to CSMs. Surfacing a precise percentage to a CSM when only 3 weeks of data exists creates false confidence; these levels provide an explicit signal.
@@ -843,25 +1000,9 @@ Key field mapping from `gold.vw_account_detail`:
 
 ---
 
-### 11.5 BI / Board Reporting (PANW's existing BI platform)
+## 12. v2 Design Considerations
 
-The primary executive-facing surface is the **Streamlit dashboard** (product_spec.md §8), which covers the VP of Sales and CFO use cases for v1. PANW's existing BI platform is the longer-term delivery channel for the reports below, built on the same semantic layer once the prototype is validated.
-
-**Source:** `gold.fact_cacv_snapshot` + `gold.dim_*` directly — the BI layer bypasses the semantic layer views and joins at will, enabling any aggregation not pre-built into the views.
-
-Key reports enabled by the current data model:
-
-| Report | Source | Key Fields |
-|---|---|---|
-| Board NRR forecast | `vw_rep_portfolio` | `total_cacv / total_acv` org-wide as NRR leading indicator |
-| Renewal risk register | `fact_cacv_snapshot` + `dim_contracts` | `acv_at_risk`, `contract_end_date`, `health_tier` |
-| Expansion pipeline | `fact_cacv_snapshot` + `dim_accounts` + `dim_reps` | `expansion_flag`, `annual_commit_dollars`, rep name |
-| Cohort churn analysis | `fact_cacv_snapshot` + `dim_dates` | Attainment by `fiscal_year_quarter` of contract start |
-| QBR regional pack | `vw_rep_portfolio` | `region`, `total_acv`, `total_cacv`, `accounts_at_risk` |
-
----
-
-## 12. v2 Roadmap
+This spec is scoped to **v1 only**. The items below are design considerations for v2 — they are not in scope for the current build but have been architected for from day one (e.g., the star schema supports dbt migration without restructuring; the daily-grain silver table supports the monthly fact table addition; the semantic view layer can be swapped for a metrics layer without pipeline changes).
 
 | Enhancement | Effort | Value |
 |---|---|---|
@@ -947,10 +1088,10 @@ The scenarios in §5 define the exact expected output for nine representative ac
 |---|---|
 | Cap holds | `cacv <= annual_commit_dollars` for all non-NULL rows |
 | Floor holds | `cacv >= 0` for all non-NULL rows |
-| Overage non-negative | `expansion_signal_acv >= 0` for all non-NULL rows |
-| Arithmetic identity | `cacv + expansion_signal_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows |
+| Overage non-negative | `consumption_overage_acv >= 0` for all non-NULL rows |
+| Arithmetic identity | `cacv + consumption_overage_acv = ROUND(annual_commit_dollars × trailing_90d_avg_rate, 2)` for all non-NULL rows |
 | At-risk identity | `acv_at_risk = annual_commit_dollars - cacv` for all non-NULL rows |
-| Ramping accounts NULL | `cacv IS NULL` and `expansion_signal_acv IS NULL` for any account whose earliest contract start is within 90 days of `as_of_date` |
+| Ramping accounts NULL | `cacv IS NULL` for any account whose earliest contract start is within 90 days of `as_of_date` (`consumption_overage_acv` may be non-NULL for Ramping accounts — see note in §2) |
 | No phantom accounts | Every `account_id` in `fact_cacv_snapshot` exists in `dim_accounts` |
 | No phantom reps | Every `employee_id` in `fact_cacv_snapshot` exists in `dim_reps` |
 | Rate window consistency | `trailing_90d_avg_rate` is always the rate used in the `cacv` calculation regardless of the display window selected in the dashboard |
@@ -959,9 +1100,9 @@ The scenarios in §5 define the exact expected output for nine representative ac
 
 ---
 
-### 13.3 Layer 3 — Dashboard Smoke Tests
+### 13.3 Layer 3 — Dashboard / BI Smoke Tests
 
-Minimal end-to-end checks that confirm the Streamlit app renders without errors against a live (or mock) BigQuery connection.
+Minimal end-to-end checks that confirm the Streamlit app renders without errors against a live (or mock) BigQuery connection. For the Streamlit prototype, smoke tests confirm the app loads and renders without errors. For the production BI platform build, the equivalent is confirming that each semantic layer view returns expected row counts and no NULL values on key metric columns — these can be added as dbt exposures or as scheduled BigQuery queries.
 
 | Check | Description |
 |---|---|
@@ -999,6 +1140,17 @@ Recommended pipeline for an automated CI run (e.g., GitHub Actions, Cloud Build)
 - `run_pipeline.py` exits `0` on success, `1` on any BigQuery job error.
 - Metric correctness tests follow standard `pytest` exit codes (`0` = all pass, `1` = any failure).
 
+### Slack Notifications
+
+Connect the CI pipeline to a dedicated Slack channel (e.g., `#cacv-pipeline-alerts`) for proactive failure notifications:
+
+- **ERROR-level DQ failure** → immediate alert with test name, row count, and sample rows from `dq_results.json`
+- **Pipeline failure** → immediate alert with BigQuery job error
+- **Metric correctness failure** → immediate alert with which assertion failed and the delta
+- **Successful run** → optional daily summary (rows written, run duration, snapshot date)
+
+Recommended implementation: a post-pipeline Python script that reads `dq_results.json` and calls the Slack Incoming Webhooks API. In CI (GitHub Actions / Cloud Build), use the official Slack GitHub Action as the notification step.
+
 ---
 
 ### 13.5 Known Gaps (v2)
@@ -1032,15 +1184,15 @@ These views are functional and sufficient for the prototype, but they do not cov
 
 Each downstream consumer has different grain, column, and freshness requirements. Rather than exposing the raw Gold tables directly — which requires each consumer to write their own joins — production should add a view per consumer type.
 
-| View | Grain | New vs. prototype | Consumer | Key columns added |
+| View | Grain | New vs. prototype | Consumer | Key columns |
 |---|---|---|---|---|
-| `gold.vw_rep_portfolio` | Rep | Exists | Dashboard, comp platform | No change to existing columns; add `manager_id`, `manager_name` for rollup reporting |
-| `gold.vw_account_detail` | Account | Exists | Dashboard, CS platform, Salesforce | No change; consider adding `days_to_renewal`, `contract_type` |
-| `gold.vw_regional_summary` | Region | **New** | Regional VPs, Finance | Pre-aggregated region totals — `total_acv`, `total_cacv`, `attainment_rate`, `acv_at_risk`, tier counts |
-| `gold.vw_renewal_pipeline` | Account, sorted by `contract_end_date` | **New** | CFO, Renewal desk | Accounts within 180-day renewal window; columns: `days_to_renewal`, `health_tier`, `acv_at_risk`, `cacv`, `trailing_90d_avg_rate` |
-| `gold.vw_expansion_signals` | Account | **New** | AEs, Sales Managers | Accounts with `expansion_flag = TRUE` or `expansion_signal_acv > 0`; ordered by overage magnitude |
-| `gold.vw_comp_input` | Rep × month | **New** | Compensation platform | Monthly Consumption ACV per rep; includes `run_id` from `pipeline_run_log` for audit trail; excludes Ramping accounts |
-| `gold.vw_finance_snapshot` | Rep, Region, Org total | **New** | CFO, Finance, Board reporting | Aggregated Consumption ACV attainment and risk at org level; designed to feed CFO/board dashboards without raw access to rep-level data |
+| `gold.vw_rep_portfolio` | Rep | Exists | Dashboard, comp platform | `total_acv`, `total_cacv`, `cacv_attainment_rate`, health tier counts, `region_rank`, `org_rank` |
+| `gold.vw_account_detail` | Account | Exists | Dashboard, CS platform, Salesforce | All fact columns + account/rep/contract attributes; `early_shelfware_flag`, `onboarding_stall_flag`, `spike_drop_early_flag` |
+| `gold.vw_comp_input` | Rep × month | **New** | Compensation platform | Monthly Consumption ACV per rep; `run_id` for audit trail; Ramping accounts excluded |
+| `gold.vw_renewal_pipeline` | Account sorted by `contract_end_date` | **New** | CFO, Renewal desk | Accounts within 180-day renewal window: `days_to_renewal`, `health_tier`, `acv_at_risk`, `cacv` |
+| `gold.vw_org_summary` | Region and org total | **New** | CFO, Finance, Board, Regional VPs | `rollup_level` (region / org_total), `total_acv`, `total_cacv`, `attainment_rate`, `acv_at_risk`, tier counts; designed for board/exec reporting without rep-level detail |
+
+Expansion signals (accounts with `expansion_flag = TRUE` or `consumption_overage_acv > 0`) are surfaced by filtering `vw_account_detail` — no separate view is needed.
 
 **Design rule:** Views are additive — adding a column or a new view never breaks an existing consumer. Removing or renaming a column is a breaking change and requires a deprecation window (see §14.4).
 
@@ -1057,7 +1209,7 @@ The Gold tables and semantic views contain commercially sensitive compensation a
 | **Regional VP** | Their region's reps and accounts | Same as manager; can also access `vw_regional_summary` for their region |
 | **Revenue Operations** | All reps, all regions — read only | Full read on all `gold.*` views; no access to Bronze or Silver |
 | **Compensation platform (service account)** | `vw_comp_input` only | Dedicated service account; no access to other views |
-| **Finance / CFO** | Aggregate views only | `vw_finance_snapshot`, `vw_renewal_pipeline`; no rep-level detail unless explicitly granted |
+| **Finance / CFO** | Aggregate views only | `vw_org_summary`, `vw_renewal_pipeline`; no rep-level detail unless explicitly granted |
 | **Data Engineering** | Full read/write on all datasets | Pipeline execution; separate service account from consumer roles |
 
 > **Note:** This access model is a starting point. PANW's actual role structure, territory hierarchy, and data governance policies will determine the final implementation. Row-level security rules should be reviewed with RevOps and Legal before go-live.
@@ -1082,48 +1234,38 @@ Every column in every production view should have a documented definition attach
 **Priority columns to document first** (highest comp and business risk):
 
 - `cacv` — Consumption ACV; the metric used for compensation
-- `expansion_signal_acv` — Consumption Overage; upsell signal
+- `consumption_overage_acv` — Consumption Overage; upsell signal
 - `trailing_90d_avg_rate` — the rate used in all comp calculations
 - `health_tier` — drives renewal risk classification and CS escalation
 - `is_new_account` — determines whether an account is excluded from comp
 
 ---
 
-### 14.4 View Versioning and Backward Compatibility
+### 14.4 Data Contracts and Backward Compatibility
 
-Once downstream systems (comp platform, Salesforce, CS tools) depend on semantic views, column changes become breaking changes. The recommended pattern:
+A **data contract** is the agreed schema between the pipeline (producer) and a downstream system (consumer). Once a system (comp platform, Salesforce, CS tool) depends on a semantic view, any schema change is a breaking change from the consumer's perspective — even if it looks additive.
 
-```
-1. New column needed  →  ADD to existing view (non-breaking, safe to deploy immediately)
+**Staying on top of contracts:**
+- Each view is documented with column-level definitions (§14.3). Any column flagged `comp_use = TRUE` requires written VP of Finance approval before a schema change is deployed.
+- Breaking changes follow a deprecation window: old column aliased for one full comp cycle (typically one quarter) before removal.
+- Consumers should be notified via a shared changelog (e.g., a Slack channel `#cacv-schema-changes` or a CHANGELOG.md in the repo) at least two weeks before a breaking change takes effect.
 
-2. Column rename      →  ADD new column with new name; keep old name as alias for one quarter;
-                         notify consumers; remove alias in the following quarter
+**Change types and how to handle them:**
 
-3. Column removed     →  Same as rename — alias the old name to NULL (or a safe default) for
-                         one quarter to allow consumers to migrate; then remove
-
-4. New consumer view  →  Add new view; no impact on existing consumers
-
-5. Metric logic change→  Bump view version suffix: vw_account_detail_v2
-                         Run both versions in parallel for one full comp cycle;
-                         migrate consumers; deprecate v1
-```
-
-> Any change to a column flagged `comp_use = TRUE` (see §14.3) requires written approval from the VP of Finance before deployment, regardless of whether it appears additive.
+| Change type | Safe? | Process |
+|---|---|---|
+| Add new column | Safe | Deploy immediately; notify consumers |
+| Rename column | Breaking | Add new column; keep old as alias for one comp cycle; then remove |
+| Remove column | Breaking | Alias to NULL/safe default for one comp cycle; then remove |
+| Change metric logic | Breaking | Version the view (`vw_account_detail_v2`); run both in parallel for one cycle; migrate consumers; deprecate v1 |
+| Add new view | Safe | No impact on existing consumers |
 
 ---
 
 ### 14.5 Metrics Layer (v2 Consideration)
 
-The current semantic layer is SQL views in BigQuery — sufficient for the prototype and early production. As the number of consumers grows, a dedicated **metrics layer** ensures every team uses the same definition of Consumption ACV, regardless of which BI tool or API they query through.
+A **metrics layer** is a single place where business metrics (like Consumption ACV) are defined once, so all tools — BI dashboards, Salesforce, comp platform, ad-hoc SQL — use exactly the same formula. Today, the definition lives in the SQL views in BigQuery. This is sufficient for v1.
 
-Options to evaluate in v2:
+As the number of consumers grows, a dedicated metrics layer (e.g., dbt metrics, Cube.js) prevents metric drift — the situation where different teams calculate "Consumption ACV" slightly differently and arrive at different numbers for the same account.
 
-| Tool | Approach | Fits when |
-|---|---|---|
-| **dbt metrics** | Define metrics in `schema.yml`; dbt generates the SQL | Already using dbt for transformations; want metrics in the same repo as models |
-| **Cube.js** (or similar) | Standalone semantic/metrics API; caches and pre-aggregates | Multiple BI tools need the same metrics; want query acceleration |
-| **LookML (Looker)** | Metrics defined in LookML models; explored via Looker UI | PANW's BI platform is Looker — definitions live in the BI layer, not the warehouse |
-| **BigQuery BI Engine + views** | Stay in BigQuery; rely on views + caching | Simpler stack; single BI tool; fewer consumers |
-
-The current SQL view approach maps cleanly to any of these options — the `gold.*` views become the source tables for whichever metrics layer is adopted. No pipeline changes are required when the metrics layer is added or swapped.
+The current SQL view approach maps cleanly to any metrics layer option. No pipeline changes are required when a metrics layer is added; the `gold.*` views become the source tables for the metrics layer, and metric definitions are declared on top of them.
