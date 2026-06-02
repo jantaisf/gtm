@@ -107,13 +107,14 @@ Consumption ACV     = ACV × consumption_rate(W)
 
 Consumption Overage = MAX(Consumption ACV − ACV, 0)
 
-consumption_rate(W) = trailing_W_avg(monthly_credits_consumed / included_monthly_compute_credits)
+consumption_rate(W) = SUM(daily_credits_consumed over last W days)
+                    / (included_monthly_compute_credits × W / 30)
 ```
 
 **Where:**
 - `ACV` (`annual_commit_dollars`) — the annualized contract value from the account's active contract
-- `monthly_credits_consumed` — sum of Prisma Cloud credits consumed from `daily_usage_logs` for the calendar month
-- `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table
+- `daily_credits_consumed` — credits consumed on a given day, from `daily_usage_logs` (one row per account per day)
+- `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table; multiplied by W/30 to prorate the allotment to the exact window length
 - `W` — lookback window; see table below. **For compensation and quota attainment, W = 90 days is the v1 assumption** (see Key Assumptions §2.2.2). This may be revisited by segment in v2: Enterprise accounts have longer deployment cycles that may benefit from a longer smoothing window; SMB accounts have more volatile usage patterns that may call for a shorter one.
 
 #### 2.2.1 Standard Reporting Windows
@@ -194,7 +195,7 @@ Both Consumption ACV and Consumed ACV Rate aggregate across the following hierar
 
 > **Why segment matters:** Enterprise, Mid-Market, and SMB accounts are likely to exhibit materially different ramp curves. Enterprise deployments span multiple business units and compliance domains and may take 6–9 months to reach steady-state consumption; SMB accounts may ramp faster but also drop off faster if the initial deployment is thin. A growing SMB mix can mask a deteriorating Enterprise rate (or vice versa), and a single Consumed ACV Rate target will be miscalibrated for at least one segment. v1 stores the data to compute segment-level rates; per-segment targets are a v2 calibration item once sufficient data has accumulated. See §2.2.2 Key Assumptions.
 
-> **Source data note:** Daily usage logs (`daily_usage_logs`) are recorded at the account × day level — each row is the total credits consumed by one account on one day. "Account Consumption ACV" applies the formula to that account using its rolling daily usage aggregated to a monthly average, then trailed across the lookback window W. The aggregation hierarchy above describes how account-level Consumption ACV values are summed upward — it does not imply a different granularity of source data. In v1, the data pipeline already produces all four levels on each run.
+> **Source data note:** Daily usage logs (`daily_usage_logs`) are recorded at the account × day level — each row is the total credits consumed by one account on one day. `consumption_rate(W)` is computed by summing those daily rows over the last W days and dividing by the prorated W-day credit allotment (`included_monthly_compute_credits × W/30`). This means a 7-day window uses the last 7 days of actual usage against a 7-day allotment (not a monthly average), and a 90-day window uses the last 90 days against a 90-day allotment — consistent behavior at any window size. The aggregation hierarchy above describes how account-level Consumption ACV values are summed upward; it does not imply a different granularity of source data. In v1, the data pipeline already produces all levels on each run.
 >
 > Additional aggregation dimensions — by industry vertical or product module — could be added in v2 without changing the base formula. Whether those cut-points are operationally useful is an open question for Sales Ops and Finance; they are not required for v1.
 
