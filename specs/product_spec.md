@@ -466,27 +466,21 @@ Consumption ACV is designed to ship and build trust before expanding. v1 establi
 
 ### v2 — Calibrate and Deepen
 
-| Item | What unlocks it |
-|---|---|
-| Health tier threshold calibration | 12–18 months of renewal cohort data — validates whether the 5% / 40% / 80% / 120% cutoffs predict churn accurately |
-| NRR prediction band validation | Same renewal cohort dependency — empirically recalibrates the attainment → NRR outcome bands |
-| Engagement quality signal | Distinguishes active usage from passive credit burn (login events, alerts acted on, policies deployed); addresses the v1 credit-burning risk |
-| Real-time consumption updates | Daily batch is sufficient for v1; near-real-time enables intra-quarter intervention for at-risk accounts |
-| Segment-specific windows and targets | Enterprise, Mid-Market, and SMB may warrant different W windows and attainment targets once sufficient data has accumulated |
-| Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
+v1 ships with reasonable hypotheses. v2 is about replacing them with evidence — and making the signal sharper once that evidence exists.
+
+**Validate the hypotheses.** After 12–18 months of renewal cohorts, the team will have the data needed to answer a critical question: do our health tier thresholds actually predict churn? **Health tier threshold calibration** tests whether the 5% / 40% / 80% / 120% cutoffs hold up against real outcomes, and **NRR prediction band validation** does the same for the attainment → retention relationship. Both are currently starting hypotheses derived from industry analogues; v2 replaces them with PANW-specific evidence.
+
+**Sharpen the signal.** In parallel, the metric itself gets more precise. An **engagement quality signal** distinguishes active platform use from passive credit burn — addressing the v1 risk that a rep could coach a customer to run unnecessary scans and inflate their consumption rate without delivering real security value. **Real-time consumption updates** (vs. daily batch) enable intra-quarter intervention, catching a spike-and-drop pattern while there's still time to act. And **segment-specific windows and targets** — tuned to Enterprise, Mid-Market, and SMB ramp curves — replace the single org-wide 90-day window with one calibrated to how each segment actually consumes.
 
 ### Beyond v2 — Long-Term Vision
 
-| Item | Why it matters |
-|---|---|
-| Consumption ACV as an externally reported metric | If the metric earns CFO trust and audit readiness, it could become a board-level disclosure alongside NRR — similar to Snowflake's trailing consumption reporting *(CFO decision — see §11 Q6)* |
-| Predictive churn scoring | Use consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
-| Channel partner and CSM comp integration | Extend the consumption accountability model to the full customer-facing team, not just AEs and AMs |
-| Cross-product consumption correlation | As PANW expands its platform, correlate Prisma Cloud consumption with Cortex and other product lines — a customer consuming deeply across products is a fundamentally different retention profile |
-| AI-powered adoption recommendations | Rather than just flagging low consumption, an AI layer surfaces the specific features or workloads an account hasn't deployed — giving the account team a concrete action ("this account has 0% Code Security adoption; similar accounts that activated it reached Healthy tier within 45 days") |
-| Deal coaching at point of sale | At deal structuring, an AI model compares the proposed credit commit and use case against historical consumption profiles for similar accounts — flagging oversell risk before the contract is signed rather than catching shelfware after the fact |
-| Contract right-sizing at renewal | At renewal, AI recommends the optimal credit commit based on trailing consumption trajectory, seasonality patterns, and planned workload expansion — shifting the renewal conversation from "how much did you use?" to "here's what you'll need" |
-| Natural language querying | Reps and executives query Consumption ACV data conversationally ("which of my accounts are most likely to churn this quarter?") rather than navigating dashboard filters — lowering the barrier to acting on consumption signals |
+Once Consumption ACV is trusted internally and calibrated against real renewal outcomes, the opportunity expands in three directions.
+
+**Wider accountability.** The consumption accountability model extends beyond AEs and AMs. **Channel partner and CSM comp integration** brings the full customer-facing team into the same framework — closing the gap where partners and CSMs influence adoption but aren't measured on it. At the platform level, **cross-product consumption correlation** connects Prisma Cloud consumption with Cortex and other PANW product lines: a customer consuming deeply across multiple products is a fundamentally different retention and expansion profile than one relying on a single module.
+
+**Strategic recognition.** A metric that earns CFO trust and audit readiness has the potential to become a board-level disclosure — **Consumption ACV as an externally reported metric**, alongside NRR, in the way Snowflake reports trailing consumed revenue. This shifts the narrative from "we think customers are healthy" to "here is the data" *(CFO decision — see §11 Q6)*.
+
+**AI transforms measurement into action.** The long-term vision is a metric that doesn't just describe what happened, but tells teams what to do next. **AI-powered adoption recommendations** surface the specific features an account hasn't deployed and benchmark them against similar accounts that did. **Deal coaching at point of sale** flags oversell risk at deal structuring — before shelfware is created, not after. **Contract right-sizing at renewal** uses consumption trajectory to recommend the optimal credit commit, shifting the renewal conversation from backward-looking to forward-looking. And **natural language querying** makes all of this accessible to any rep or executive without navigating a dashboard — lowering the barrier to acting on consumption signals from hours to seconds.
 
 ---
 
