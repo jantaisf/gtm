@@ -258,6 +258,7 @@ NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginnin
   | | Calculation | Result |
   |---|---|---|
   | At Risk pool | $1.5M ACV; assume 50% churn → $750K lost | GRR drag: −7.5% |
+  | Logo churn | At-risk accounts tend to be smaller, so 15% of ACV ≈ 20% of logos; 50% of those churn | **~10% logo churn rate** |
   | Healthy renewals | $6.5M renews flat | Neutral |
   | Expansion pool | $2.0M ACV; assume 30% expansion → +$600K | NRR lift: +6.0% |
   | **GRR** | ($10M − $750K) / $10M | **92.5%** |
