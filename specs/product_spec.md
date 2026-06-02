@@ -244,7 +244,7 @@ NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginnin
 
 - Consumption ACV attainment rate is the leading indicator; NRR at renewal is the outcome it should predict
 - Target: Consumption ACV-based NRR forecast within ±10% of actual NRR (see §9 Success Criteria)
-- PANW disclosed NRR of ~119–120% in FY2024 (*Palo Alto Networks Q2 FY2024 Earnings Call, Feb 2024*). PANW has not separately disclosed NRR for FY2025; their public reporting now centres on Next-Generation Security (NGS) ARR growth. GRR and logo churn are not publicly disclosed.
+- PANW disclosed NRR of ~119–120% in FY2024 ([*Palo Alto Networks Q2 FY2024 Earnings Call, Feb 20 2024*](https://investors.paloaltonetworks.com/events/event-details/q2-fy2024-palo-alto-networks-inc-earnings-call)). PANW has not separately disclosed NRR for FY2025; their public reporting now centres on Next-Generation Security (NGS) ARR growth. GRR and logo churn are not publicly disclosed.
 - An org-wide Consumption ACV attainment of ≥85% is a portfolio health floor, not a direct NRR target. The path from 85% attainment to 119%+ NRR requires the expansion engine: accounts in the Expansion tier (>120% consumption) drive net revenue above 100%. The 85% target sets a baseline for gross retention; NRR above 100% depends on how many of those healthy accounts grow. **The 85% ↔ 119% NRR connection should not be stated as a direct equivalence** — it is a hypothesis that 85% attainment creates the conditions (low churn, active expansion pipeline) that have historically produced PANW's NRR outcomes. This requires empirical validation once renewal cohort data accumulates (see v1 note below).
 
 **Gross Revenue Retention (GRR)**
