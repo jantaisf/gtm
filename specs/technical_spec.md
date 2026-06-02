@@ -192,6 +192,9 @@ Measurable events and metrics at the lowest useful grain.
 | `has_expansion` | BOOLEAN | Multiple active contracts (mid-year expansion) |
 | `months_of_data` | INTEGER | Months of consumption history available |
 | `calculated_at` | TIMESTAMP | Pipeline run timestamp |
+| `early_shelfware_flag` | BOOLEAN | 30+ consecutive days with consumption rate <5%; early-warning before full shelfware health tier is assigned |
+| `onboarding_stall_flag` | BOOLEAN | Ramping account with WoW rate flat (delta <2%) for 2+ consecutive weeks; signals activation risk |
+| `spike_drop_early_flag` | BOOLEAN | MoM rate decline >40% in any single month; early-warning for Spike & Drop lifecycle stage |
 
 ---
 
@@ -254,7 +257,7 @@ When Type 2 is active, `fact_cacv_snapshot` stores `surrogate_key` (not the natu
 
 ### 3.2 Audit Trail (Comp Auditability)
 
-Consumption ACV drives compensation. That means **every figure that influences a paycheck must be fully auditable** — traceable from the commission record back to the raw source data, with an immutable record of any retroactive change. This is a finance and legal requirement, not an analytics nice-to-have (see product_spec.md §2.1 and §2.2.2).
+Consumption ACV drives compensation. That means **every figure that influences a paycheck must be fully auditable** — traceable from the commission record back to the raw source data, with an immutable record of any retroactive change. This is a finance and legal requirement, not an analytics nice-to-have (see product_spec.md §3 and §3.2.2).
 
 The audit trail has four layers, each described below:
 
@@ -264,12 +267,24 @@ The audit trail has four layers, each described below:
 4. **Contract amendments** — changes to ACV or credit allowance that affect the denominator (`contract_amendments`, §3.3)
 
 Before integrating with the compensation platform, Finance and RevOps must define and document:
-- The correction workflow and required approvals at each tier (see product_spec.md §13 Q8)
+- The correction workflow and required approvals at each tier (see product_spec.md §11 — Compensation Design)
 - The rep dispute resolution process (how a rep challenges a calculated figure)
 - The clawback policy and what events trigger a `clawback_triggered = TRUE` record
 - The comp period cut-off rule (which pipeline run "locks" the comp period for a given quarter)
 
 These process decisions cannot be inferred from the data model — they must be codified before the first live comp period.
+
+**Pre-integration checklist** — gate on these before the first comp platform sync:
+
+| # | Requirement | Owner | Status |
+|---|---|---|---|
+| 1 | Correction workflow documented (who can initiate, approval tiers, SLA) | VP Finance + RevOps | ☐ Open |
+| 2 | Rep dispute resolution process documented and communicated to reps | Sales Ops | ☐ Open |
+| 3 | Clawback policy defined; trigger conditions codified in `fact_cacv_corrections.clawback_triggered` | VP Finance + Legal | ☐ Open |
+| 4 | Comp period cut-off date agreed and hardcoded as pipeline parameter | Finance + Data Engineering | ☐ Open |
+| 5 | CFO sign-off on `pipeline_run_log` as authoritative source of record for comp | CFO | ☐ Open |
+| 6 | Test correction end-to-end in staging: submit correction → `fact_cacv_corrections` row → comp platform delta | Data Engineering | ☐ Open |
+| 7 | `vw_comp_input` access control verified (service account scoped to comp platform only) | Data Engineering | ☐ Open |
 
 #### Pipeline Run Log and Corrections
 
@@ -480,9 +495,9 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
    ```sql
    trailing_90d_avg_rate = AVG(monthly_consumption_rate, last 3 complete calendar months)
    ```
-   Uses `silver.monthly_consumption` — the same edge-case-guarded aggregation as before. This is the only rate used to compute `cacv` and health tiers (see product_spec.md §2.2.1).
+   Uses `silver.monthly_consumption` — the same edge-case-guarded aggregation as before. This is the only rate used to compute `cacv` and health tiers (see product_spec.md §3.2).
 
-4. Apply health tier classification using `trailing_90d_avg_rate` (see product_spec.md §5).
+4. Apply health tier classification using `trailing_90d_avg_rate` (see product_spec.md §4).
 5. Flag new accounts: `is_new_account = TRUE` if `contract_start_date >= as_of_date - 90 days`
 6. Compute Consumption ACV — **always uses 90-day rate**:
    ```sql
@@ -504,6 +519,29 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 7. Compute `acv_at_risk = annual_commit_dollars - cacv`
 8. Flag `expansion_flag = TRUE` if `overage_months >= 2`
 9. Flag `is_spike_drop = TRUE` if `max_monthly_rate > 2.0 AND trailing_90d_avg_rate < 0.05`
+10. Compute **lifecycle early-warning flags** (see product_spec.md §5 for lifecycle stage definitions):
+    ```sql
+    -- Early Shelfware: 30+ consecutive calendar days below 5% daily rate
+    early_shelfware_flag = (
+      SELECT COUNTIF(daily_rate < 0.05) >= 30
+      FROM trailing 30-day daily rate series
+      WHERE all days are consecutive below threshold
+    )
+
+    -- Onboarding Stall: ramping account with WoW delta < 2% for 2+ consecutive weeks
+    onboarding_stall_flag = (
+      is_new_account = TRUE
+      AND ABS(trailing_7d_avg_rate[week N] - trailing_7d_avg_rate[week N-1]) < 0.02
+      FOR 2+ consecutive week pairs
+    )
+
+    -- Spike & Drop Early Warning: single-month rate decline > 40%
+    spike_drop_early_flag = (
+      (trailing_30d_avg_rate[prior month] - trailing_30d_avg_rate[current month])
+      / NULLIF(trailing_30d_avg_rate[prior month], 0) > 0.40
+    )
+    ```
+    These flags surface in `vw_account_detail` for CS platform alerting and do not affect health tier assignment or Consumption ACV.
 
 **Edge cases handled:**
 - Spike & Drop → trailing 90-day window smooths spike once it ages out; 7d/30d rates will reflect the drop immediately (useful early-warning signal)
@@ -524,6 +562,8 @@ An ACV amendment changes the Consumption ACV denominator going forward. Without 
 - `expansion_opportunities`, `total_acv_at_risk`, `total_expansion_signal_acv` (Consumption Overage)
 - `region_rank` and `org_rank` window functions for leaderboard
 - Rep name, region, segment from `dim_reps`
+
+> **Ramping exclusion:** `total_acv` in this view **excludes** Ramping accounts (`is_new_account = TRUE`) from the denominator. Including them would artificially deflate `cacv_attainment_rate` for reps who recently landed new logos — accounts with no consumption history yet have no Consumption ACV (`cacv IS NULL`) but carry full ACV weight. Ramping accounts are counted separately in `accounts_ramping` and tracked via the onboarding activation dashboard. This exclusion mirrors the product spec §4 treatment of the Ramping health tier as outside the NRR/GRR forecast.
 
 **`vw_account_detail`** — one row per account, joining all four dim tables:
 - All `fact_cacv_snapshot` metric columns, including all three rate columns: `trailing_7d_avg_rate`, `trailing_30d_avg_rate`, `trailing_90d_avg_rate`
@@ -788,12 +828,24 @@ WHERE f.is_new_account = FALSE                           -- just aged out of ram
 
 Key field mapping from `gold.vw_account_detail`:
 - `trailing_90d_avg_rate` → CS health score (normalized 0–100)
-- `months_of_data` → data confidence indicator (low if < 2)
+- `months_of_data` → data confidence level (see table below)
 - `is_zero_usage_month` (from `silver.monthly_consumption`) → trigger for proactive outreach if ≥ 2 consecutive months flagged
+- `early_shelfware_flag`, `onboarding_stall_flag`, `spike_drop_early_flag` → lifecycle early-warning triggers for CS automated playbooks
+
+**Data confidence levels** — governs how the CS platform surfaces Consumption ACV to CSMs. Surfacing a precise percentage to a CSM when only 3 weeks of data exists creates false confidence; these levels provide an explicit signal.
+
+| Level | Condition | CS Platform Behavior |
+|---|---|---|
+| **High** | `months_of_data >= 3` AND `is_new_account = FALSE` | Display Consumption ACV and health tier at full precision |
+| **Medium** | `months_of_data` = 1–2 AND `is_new_account = FALSE` | Display health tier; show Consumption ACV with "Limited history" label; flag for manual CSM review |
+| **Low** | `is_new_account = TRUE` (Ramping) | Display "Ramping — insufficient data"; suppress Consumption ACV; activate onboarding playbook |
+| **Stale** | `calculated_at < NOW() - 2 days` | Display last-known value with "Data as of [date]" warning; suppress from automated escalation logic |
 
 ---
 
 ### 11.5 BI / Board Reporting (PANW's existing BI platform)
+
+The primary executive-facing surface is the **Streamlit dashboard** (product_spec.md §8), which covers the VP of Sales and CFO use cases for v1. PANW's existing BI platform is the longer-term delivery channel for the reports below, built on the same semantic layer once the prototype is validated.
 
 **Source:** `gold.fact_cacv_snapshot` + `gold.dim_*` directly — the BI layer bypasses the semantic layer views and joins at will, enabling any aggregation not pre-built into the views.
 
