@@ -87,7 +87,7 @@ Sales leadership needs a single metric that:
 
 ## 2. Background & Market Context
 
-Prisma Cloud contracts are denominated in **compute credits** — customers commit to an annual credit pool at signing (Business Edition: 1-year term; Enterprise Edition: 2–3 year, ~30% volume discount), and platform usage draws down against that pool daily. Consumption-based pricing is now the enterprise software standard: 85% of software companies offer some form of usage-based pricing *(Metronome, State of Usage-Based Pricing 2025)*, and peers like Snowflake and Databricks have built their GTM compensation models around trailing consumption metrics. The metric defined in §3 applies this same pattern to Prisma Cloud's credit model.
+Prisma Cloud contracts are denominated in **compute credits** — customers commit to an annual credit pool at signing (Business Edition: 1-year term; Enterprise Edition: 2–3 year, ~30% volume discount), and platform usage draws down against that pool daily. Consumption-based pricing is now the enterprise software standard: 85% of software companies offer some form of usage-based pricing *(Metronome, State of Usage-Based Pricing 2025)*, and peers like Snowflake and Databricks have built their GTM compensation models around trailing consumption metrics. As consumption models mature, GTM organizations are developing new metrics to measure whether contracted revenue is actually being realized — and to hold sales teams accountable for the full customer lifecycle, not just deal signing. Consumption ACV (§3) is PANW's version of this.
 
 ---
 
