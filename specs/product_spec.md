@@ -455,6 +455,10 @@ Consumption ACV is designed to ship and build trust before expanding. v1 establi
 | Predictive churn scoring | Use consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
 | Channel partner and CSM comp integration | Extend the consumption accountability model to the full customer-facing team, not just AEs and AMs |
 | Cross-product consumption correlation | As PANW expands its platform, correlate Prisma Cloud consumption with Cortex and other product lines — a customer consuming deeply across products is a fundamentally different retention profile |
+| AI-powered adoption recommendations | Rather than just flagging low consumption, an AI layer surfaces the specific features or workloads an account hasn't deployed — giving the account team a concrete action ("this account has 0% Code Security adoption; similar accounts that activated it reached Healthy tier within 45 days") |
+| Deal coaching at point of sale | At deal structuring, an AI model compares the proposed credit commit and use case against historical consumption profiles for similar accounts — flagging oversell risk before the contract is signed rather than catching shelfware after the fact |
+| Contract right-sizing at renewal | At renewal, AI recommends the optimal credit commit based on trailing consumption trajectory, seasonality patterns, and planned workload expansion — shifting the renewal conversation from "how much did you use?" to "here's what you'll need" |
+| Natural language querying | Reps and executives query Consumption ACV data conversationally ("which of my accounts are most likely to churn this quarter?") rather than navigating dashboard filters — lowering the barrier to acting on consumption signals |
 
 ---
 
