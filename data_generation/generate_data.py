@@ -107,8 +107,8 @@ INCIDENT_PROB   = 0.08   # probability any given day is a high-scan day
 INCIDENT_MULT   = 2.5    # credits multiplier on spike days
 
 # ── Domain lookups ────────────────────────────────────────────────────────────
-REGIONS    = ["NAMER", "EMEA", "APAC", "LATAM", "Public Sector"]
-SEGMENTS   = ["Enterprise", "Mid-Market"]
+REGIONS    = ["NAMER", "EMEA", "APAC", "LATAM"]
+SEGMENTS   = ["Enterprise", "Mid-Market", "Public Sector (Gov/SLED)"]
 INDUSTRIES = [
     "Financial Services", "Healthcare", "Government & Public Sector",
     "Technology", "Energy & Utilities", "Retail & E-Commerce",
@@ -124,29 +124,32 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 def build_sales_reps() -> pd.DataFrame:
     """
-    Assigns reps proportionally by region based on PANW FY2025 revenue geography
-    (Americas ~55%, EMEA ~25%, APAC ~15%, other ~5%).
-    Each region maintains a 40% Enterprise / 60% Mid-Market segment split.
+    Assigns reps proportionally by region and segment based on PANW FY2025 revenue geography.
+    Region reflects geographic territory (NAMER / EMEA / APAC / LATAM).
+    Segment reflects customer type (Enterprise / Mid-Market / Public Sector (Gov/SLED)).
+    Public Sector reps are distributed across geo regions — Gov/SLED is a segment, not a territory.
 
     Region headcount:
-        NAMER          12  (5 Enterprise, 7 Mid-Market) — largest territory by ACV
-        EMEA            9  (4 Enterprise, 5 Mid-Market) — FSI + public cloud density
-        APAC            7  (3 Enterprise, 4 Mid-Market)
-        LATAM           6  (2 Enterprise, 4 Mid-Market)
-        Public Sector  16  (6 Enterprise, 10 Mid-Market) — Gov/SLED; separate overlay team
+        NAMER  19  (5 Enterprise, 7 Mid-Market, 7 Public Sector) — largest territory; heaviest US fed/SLED
+        EMEA   13  (4 Enterprise, 5 Mid-Market, 4 Public Sector)
+        APAC   10  (3 Enterprise, 4 Mid-Market, 3 Public Sector)
+        LATAM   8  (2 Enterprise, 4 Mid-Market, 2 Public Sector)
     """
-    # (region, enterprise_count, midmarket_count)
+    # (region, enterprise_count, midmarket_count, pubsec_count)
     REGION_HEADCOUNT = [
-        ("NAMER",         5,  7),
-        ("EMEA",          4,  5),
-        ("APAC",          3,  4),
-        ("LATAM",         2,  4),
-        ("Public Sector", 6, 10),
+        ("NAMER",  5, 7, 7),
+        ("EMEA",   4, 5, 4),
+        ("APAC",   3, 4, 3),
+        ("LATAM",  2, 4, 2),
     ]
 
     records = []
-    for region, ent_count, mm_count in REGION_HEADCOUNT:
-        for segment, count in [("Enterprise", ent_count), ("Mid-Market", mm_count)]:
+    for region, ent_count, mm_count, ps_count in REGION_HEADCOUNT:
+        for segment, count in [
+            ("Enterprise",              ent_count),
+            ("Mid-Market",              mm_count),
+            ("Public Sector (Gov/SLED)", ps_count),
+        ]:
             for _ in range(count):
                 records.append({
                     "employee_id": str(uuid.uuid4()),

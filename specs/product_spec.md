@@ -134,7 +134,7 @@ The following are explicit v1 design decisions, not empirically validated parame
 
 | Assumption | v1 Value | Rationale | Segment / v2 note |
 |---|---|---|---|
-| Sales comp lookback window (W) | 90 days | Aligns with PANW quarterly comp cycle; smooths seasonal variance; not gameable within a single quarter | Enterprise/Mid-Market/SMB may warrant different windows in v2 |
+| Sales comp lookback window (W) | 90 days | Aligns with PANW quarterly comp cycle; smooths seasonal variance; not gameable within a single quarter | Enterprise / Mid-Market / Public Sector (Gov/SLED) may warrant different windows in v2 |
 | New account ramp window | 90 days | Minimum history for a reliable trailing average; consistent with the 90-day comp window | May extend to 120 days for large Enterprise deployments in v2 |
 | Activation bonus threshold | ≥ 80% consumption by month 6 (Enterprise: month 9) | Sustained adoption signal; month 6 prevents Spike & Drop gaming | Threshold not validated against PANW renewal data |
 | Expansion flag threshold | > 120% of committed ACV for 2+ consecutive months | Organic demand signal; two-month requirement filters one-off spikes | — |
@@ -184,11 +184,11 @@ Both Consumption ACV and Consumed ACV Rate aggregate across the following hierar
 | **Account** | `annual_commit_dollars × consumption_rate` per account; Consumed ACV Rate = that account's Consumption ACV / ACV |
 | **Rep** | Sum of account Consumption ACV across all active accounts owned by the rep; Rep Consumed ACV Rate = Rep Consumption ACV / Rep ACV |
 | **Region** | Sum of rep Consumption ACV within a region; Region Consumed ACV Rate = Region Consumption ACV / Region ACV |
-| **Segment** | Sum of account Consumption ACV within a segment (Enterprise / Mid-Market / SMB); Segment Consumed ACV Rate = Segment Consumption ACV / Segment ACV — expected to differ materially across segments due to different deployment complexity and ramp timelines |
+| **Segment** | Sum of account Consumption ACV within a segment (Enterprise / Mid-Market / Public Sector (Gov/SLED)); Segment Consumed ACV Rate = Segment Consumption ACV / Segment ACV — expected to differ materially across segments due to different deployment complexity and ramp timelines |
 | **Org** | Total — the Board-level North Star; Org Consumed ACV Rate is the portfolio headline metric |
 | **Cohort** | Sum of account Consumption ACV grouped by contract start quarter (e.g., all accounts signed in Q1 FY2025); the primary tool for detecting whether onboarding trends are improving or deteriorating over time. Cohort analysis is also the correct unit for validating health tier thresholds against actual renewal outcomes (see §3.6 v1 note). |
 
-> **Why segment matters:** Enterprise, Mid-Market, and SMB accounts are likely to exhibit materially different ramp curves. Enterprise deployments span multiple business units and compliance domains and may take 6–9 months to reach steady-state consumption; SMB accounts may ramp faster but also drop off faster if the initial deployment is thin. A growing SMB mix can mask a deteriorating Enterprise rate (or vice versa), and a single Consumed ACV Rate target will be miscalibrated for at least one segment. v1 stores the data to compute segment-level rates; per-segment targets are a v2 calibration item once sufficient data has accumulated. See §3.2.2 Key Assumptions.
+> **Why segment matters:** Enterprise, Mid-Market, and Public Sector (Gov/SLED) accounts are likely to exhibit materially different ramp curves. Enterprise deployments span multiple business units and compliance domains and may take 6–9 months to reach steady-state consumption; Public Sector accounts are subject to procurement cycles and compliance requirements that can extend ramp timelines further. A growing Public Sector mix can mask a deteriorating Enterprise rate (or vice versa), and a single Consumed ACV Rate target will be miscalibrated for at least one segment. v1 stores the data to compute segment-level rates; per-segment targets are a v2 calibration item once sufficient data has accumulated. See §3.2.2 Key Assumptions.
 
 > **Source data note:** Daily usage logs (`daily_usage_logs`) are recorded at the account × day level — each row is the total credits consumed by one account on one day. `consumption_rate(W)` is computed by summing those daily rows over the last W days and dividing by the prorated W-day credit allotment (`included_monthly_compute_credits × W/30`). This means a 7-day window uses the last 7 days of actual usage against a 7-day allotment (not a monthly average), and a 90-day window uses the last 90 days against a 90-day allotment — consistent behavior at any window size. The aggregation hierarchy above describes how account-level Consumption ACV values are summed upward; it does not imply a different granularity of source data. In v1, the data pipeline already produces all levels on each run.
 >
@@ -489,7 +489,7 @@ v1 ships with reasonable hypotheses. v2 is about replacing them with evidence �
 <tr>
   <td><strong>Business Outcomes</strong></td>
   <td>Segment-specific windows and targets</td>
-  <td>Enterprise, Mid-Market, and SMB ramp at different speeds — a single 90-day window and org-wide attainment target will be miscalibrated for at least one segment</td>
+  <td>Enterprise, Mid-Market, and Public Sector (Gov/SLED) ramp at different speeds — a single 90-day window and org-wide attainment target will be miscalibrated for at least one segment</td>
 </tr>
 <tr>
   <td><strong>Data Reliability</strong></td>

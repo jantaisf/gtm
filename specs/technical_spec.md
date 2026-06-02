@@ -127,8 +127,8 @@ As-landed data. No transforms applied. Pipeline reads from here; nothing writes 
 |---|---|---|
 | `employee_id` | STRING | Primary Key — UUID |
 | `name` | STRING | |
-| `region` | STRING | NAMER / EMEA / APAC / LATAM / Public Sector |
-| `segment` | STRING | Enterprise / Commercial (Mid-Market + SMB) / Public Sector (Gov/SLED) |
+| `region` | STRING | NAMER / EMEA / APAC / LATAM — geographic territory; Public Sector (Gov/SLED) is a segment, not a region |
+| `segment` | STRING | Enterprise / Mid-Market / Public Sector (Gov/SLED) |
 
 #### `bronze.accounts`
 
@@ -205,7 +205,7 @@ Calendar + PANW fiscal calendar spine, 2000-01-01 → 2030-12-31. See Step 0 for
 | `employee_id` | STRING | Primary Key |
 | `name` | STRING | |
 | `region` | STRING | |
-| `segment` | STRING | Enterprise / Commercial (Mid-Market + SMB) / Public Sector (Gov/SLED) |
+| `segment` | STRING | Enterprise / Mid-Market / Public Sector (Gov/SLED) |
 
 #### `gold.dim_contracts`
 | Column | Type | Notes |
