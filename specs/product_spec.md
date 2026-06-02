@@ -362,17 +362,17 @@ Detailed comp plan design — OTE splits, activation bonus amounts, role-level r
 
 ## 7. Success Criteria
 
+Success for this initiative is measured across three dimensions: **business outcomes** (is the metric driving the right customer behaviors?), **metric accuracy** (does Consumption ACV actually predict renewal outcomes?), and **data reliability** (can the pipeline be trusted to feed comp and exec reporting?). The targets below are v1 starting hypotheses — they should be reviewed against actual renewal cohort data after 12–18 months.
 
-
-| KPI | Target | Window |
-|---|---|---|
-| Org-wide Consumption ACV Attainment | ≥ 85% | Rolling 90 days |
-| Shelfware rate | ≤ 8% of active accounts | Monthly |
-| Expansion flag conversion | ≥ 30% of flagged accounts → upsell within 180 days | Semi-annual |
-| New account activation | ≥ 70% reach Healthy tier within 90 days of go-live | Quarterly |
-| Consumption ACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal |
-| Pipeline data freshness | Snapshot ≤ 24 hours old at time of dashboard load | Every pipeline run |
-| Data quality test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run |
+| KPI | Target | Window | Why it matters |
+|---|---|---|---|
+| Org-wide Consumption ACV Attainment | ≥ 85% | Rolling 90 days | The headline portfolio health number for the CFO — at 85%, the unconsumed ACV gap is small enough that GRR should remain stable at renewal |
+| Shelfware rate | ≤ 8% of active accounts | Monthly | Shelfware accounts are the leading indicator of logo churn; keeping this below 8% means the save plan backlog stays manageable |
+| Expansion flag conversion | ≥ 30% of flagged accounts → upsell within 180 days | Semi-annual | Validates that the expansion signal (sustained >120% consumption) is being worked by reps, not just observed on a dashboard |
+| New account activation | ≥ 70% reach Healthy tier within 90 days of go-live | Quarterly | Tests whether the AE is right-sizing deals and coordinating onboarding — a low activation rate points to overselling or poor handoff |
+| Consumption ACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal | The core validity test: if health tiers predict renewal outcomes accurately, the metric is doing its job as a leading indicator |
+| Pipeline data freshness | Snapshot ≤ 24 hours old at time of dashboard load | Every pipeline run | Stale data erodes trust; reps and execs need to know the dashboard reflects yesterday's usage, not last week's |
+| Data quality test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run | Any ERROR-level failure means a Consumption ACV figure fed to comp or exec reporting may be wrong — this is a zero-tolerance threshold |
 
 > **Note on shelfware threshold:** The data quality test in `dq_tests.py` alerts at >15% shelfware rate (a data integrity floor). The 8% target above is a performance ceiling — the org should be well below the alert level. If shelfware rate is between 8% and 15%, it requires a sales operations review; above 15%, it triggers the automated data quality alert and escalation to the data engineering team.
 
