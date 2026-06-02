@@ -473,7 +473,6 @@ v1 ships with reasonable hypotheses. v2 is about replacing them with evidence �
 | Health tier threshold calibration | Tests whether the 5% / 40% / 80% / 120% cutoffs actually predict churn — replacing industry-analogue starting points with PANW-specific evidence |
 | NRR prediction band validation | Same renewal cohort dependency — empirically recalibrates the attainment → NRR outcome bands against real renewal results |
 | Engagement quality signal | Distinguishes active platform use from passive credit burn (login events, alerts acted on, policies deployed) — addresses the v1 risk that inflated consumption rate doesn't always mean real security value |
-| Real-time consumption updates | Daily batch is sufficient for v1; near-real-time enables intra-quarter intervention, catching a spike-and-drop pattern while there's still time to act |
 | Segment-specific windows and targets | Enterprise, Mid-Market, and SMB ramp at different speeds — a single 90-day window and org-wide attainment target will be miscalibrated for at least one segment |
 | Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
 
@@ -491,6 +490,7 @@ Once Consumption ACV is trusted internally and calibrated against real outcomes,
 | Deal coaching at point of sale | Flags oversell risk at deal structuring by comparing the proposed commit against historical consumption profiles for similar accounts — catching shelfware before it's created |
 | Contract right-sizing at renewal | Recommends the optimal credit commit based on trailing consumption trajectory and planned expansion — shifting the renewal conversation from backward-looking to forward-looking |
 | Natural language querying | Reps and executives ask questions conversationally ("which of my accounts are most likely to churn this quarter?") rather than navigating dashboard filters — lowering the barrier to acting on signals from hours to seconds |
+| Real-time consumption updates | Near-real-time pipeline enables intra-quarter intervention — catching a spike-and-drop pattern while there's still time to act, rather than discovering it in the next daily batch |
 
 ---
 
