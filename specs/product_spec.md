@@ -34,7 +34,7 @@ Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based m
 
 This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the account team must close before contract renewal.
 
-The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§6); quota setting and forecasting methodology (§7); a four-audience executive dashboard (§10); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§11). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §12.
+The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); compensation implications and how the metric enables incentive alignment for AEs and AMs (§6); quota setting and forecasting methodology (§7); a four-audience executive dashboard (§10); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§11). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §12.
 
 **Status: Proposed — pending executive alignment.**
 
@@ -54,12 +54,7 @@ The spec covers: background and market context (§2); the full metric definition
   - [3.6 Retention and Churn as Secondary Metrics](#36-retention-and-churn-as-secondary-metrics)
 - [4. Health Tier Classification](#4-health-tier-classification)
 - [5. Lifecycle Management with Consumption ACV](#5-lifecycle-management-with-consumption-acv)
-- [6. Proposed Compensation Framework](#6-proposed-compensation-framework)
-  - [6.0 Role Definitions and Rules of Engagement](#60-role-definitions-and-rules-of-engagement)
-  - [6.1 AE Incentive Mechanisms](#61-ae-incentive-mechanisms)
-  - [6.2 AM Incentive Mechanisms](#62-am-incentive-mechanisms)
-  - [6.3 Multi-Year ACV and Rep Credit](#63-multi-year-acv-and-rep-credit)
-  - [6.4 Phasing](#64-phasing)
+- [6. Compensation Implications](#6-compensation-implications)
 - [7. Quota Setting and Forecasting](#7-quota-setting-and-forecasting)
   - [7.1 Quota Setting with Consumption ACV](#71-quota-setting-with-consumption-acv)
   - [7.2 Forecasting with Consumption ACV](#72-forecasting-with-consumption-acv)
@@ -149,7 +144,7 @@ The following are explicit v1 design decisions, not empirically validated parame
 | Health tier thresholds | 5% / 40% / 80% / 120% | Industry analogue starting points | Calibrate against actual renewal cohorts at 12–18 months |
 | Org-wide Consumption ACV attainment target | ≥ 85% | See §8; calibrate as renewal data accumulates | — |
 
-> **Open question — quota cap and expansion conversion:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at a fixed percentage of ACV — for example, 120% — so that over-consuming accounts do not indefinitely inflate a rep's attainment in lieu of a commercial expansion conversation. The ideal outcome when a customer sustains consumption above their contracted commit is a formal expansion or true-up contract, not ongoing PAYG overage billing. Capping Consumption ACV attainment at (say) 120% of ACV creates a direct financial incentive for the rep to convert sustained over-consumption into a new, larger contract: once the cap is reached, additional attainment credit requires a signed expansion. This is additive to the Expansion Signal SPIF in §6.2 Mechanism 2. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §12 Q11.
+> **Open question — quota cap and expansion conversion:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at a fixed percentage of ACV — for example, 120% — so that over-consuming accounts do not indefinitely inflate a rep's attainment in lieu of a commercial expansion conversation. The ideal outcome when a customer sustains consumption above their contracted commit is a formal expansion or true-up contract, not ongoing PAYG overage billing. Capping Consumption ACV attainment at (say) 120% of ACV creates a direct financial incentive for the rep to convert sustained over-consumption into a new, larger contract: once the cap is reached, additional attainment credit requires a signed expansion. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §12 Q11.
 
 **Example:**
 
@@ -213,11 +208,11 @@ Consumption ACV is designed to shift incentives at every layer of the GTM organi
 | Behavior | How Consumption ACV Rewards It |
 |---|---|
 | Selling the right-sized deal | Overselling credits the customer won't use directly lowers Consumption ACV; reps are incentivized to right-size commits |
-| Fast time-to-value | New accounts ramping to ≥80% consumption within 90 days trigger an activation bonus; slow onboarding costs attainment |
+| Fast time-to-value | New accounts ramping to ≥80% consumption within 90 days can trigger an activation bonus; slow onboarding costs attainment |
 | Deep platform adoption | Reps who coach customers to expand workload coverage drive consumption rate up, lifting their Consumption ACV |
 | Proactive renewal risk management | Account Managers' quota is tied to Consumption ACV, not just renewal bookings — they have a direct financial incentive to intervene on At Risk accounts before renewal |
 | Expansion from genuine usage | Accounts consistently consuming more than 120% of their committed credits for 2+ months represent organic demand that has outgrown the contract; reps are credited for converting that signal into a larger deal. **v1 assumption:** the expansion motion requires a signed contract amendment or new order — PAYG overage alone does not qualify. This preserves the intent of Consumption ACV as a metric of *contracted* consumption, and ensures the rep's incentive is to formalize demand, not leave it in open-ended overage billing. Whether this is the right commercial process for PANW (vs. automatic true-up) is an open question for Sales and Finance. |
-| Committing to longer contract terms | Longer multi-year contracts provide PANW with revenue visibility and reduce renewal overhead. This behavior is rewarded not by Consumption ACV itself (which is a trailing usage measure, not a forward commitment measure) but through a **paired mechanism**: a term multiplier on ACV quota credit (1.2×–1.5× for 2–5 years) applied at signing. The Consumption ACV comp weight then holds the rep accountable for the usage outcomes on that long-term deal. The two work together — the multiplier rewards the commitment, the consumption weight rewards the realization. |
+| Committing to longer contract terms | Longer multi-year contracts provide PANW with revenue visibility and reduce renewal overhead. This behavior can be reinforced through a paired mechanism in the comp plan — a term multiplier on ACV quota credit applied at signing — while the consumption weight holds the rep accountable for actual usage over the full term. The two work together: the multiplier rewards the commitment, the consumption weight rewards the realization. |
 
 **Behaviors to suppress**
 
@@ -227,9 +222,9 @@ Consumption ACV is designed to shift incentives at every layer of the GTM organi
 | Overselling at renewal | Expanding credit commitment on a low-consumption account compounds the shelfware problem — the higher ACV denominator pushes Consumed ACV Rate further down until adoption catches up |
 | Ignoring post-sale onboarding | Under a pure bookings model, the rep's job ends at signature. Under Consumption ACV, onboarding quality is in their comp |
 | Selective renewal bias (prioritising easy renewals over at-risk accounts) | Without a consumption-based metric, an Account Manager is incentivized to renew the accounts most likely to renew on their own — healthy customers who would re-sign with minimal intervention — and avoid investing time in accounts that need a costly save play. Under a bookings-only model this is rational; the AM who focuses on Healthy accounts will hit quota without touching a single Inactive one. Consumption ACV changes this calculus: the 70% Consumption ACV weight means a portfolio full of at-risk, shelfware, and inactive accounts directly suppresses the AM's total attainment — even if every renewing Healthy account resigns. The AM cannot achieve full attainment by serving only easy renewals. |
-| Pushing long terms on weak accounts | A rep who locks in a 5-year deal on a shelfware customer captures the 1.50× multiplier at signing — but poor Consumption ACV attainment across the portfolio suppresses their bookings commission rate via the accelerator, offsetting the gain |
+| Pushing long terms on weak accounts | A rep who locks in a long-term deal on a shelfware customer captures any term multiplier at signing — but poor Consumption ACV attainment across the portfolio will suppress their overall comp attainment, offsetting the gain |
 
-**Known v1 gaming risk — Account Manager credit-burning:** Account Managers at 70% Consumption ACV weight are incentivized by raw consumption, which creates an inverse failure mode: pushing customers to run unnecessary scans, protect idle servers or decommissioned infrastructure, or otherwise burn credits without delivering security value. Consumption ACV cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, CS managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
+**Known v1 gaming risk — credit-burning:** If Account Manager comp is weighted toward Consumption ACV attainment, an inverse failure mode emerges: pushing customers to run unnecessary scans, protect idle servers, or otherwise burn credits without delivering security value. Consumption ACV cannot distinguish active threat response from passive credit burn. This is flagged as a v1 risk; an engagement quality signal (alerts acted on, policies deployed, active users) is the v2 mitigation. In v1, managers should watch for accounts with high consumption rate but low security outcomes — a pattern detectable through manual QBR review.
 
 ---
 
@@ -342,170 +337,21 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 
 ---
 
-## 6. Proposed Compensation Framework
+## 6. Compensation Implications
 
-**Design principle:** Rather than giving Consumption ACV its own quota bucket that reps deprioritize, attach Consumption ACV outcomes to the thing each role already maximizes — bookings commission rate for AEs, portfolio health for AMs. The quota split is the floor; the accelerators and bonuses below are where behavioral change actually happens.
+PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). TCV comp rewards signing without accountability for consumption — a rep can close a $500K shelfware account and never revisit it.
 
-> **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. Consumption ACV comp reform is the thesis of this spec.
+Consumption ACV is designed to fix this. By making platform consumption a measurable, role-level signal, it unlocks incentive structures that were not previously possible:
 
-> **Assumptions note:** The role structure, time allocations, and rules of engagement in §6.0 are modelled on broadly accepted enterprise SaaS patterns (Snowflake, industry benchmarks) and are intended as a starting framework, not a description of PANW's current sales org. PANW's actual AE and AM role definitions, existing compensation plans, territory ownership rules, and handoff processes may differ materially. Before this framework is adopted, the ROE definitions in §6.0.3 in particular — holding periods, expansion credit splits, renewal residuals, and poaching protection — will need to be reviewed and validated against PANW's existing comp agreements, Salesforce ownership model, and HR/legal requirements. These details should be worked through with VP of Sales, Sales Operations, and Finance before v1 rollout.
+**For Account Executives (AEs):** A portion of variable comp can be tied to consumption attainment on the accounts they close — incentivizing right-sized deals, proper onboarding, and early activation rather than overselling credits a customer won't use. An activation bonus structure (e.g., sustained ≥80% consumption rate at month 6) directly rewards quality of sale.
 
-### 6.0 Role Definitions and Rules of Engagement
+**For Account Managers (AMs):** Quota can be set on portfolio Consumption ACV attainment, not just renewal bookings. An AM who resigns a shelfware account at flat ACV should not receive full attainment credit. Conversely, surfacing over-consumption signals (Consumption Overage accounts) becomes financially meaningful — the AM has an incentive to flag expansion opportunities proactively.
 
-#### 7.0.1 Role Mandates
+**Behaviors the metric suppresses:** Overselling credits to inflate TCV, neglecting onboarding once a deal is signed, and renewing shelfware accounts without addressing underlying adoption gaps.
 
-Two distinct roles own the GTM motion for Prisma Cloud accounts. The division is intentional — a single rep owning both acquisition and long-term consumption creates conflicting incentives: close fast vs. close right.
+> **Snowflake precedent:** Snowflake ties AE comp to a 70% bookings / 30% consumption split, shifting to 30% bookings / 70% consumption for AMs managing mature portfolios. *(Snowflake, [Sales Compensation in a Consumption Pricing World](https://www.snowflake.com/en/blog/sales-compensation-in-a-consumption-pricing-world/))*
 
-**Account Executive (AE) — Responsible for acquiring new business**
-
-The AE's mandate is to acquire net-new logos and set them up for long-term consumption success. They are accountable for:
-
-- Identifying, prospecting, and closing new Prisma Cloud accounts
-- Right-sizing the initial credit commit — avoiding oversell that creates shelfware from day one
-- Driving early platform activation through the 90-day ramp window
-- Coordinating the CS and AM handoff before the holding period ends
-
-The AE is not accountable for long-term retention after the holding period. Consumption accountability is specific to the accounts they close, measured through the activation bonus and their 30% Consumption ACV OTE weight.
-
-**Account Manager (AM) — Responsible for growing existing business**
-
-The AM's mandate is to maximize the long-term value of existing accounts through consumption growth, renewals, and expansion. They are accountable for:
-
-- Maintaining and growing portfolio Consumption ACV attainment
-- Renewing accounts at or above current ACV
-- Surfacing Consumption Overage signals and coordinating upsell with AEs
-- Executing save plans on At Risk, Shelfware, and Inactive accounts
-
-The AM is not accountable for closing net-new logos. Their bookings accountability is limited to renewals and expansions within their existing portfolio.
-
-**Sales Engineer (SE) — Responsible for driving platform consumption**
-
-The SE is the technical overlay — responsible for workload instrumentation, onboarding acceleration, and identifying underutilized capabilities that would raise the consumption rate. Their OTE is 100% tied to consumption outcomes.
-
----
-
-#### 7.0.2 How Each Role Spends Their Time
-
-**Account Executive — indicative weekly allocation**
-
-| Activity | ~% of Time | What This Looks Like |
-|---|---|---|
-| Pipeline development and new logo pursuit | 45% | Prospecting, SDR coordination, outbound, pipeline reviews |
-| Active deal management | 35% | Discovery, demos, POC oversight, negotiation, close |
-| Post-close activation (within holding period) | 15% | Onboarding coordination, ramp consumption monitoring, activation bonus tracking |
-| Internal / CRM / forecasting | 5% | Salesforce hygiene, forecast calls, comp platform |
-
-**Account Manager — indicative weekly allocation**
-
-| Activity | ~% of Time | What This Looks Like |
-|---|---|---|
-| Portfolio health management | 35% | Consumption monitoring, health tier review, proactive outreach on At Risk accounts |
-| Renewal pipeline management | 25% | Accounts renewing within 180 days — qualification, negotiation, save plays |
-| Expansion surfacing and upsell coordination | 20% | Identifying Consumption Overage signals, briefing AEs on upsell candidates, QBR prep |
-| Executive relationship management | 15% | QBRs, executive sponsor alignment, CS escalation support |
-| Internal / CRM / forecasting | 5% | Salesforce hygiene, forecast calls, comp platform |
-
----
-
-#### 7.0.3 Account Ownership and Rules of Engagement
-
-**New logo:** AE owns from initial contact through close and the full holding period.
-
-**Holding period:** After signing, the AE retains primary ownership and all expansion credit for:
-
-| Segment | Holding Period |
-|---|---|
-| Mid-Market (ACV < $250K or 1-year term) | 6 months post-close |
-| Enterprise (ACV ≥ $250K or multi-year term) | 12 months post-close |
-
-The holding period floor is the average time for a Prisma Cloud deployment to reach full instrumentation. Handing off before the customer is live increases early churn risk and breaks the relationship continuity built during the sales cycle. During the holding period, the AM shadows the account — attending QBRs, reviewing consumption data, building executive relationships — but does not carry the account on their quota until formal handoff.
-
-**Handoff:** At the end of the holding period, the AE transfers ownership to the AM. This requires a joint handoff call (AE + AM + customer executive sponsor), transfer of discovery notes, deal history, open commitments, and any red flags from the sales cycle, and Salesforce ownership updated.
-
-**Post-handoff expansion:** Once an account is AM-owned, the AM surfaces the opportunity; the AE is brought in to close it. Bookings credit goes to the AE on the expansion deal; the AM earns the Expansion Signal SPIF for surfacing it (§6.2 Mechanism 2).
-
-**Renewal:** AM-owned. The original closing AE receives a residual of 1–2% of ACV on named account renewals — consistent with enterprise SaaS benchmarks — but the renewal is the AM's quota responsibility.
-
-**Poaching protection:** AEs cannot prospect into an account on an AM's quota book. If a net-new subsidiary or business unit of an AM-owned account is identified as a new opportunity, the AE and AM co-own the pursuit and split bookings credit at a ratio agreed by their shared manager.
-
-**Ownership model rationale:** This framework uses a dedicated AM layer to own renewals and expansion while AEs focus exclusively on new logos. This is the right choice for Prisma Cloud at this stage: contract complexity is high (multi-year platform deals with credit structures), competitive intensity at renewal is meaningful (Wiz, CrowdStrike, Microsoft Sentinel are all active), and the CS team does not yet have the commercial capacity to own complex renewal negotiations independently. *(ClientSuccess, [Who Should Own SaaS Renewals](https://www.clientsuccess.com/resources/who-should-own-saas-renewals))*
-
----
-
-#### 7.0.4 OTE Split
-
-| Role | Bookings Weight | Consumption ACV Weight | Rationale |
-|---|---|---|---|
-| **Account Executive (AE)** | 70% | 30% | Primary responsibility is acquiring new business; consumption accountability is for the accounts they close |
-| **Account Manager (AM)** | 30% | 70% | Primary responsibility is growing existing business; measured on portfolio health and retention |
-| **Sales Engineer (SE)** | 0% | 100% | Purely accountable for consumption growth; no quota on bookings |
-
-> **Snowflake precedent:** Snowflake uses an identical split — 70% bookings / 30% consumption for new logo AEs, shifting to 30% bookings / 70% consumption for AMs managing mature territories. The weights in this spec match that benchmark directly. *(Snowflake, [Sales Compensation in a Consumption Pricing World](https://www.snowflake.com/en/blog/sales-compensation-in-a-consumption-pricing-world/))*
-
----
-
-### 6.1 AE Incentive Mechanisms
-
-The primary incentive lever is the **70/30 OTE split defined in §6.0** — 30% of an AE's variable comp is tied directly to Consumption ACV attainment across their held accounts. A rep whose portfolio sits at 50% consumption attainment has lost half of their consumption OTE. No separate multiplier is needed; the weight does the work.
-
-Two mechanisms sharpen the edges:
-
-**Mechanism 1 — Activation bonus at month 6 (Enterprise: month 9)**
-
-Any AE whose new account sustains ≥80% consumption rate through month 6 earns a one-time SPIF. The 6-month requirement prevents Spike & Drop gaming — paying at 90 days rewards a burst of onboarding activity that may not last. Month 6 requires sustained adoption.
-
-**Exception for Enterprise accounts (ACV ≥ $250K or contract term ≥ 2 years):** the evaluation window extends to month 9. Large enterprise deployments span multiple cloud providers, business units, and compliance domains — full instrumentation takes longer. A month 6 check-in is still required for coaching, but the SPIF is earned at month 9 if ≥80% is sustained at that point.
-
-**Mechanism 2 — Portfolio floor**
-
-An AE cannot earn above 100% OTE if portfolio Consumption ACV attainment is below 60%. Prevents a rep from focusing exclusively on new logos while leaving a book full of shelfware unattended.
-
-**Inherited-territory carve-out:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio Consumption ACV from their inherited baseline, not the absolute attainment level. Requires VP of Sales sign-off to activate; tracked separately in the compensation platform.
-
-### 6.2 AM Incentive Mechanisms
-
-**Mechanism 1 — Quarterly Consumption ACV attainment (primary lever)**
-
-Account Managers are paid quarterly on Consumption ACV attainment across their portfolio, not on renewal bookings. A single account is insufficient to hit quota by design — the AM needs a healthy portfolio. Base quota = maintain current attainment; stretch quota = grow portfolio Consumption ACV by X% through adoption and expansion.
-
-**Mechanism 2 — Expansion signal bonus**
-
-When an account starts generating over-consumption signal (consuming consistently above 100% of committed ACV), the AM earns a SPIF for surfacing the upsell opportunity — independent of whether the AE closes the expansion deal. This creates a direct financial incentive to flag over-consuming accounts proactively rather than waiting for the AE to notice.
-
-*Rationale:* Consumption Overage is the AM's most valuable output after retention. Without a bonus, AMs have no incentive to surface it — the upside goes to the AE who closes the upsell.
-
-### 6.3 Multi-Year ACV and Rep Credit
-
-ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The Consumption ACV denominator is always the current year's ACV. PANW platformization deals typically run 3–5 years (Arora, Q2 FY2024).
-
-Quota credit for multi-year deals uses a **term multiplier** — meaningful incentive to lock in longer commits, without the quota-busting effect of full TCV credit:
-
-| Contract Term | ACV Quota Credit | vs. Full TCV |
-|---|---|---|
-| 1 year | 1.00× ACV | = TCV |
-| 2 years | 1.20× ACV | 40% less than TCV |
-| 3 years | 1.35× ACV | 55% less than TCV |
-| 5 years | 1.50× ACV | 70% less than TCV |
-
-*Why not full TCV?* A 3-year $300K ACV deal at full TCV gives 128.6% of a $700K bookings quota on a single customer — the AE has no reason to pursue new logos. At 1.35× ACV, the same deal gives 57.9%, keeping the AE focused on new business while rewarding the multi-year commit. *(Modeled in `comp_model.xlsx`.)*
-
-**Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns Consumption ACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §12 Q10).
-
-### 6.4 Phasing
-
-| Mechanism | v1 | v2 |
-|---|---|---|
-| Role definitions and rules of engagement (§6.0) | ✓ | — |
-| OTE split (70/30 AE, 30/70 AM) | ✓ | — |
-| Term multiplier | ✓ | — |
-| Activation bonus (month 6 / month 9) | ✓ | — |
-| Portfolio floor (60% attainment gate) | ✓ | — |
-| Expansion signal bonus for AMs | ✓ | — |
-| Territory profile differentiation (greenfield vs. mature weighting) | — | ✓ (adjust OTE split based on territory maturity after 2+ quarters of data) |
-
-v1 establishes the foundational structure — clean role separation, the OTE split as the primary behavioral lever, and the two AE mechanisms that reward activation and prevent portfolio neglect. v2 introduces territory-level weighting refinements once there is sufficient Consumption ACV history to segment territories by maturity.
-
-**Out of scope:** Compensation design for channel partners and CSMs is a separate workstream not addressed in this spec.
+Detailed comp plan design — OTE splits, activation bonus amounts, role-level rules of engagement, and quota mechanics — is a separate workstream requiring VP of Sales, Finance, and HR alignment. This spec establishes the metric; comp design is the downstream application.
 
 ---
 
@@ -587,7 +433,7 @@ This section makes explicit what is and is not in scope for the initial launch o
 - Consumption ACV calculation at account, rep, region, and org level
 - Health tier classification (6 tiers) based on trailing 90-day consumption rate
 - Expansion signal dollars as a separate metric for over-consuming accounts (Consumption ACV itself capped at commit)
-- AE / AM comp weighting (bookings vs. Consumption ACV), with activation bonus at month 6 and multi-year term multiplier
+- Consumption ACV signals fed to the compensation platform to enable AE / AM attainment tracking
 - Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
 - Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
 - Data quality framework (11 automated assertions) with orphaned and rogue usage handling
@@ -753,8 +599,7 @@ The following decisions require VP of Sales and/or CFO sign-off before Consumpti
 7. **Portfolio attainment floor** *(VP of Sales)* — Does sustained low Consumption ACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
 8. **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
 9. **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of Consumption ACV?
-10. **Multi-year account ownership and clawback** *(VP of Sales)* — When does the AE-to-AM handoff occur, and what portion of the term multiplier is clawed back if the account churns before term end?
-11. **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number. Decision required before comp platform integration.
+10. **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number. Decision required before comp platform integration.
 
 ---
 
