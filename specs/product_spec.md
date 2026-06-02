@@ -34,7 +34,7 @@ Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based m
 
 This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §2.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the sales rep and CS team must close before contract renewal.
 
-The spec covers: the full metric definition and formula (§2); health tier classification for every account from Expansion Signal to Churned (§5); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§7); quota setting and forecasting methodology (§8); a four-audience executive dashboard (§11); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§12). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §13.
+The spec covers: the full metric definition and formula (§2); background on the credit pricing model and market context (§3); health tier classification for every account from Expansion Signal to Churned (§4); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§6); quota setting and forecasting methodology (§7); a four-audience executive dashboard (§10); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§11). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §12.
 
 **Status: Proposed — pending executive alignment.**
 
@@ -51,27 +51,27 @@ The spec covers: the full metric definition and formula (§2); health tier class
   - [2.4 Aggregation Levels](#24-aggregation-levels)
   - [2.5 Intended Behavioral Drivers](#25-intended-behavioral-drivers)
   - [2.6 Retention and Churn as Secondary Metrics](#26-retention-and-churn-as-secondary-metrics)
-- [3. Prisma Cloud Credit Pricing Model](#3-prisma-cloud-credit-pricing-model)
-- [4. Industry Benchmarks](#4-industry-benchmarks)
-  - [4.1 The Shift to Consumption-Based Revenue](#41-the-shift-to-consumption-based-revenue)
-  - [4.2 Comparable Metrics at Peer Companies](#42-comparable-metrics-at-peer-companies)
-- [5. Health Tier Classification](#5-health-tier-classification)
-- [6. Edge Case Handling](#6-edge-case-handling)
-- [7. Proposed Compensation Framework](#7-proposed-compensation-framework)
-  - [7.0 Role Definitions and Rules of Engagement](#70-role-definitions-and-rules-of-engagement)
-  - [7.1 AE Incentive Mechanisms](#71-ae-incentive-mechanisms)
-  - [7.2 AM Incentive Mechanisms](#72-am-incentive-mechanisms)
-  - [7.3 Multi-Year ACV and Rep Credit](#73-multi-year-acv-and-rep-credit)
-  - [7.4 Phasing](#74-phasing)
-- [8. Quota Setting and Forecasting](#8-quota-setting-and-forecasting)
-  - [8.1 Quota Setting with Consumption ACV](#81-quota-setting-with-consumption-acv)
-  - [8.2 Forecasting with Consumption ACV](#82-forecasting-with-consumption-acv)
-- [9. Success Criteria](#9-success-criteria)
-- [10. v1 Scope](#10-v1-scope)
-- [11. Executive Dashboard](#11-executive-dashboard)
-- [12. Downstream System Integrations](#12-downstream-system-integrations)
-- [13. Open Questions for Executive Alignment](#13-open-questions-for-executive-alignment)
-- [14. Sources](#14-sources)
+- [3. Background & Market Context](#3-background--market-context)
+  - [3.1 Prisma Cloud Credit Pricing Model](#31-prisma-cloud-credit-pricing-model)
+  - [3.2 The Shift to Consumption-Based Revenue](#32-the-shift-to-consumption-based-revenue)
+  - [3.3 Comparable Metrics at Peer Companies](#33-comparable-metrics-at-peer-companies)
+- [4. Health Tier Classification](#4-health-tier-classification)
+- [5. Edge Case Handling](#5-edge-case-handling)
+- [6. Proposed Compensation Framework](#6-proposed-compensation-framework)
+  - [6.0 Role Definitions and Rules of Engagement](#60-role-definitions-and-rules-of-engagement)
+  - [6.1 AE Incentive Mechanisms](#61-ae-incentive-mechanisms)
+  - [6.2 AM Incentive Mechanisms](#62-am-incentive-mechanisms)
+  - [6.3 Multi-Year ACV and Rep Credit](#63-multi-year-acv-and-rep-credit)
+  - [6.4 Phasing](#64-phasing)
+- [7. Quota Setting and Forecasting](#7-quota-setting-and-forecasting)
+  - [7.1 Quota Setting with Consumption ACV](#71-quota-setting-with-consumption-acv)
+  - [7.2 Forecasting with Consumption ACV](#72-forecasting-with-consumption-acv)
+- [8. Success Criteria](#8-success-criteria)
+- [9. v1 Scope](#9-v1-scope)
+- [10. Executive Dashboard](#10-executive-dashboard)
+- [11. Downstream System Integrations](#11-downstream-system-integrations)
+- [12. Open Questions for Executive Alignment](#12-open-questions-for-executive-alignment)
+- [13. Sources](#13-sources)
 
 ---
 
@@ -98,7 +98,7 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 
 > **Finance note:** Consumption ACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. If used in any materials shared with investors, we can label it as "Consumption ACV (GTM metric)" to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
 
-> **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §13 Q8). Retroactive Consumption ACV corrections after commission payment require CFO sign-off. The full audit trail data model — `pipeline_run_log`, `fact_cacv_corrections`, ownership history, and contract amendment tables — is specified in the Technical Spec §3.2–3.3. The rep dispute resolution workflow and correction approval chain must be defined by Finance and RevOps before comp platform integration (see §13 Q8).
+> **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §12 Q8). Retroactive Consumption ACV corrections after commission payment require CFO sign-off. The full audit trail data model — `pipeline_run_log`, `fact_cacv_corrections`, ownership history, and contract amendment tables — is specified in the Technical Spec §3.2–3.3. The rep dispute resolution workflow and correction approval chain must be defined by Finance and RevOps before comp platform integration (see §12 Q8).
 
 ### 2.2 Formula
 
@@ -144,9 +144,9 @@ The following are explicit v1 design decisions, not empirically validated parame
 | Activation bonus threshold | ≥ 80% consumption by month 6 (Enterprise: month 9) | Sustained adoption signal; month 6 prevents Spike & Drop gaming | Threshold not validated against PANW renewal data |
 | Expansion flag threshold | > 120% of committed ACV for 2+ consecutive months | Organic demand signal; two-month requirement filters one-off spikes | — |
 | Health tier thresholds | 5% / 40% / 80% / 120% | Industry analogue starting points | Calibrate against actual renewal cohorts at 12–18 months |
-| Org-wide Consumption ACV attainment target | ≥ 85% | See §9; calibrate as renewal data accumulates | — |
+| Org-wide Consumption ACV attainment target | ≥ 85% | See §8; calibrate as renewal data accumulates | — |
 
-> **Open question — quota cap and expansion conversion:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at a fixed percentage of ACV — for example, 120% — so that over-consuming accounts do not indefinitely inflate a rep's attainment in lieu of a commercial expansion conversation. The ideal outcome when a customer sustains consumption above their contracted commit is a formal expansion or true-up contract, not ongoing PAYG overage billing. Capping Consumption ACV attainment at (say) 120% of ACV creates a direct financial incentive for the rep to convert sustained over-consumption into a new, larger contract: once the cap is reached, additional attainment credit requires a signed expansion. This is additive to the Expansion Signal SPIF in §7.2 Mechanism 2. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §13 Q11.
+> **Open question — quota cap and expansion conversion:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at a fixed percentage of ACV — for example, 120% — so that over-consuming accounts do not indefinitely inflate a rep's attainment in lieu of a commercial expansion conversation. The ideal outcome when a customer sustains consumption above their contracted commit is a formal expansion or true-up contract, not ongoing PAYG overage billing. Capping Consumption ACV attainment at (say) 120% of ACV creates a direct financial incentive for the rep to convert sustained over-consumption into a new, larger contract: once the cap is reached, additional attainment credit requires a signed expansion. This is additive to the Expansion Signal SPIF in §6.2 Mechanism 2. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §12 Q11.
 
 **Example:**
 
@@ -243,7 +243,7 @@ NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginnin
 ```
 
 - Consumption ACV attainment rate is the leading indicator; NRR at renewal is the outcome it should predict
-- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR (see §9 Success Criteria)
+- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR (see §8 Success Criteria)
 - PANW disclosed NRR of ~119–120% in FY2024 ([*Palo Alto Networks Q2 FY2024 Earnings Call, Feb 20 2024*](https://investors.paloaltonetworks.com/events/event-details/q2-fy2024-palo-alto-networks-inc-earnings-call)). PANW has not separately disclosed NRR for FY2025; their public reporting now centres on Next-Generation Security (NGS) ARR growth. GRR and logo churn are not publicly disclosed.
 - An org-wide Consumption ACV attainment of ≥85% is a portfolio health floor, not a direct NRR target. To see how attainment translates to GRR and NRR, break the portfolio into three tiers:
 
@@ -264,7 +264,7 @@ NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginnin
   | **GRR** | ($10M − $750K) / $10M | **92.5%** |
   | **NRR** | ($10M − $750K + $600K) / $10M | **98.5%** |
 
-  NRR crosses 100% when expansion dollars exceed at-risk losses — i.e., when the 20% expansion pool grows fast enough to offset the 15% at-risk pool's churn. PANW's reported ~119% NRR reflects a much larger and faster-growing expansion engine than this baseline illustrates. **The 85% attainment target is not a claim that it directly produces 119% NRR** — it is a hypothesis that keeping the at-risk pool small (≤15% of ACV) creates the conditions for strong GRR, and that converting the expansion pool (≥30% upsell rate, per §9) drives NRR above 100%. Both require empirical validation once renewal cohort data accumulates (see v1 note below).
+  NRR crosses 100% when expansion dollars exceed at-risk losses — i.e., when the 20% expansion pool grows fast enough to offset the 15% at-risk pool's churn. PANW's reported ~119% NRR reflects a much larger and faster-growing expansion engine than this baseline illustrates. **The 85% attainment target is not a claim that it directly produces 119% NRR** — it is a hypothesis that keeping the at-risk pool small (≤15% of ACV) creates the conditions for strong GRR, and that converting the expansion pool (≥30% upsell rate, per §8) drives NRR above 100%. Both require empirical validation once renewal cohort data accumulates (see v1 note below).
 
 **Gross Revenue Retention (GRR)**
 
@@ -306,7 +306,9 @@ Tracking both Consumption ACV (real-time) and NRR/GRR (at renewal) allows the te
 
 ---
 
-## 3. Prisma Cloud Credit Pricing Model
+## 3. Background & Market Context
+
+### 3.1 Prisma Cloud Credit Pricing Model
 
 Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ACV at deal signing.
 
@@ -329,13 +331,9 @@ Credits are the unit of value in every Prisma Cloud contract. The monthly credit
 **Sources:**
 - **Credit consumption by workload type:** Prisma Cloud Compute Edition admin guide, Licensing section — [docs.prismacloud.io](https://docs.prismacloud.io/en/compute-edition/30/admin-guide/licensing/licensing).
 - **Credit-based licensing model and Business / Enterprise tier structure:** Corroborated by user reviews on [PeerSpot](https://www.peerspot.com/products/prisma-cloud-by-palo-alto-networks-pricing). List pricing not publicly disclosed by PANW — contact your account team or the [PANW Partner Portal](https://partners.paloaltonetworks.com) for current rates.
-- **~30% Enterprise discount:** Consistent with multi-year platform deal structures reported by Dell'Oro Group (see §14 Sources).
+- **~30% Enterprise discount:** Consistent with multi-year platform deal structures reported by Dell'Oro Group (see §13 Sources).
 
----
-
-## 4. Industry Benchmarks
-
-### 4.1 The Shift to Consumption-Based Revenue
+### 3.2 The Shift to Consumption-Based Revenue
 
 Consumption-based pricing is rapidly becoming the enterprise software standard, not an edge case:
 
@@ -355,7 +353,7 @@ Consumption-based pricing is rapidly becoming the enterprise software standard, 
 
 PANW's credit model sits at the sophisticated end of this spectrum: unlike pure per-seat models it reflects *realized* security coverage, and unlike pure PAYG it provides revenue predictability for both the customer and PANW.
 
-### 4.2 Comparable Metrics at Peer Companies
+### 3.3 Comparable Metrics at Peer Companies
 
 | Company | Consumption Unit | Equivalent Metric |
 |---|---|---|
@@ -371,7 +369,7 @@ PANW's credit model sits at the sophisticated end of this spectrum: unlike pure 
 
 ---
 
-## 5. Health Tier Classification
+## 4. Health Tier Classification
 
 While Consumption ACV is a continuous metric, health tiers provide operational clarity for CS and sales prioritization:
 
@@ -390,7 +388,7 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ---
 
-## 6. Edge Case Handling
+## 5. Edge Case Handling
 
 | Anomaly | Business Signal | Consumption ACV Treatment |
 |---|---|---|
@@ -405,15 +403,15 @@ Health tiers are used for **dashboard visualization and CS prioritization only**
 
 ---
 
-## 7. Proposed Compensation Framework
+## 6. Proposed Compensation Framework
 
 **Design principle:** Rather than giving Consumption ACV its own quota bucket that reps deprioritize, attach Consumption ACV outcomes to the thing each role already maximizes — bookings commission rate for AEs, portfolio health for AMs. The quota split is the floor; the accelerators and bonuses below are where behavioral change actually happens.
 
 > **Context:** PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). This framework is a deliberate departure — TCV comp rewards signing without accountability for consumption. Consumption ACV comp reform is the thesis of this spec.
 
-> **Assumptions note:** The role structure, time allocations, and rules of engagement in §7.0 are modelled on broadly accepted enterprise SaaS patterns (Snowflake, industry benchmarks) and are intended as a starting framework, not a description of PANW's current sales org. PANW's actual AE and AM role definitions, existing compensation plans, territory ownership rules, and handoff processes may differ materially. Before this framework is adopted, the ROE definitions in §7.0.3 in particular — holding periods, expansion credit splits, renewal residuals, and poaching protection — will need to be reviewed and validated against PANW's existing comp agreements, Salesforce ownership model, and HR/legal requirements. These details should be worked through with VP of Sales, Sales Operations, and Finance before v1 rollout.
+> **Assumptions note:** The role structure, time allocations, and rules of engagement in §6.0 are modelled on broadly accepted enterprise SaaS patterns (Snowflake, industry benchmarks) and are intended as a starting framework, not a description of PANW's current sales org. PANW's actual AE and AM role definitions, existing compensation plans, territory ownership rules, and handoff processes may differ materially. Before this framework is adopted, the ROE definitions in §6.0.3 in particular — holding periods, expansion credit splits, renewal residuals, and poaching protection — will need to be reviewed and validated against PANW's existing comp agreements, Salesforce ownership model, and HR/legal requirements. These details should be worked through with VP of Sales, Sales Operations, and Finance before v1 rollout.
 
-### 7.0 Role Definitions and Rules of Engagement
+### 6.0 Role Definitions and Rules of Engagement
 
 #### 7.0.1 Role Mandates
 
@@ -485,7 +483,7 @@ The holding period floor is the average time for a Prisma Cloud deployment to re
 
 **Handoff:** At the end of the holding period, the AE transfers ownership to the AM. This requires a joint handoff call (AE + AM + customer executive sponsor), transfer of discovery notes, deal history, open commitments, and any red flags from the sales cycle, and Salesforce ownership updated.
 
-**Post-handoff expansion:** Once an account is AM-owned, the AM surfaces the opportunity; the AE is brought in to close it. Bookings credit goes to the AE on the expansion deal; the AM earns the Expansion Signal SPIF for surfacing it (§7.2 Mechanism 2).
+**Post-handoff expansion:** Once an account is AM-owned, the AM surfaces the opportunity; the AE is brought in to close it. Bookings credit goes to the AE on the expansion deal; the AM earns the Expansion Signal SPIF for surfacing it (§6.2 Mechanism 2).
 
 **Renewal:** AM-owned. The original closing AE receives a residual of 1–2% of ACV on named account renewals — consistent with enterprise SaaS benchmarks — but the renewal is the AM's quota responsibility.
 
@@ -507,9 +505,9 @@ The holding period floor is the average time for a Prisma Cloud deployment to re
 
 ---
 
-### 7.1 AE Incentive Mechanisms
+### 6.1 AE Incentive Mechanisms
 
-The primary incentive lever is the **70/30 OTE split defined in §7.0** — 30% of an AE's variable comp is tied directly to Consumption ACV attainment across their held accounts. A rep whose portfolio sits at 50% consumption attainment has lost half of their consumption OTE. No separate multiplier is needed; the weight does the work.
+The primary incentive lever is the **70/30 OTE split defined in §6.0** — 30% of an AE's variable comp is tied directly to Consumption ACV attainment across their held accounts. A rep whose portfolio sits at 50% consumption attainment has lost half of their consumption OTE. No separate multiplier is needed; the weight does the work.
 
 Two mechanisms sharpen the edges:
 
@@ -525,7 +523,7 @@ An AE cannot earn above 100% OTE if portfolio Consumption ACV attainment is belo
 
 **Inherited-territory carve-out:** A rep who assumed ownership of accounts within the last 90 days is evaluated on the *improvement* in portfolio Consumption ACV from their inherited baseline, not the absolute attainment level. Requires VP of Sales sign-off to activate; tracked separately in the compensation platform.
 
-### 7.2 AM Incentive Mechanisms
+### 6.2 AM Incentive Mechanisms
 
 **Mechanism 1 — Quarterly Consumption ACV attainment (primary lever)**
 
@@ -537,7 +535,7 @@ When an account starts generating over-consumption signal (consuming consistentl
 
 *Rationale:* Consumption Overage is the AM's most valuable output after retention. Without a bonus, AMs have no incentive to surface it — the upside goes to the AE who closes the upsell.
 
-### 7.3 Multi-Year ACV and Rep Credit
+### 6.3 Multi-Year ACV and Rep Credit
 
 ACV is always the annualized value: a 3-year, $360K TCV deal has an ACV of $120K/year. The Consumption ACV denominator is always the current year's ACV. PANW platformization deals typically run 3–5 years (Arora, Q2 FY2024).
 
@@ -552,13 +550,13 @@ Quota credit for multi-year deals uses a **term multiplier** — meaningful ince
 
 *Why not full TCV?* A 3-year $300K ACV deal at full TCV gives 128.6% of a $700K bookings quota on a single customer — the AE has no reason to pursue new logos. At 1.35× ACV, the same deal gives 57.9%, keeping the AE focused on new business while rewarding the multi-year commit. *(Modeled in `comp_model.xlsx`.)*
 
-**Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns Consumption ACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §13 Q10).
+**Account ownership through multi-year terms:** The AE receives term multiplier credit at signing. From Year 2 onward, the AM earns Consumption ACV attainment credit. If the account churns before term end, a portion of the term multiplier is subject to clawback. Clawback terms and handoff timing require VP of Sales sign-off (see §12 Q10).
 
-### 7.4 Phasing
+### 6.4 Phasing
 
 | Mechanism | v1 | v2 |
 |---|---|---|
-| Role definitions and rules of engagement (§7.0) | ✓ | — |
+| Role definitions and rules of engagement (§6.0) | ✓ | — |
 | OTE split (70/30 AE, 30/70 AM) | ✓ | — |
 | Term multiplier | ✓ | — |
 | Activation bonus (month 6 / month 9) | ✓ | — |
@@ -572,9 +570,9 @@ v1 establishes the foundational structure — clean role separation, the OTE spl
 
 ---
 
-## 8. Quota Setting and Forecasting
+## 7. Quota Setting and Forecasting
 
-### 8.1 Quota Setting with Consumption ACV
+### 7.1 Quota Setting with Consumption ACV
 
 Consumption ACV enables quota design that reflects territory health, not just last year's bookings:
 
@@ -593,7 +591,7 @@ Consumption ACV enables quota design that reflects territory health, not just la
 
 ---
 
-### 8.2 Forecasting with Consumption ACV
+### 7.2 Forecasting with Consumption ACV
 
 Consumption ACV provides two distinct forecasting signals: **renewal risk** (defensive) and **expansion pipeline** (offensive).
 
@@ -616,14 +614,14 @@ Consumption ACV provides two distinct forecasting signals: **renewal risk** (def
 | 50–70% | Renewal at risk; CS intervention required |
 | < 50% | High churn probability; executive save plan |
 
-- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR at renewal (see §9 Success Criteria)
+- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR at renewal (see §8 Success Criteria)
 
 **Cohort-based calibration (v2)**
 - Once sufficient renewal cohorts accumulate (12–18 months of data), regression against actual churn outcomes will allow the thresholds above to be empirically validated and refined per segment (Enterprise vs. Mid-Market) and industry vertical
 
 ---
 
-## 9. Success Criteria
+## 8. Success Criteria
 
 
 
@@ -641,7 +639,7 @@ Consumption ACV provides two distinct forecasting signals: **renewal risk** (def
 
 ---
 
-## 10. v1 Scope
+## 9. v1 Scope
 
 This section makes explicit what is and is not in scope for the initial launch of Consumption ACV. The metric is designed to ship, not to be perfect.
 
@@ -654,7 +652,7 @@ This section makes explicit what is and is not in scope for the initial launch o
 - Executive dashboard with 4 views (portfolio overview, region, rep leaderboard, account detail)
 - Downstream signals to Salesforce CRM, compensation platform, CS platform, and BI layer
 - Data quality framework (11 automated assertions) with orphaned and rogue usage handling
-- Multi-year contract treatment: Year 1 ACV as the Consumption ACV basis *(v1 decision — see §13)*
+- Multi-year contract treatment: Year 1 ACV as the Consumption ACV basis *(v1 decision — see §12)*
 
 ### Explicitly out of scope for v1
 
@@ -666,11 +664,11 @@ This section makes explicit what is and is not in scope for the initial launch o
 | Health tier threshold calibration | Requires 12–18 months of renewal cohort data to validate | v2 milestone |
 | NRR prediction band validation | Same dependency on renewal cohort data | v2 milestone |
 | Multi-region currency normalization | Not relevant to current territory structure | v2 if needed |
-| Consumption ACV as an externally reported metric | Requires audit trail, definition consistency, and investor alignment | CFO decision (§13 Q6) |
+| Consumption ACV as an externally reported metric | Requires audit trail, definition consistency, and investor alignment | CFO decision (§12 Q6) |
 
 ---
 
-## 11. Executive Dashboard
+## 10. Executive Dashboard
 
 **🔗 Prototype:** Run locally with `streamlit run dashboard/app.py` — no BigQuery credentials required, loads from the included synthetic data snapshot.
 
@@ -744,7 +742,7 @@ The Consumption ACV dashboard is the primary operational interface for sales lea
 
 ---
 
-## 12. Downstream System Integrations
+## 11. Downstream System Integrations
 
 Consumption ACV is most valuable when it flows beyond the dashboard into the systems reps and CS teams work in every day. Four downstream systems consume Consumption ACV data, each serving a distinct audience and purpose.
 
@@ -803,7 +801,7 @@ An important attribution rule: the rep who currently owns the account gets Consu
 
 ---
 
-## 13. Open Questions for Executive Alignment
+## 12. Open Questions for Executive Alignment
 
 The following decisions require VP of Sales and/or CFO sign-off before Consumption ACV can be operationalized.
 
@@ -821,7 +819,7 @@ The following decisions require VP of Sales and/or CFO sign-off before Consumpti
 
 ---
 
-## 14. Sources
+## 13. Sources
 
 - Palo Alto Networks — [Q2 FY2024 Earnings Call Transcript, Feb 2024](https://investor.paloaltonetworks.com/news-releases/news-release-details/palo-alto-networks-reports-second-quarter-fiscal-2024-financial) — NRR ~119–120% disclosed; Nikesh Arora quote on TCV comp
 - Metronome — [State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025)
