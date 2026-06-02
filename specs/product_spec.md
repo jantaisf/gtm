@@ -162,6 +162,8 @@ The following are explicit v1 design decisions, not empirically validated parame
 Consumed ACV Rate = Total Consumption ACV / Total ACV
 ```
 
+> **Ramping accounts are excluded from top-line numbers.** Accounts whose contract is less than 90 days old are in the ramp window and are excluded from both the numerator and denominator of the Consumed ACV Rate. Including them would artificially depress the portfolio rate — a customer who signed last week has had no meaningful time to consume credits. Ramping accounts are tracked separately and graduate into the main rate once the 90-day window closes. See §2.2.2 for the v1 ramp window assumption.
+
 **The metric is ACV-weighted, not account-count-weighted.** A large shelfware account with $500K ACV at 4% consumption has far more impact on the portfolio rate than ten small healthy accounts at $10K ACV each. This is intentional — the CFO cares about dollar risk, not account count:
 
 | Account | ACV | Consumption Rate | Consumption ACV | Notes |
