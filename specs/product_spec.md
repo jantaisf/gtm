@@ -28,6 +28,53 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 ---
 
+## Executive Summary
+
+Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based model where customers commit to an annual credit pool rather than a fixed seat count. This creates a measurement gap: two $500K contracts look identical in ARR yet can represent entirely different business realities — one fully consumed and on track to expand, the other untouched and quietly becoming a churn liability.
+
+This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §2.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the sales rep and CS team must close before contract renewal.
+
+The spec covers: the full metric definition and formula (§2); health tier classification for every account from Expansion Signal to Churned (§5); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§7); quota setting and forecasting methodology (§8); a four-audience executive dashboard (§11); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§12). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §13.
+
+**Status: Proposed — pending executive alignment.**
+
+---
+
+## Table of Contents
+
+- [1. Problem Statement](#1-problem-statement)
+- [2. The North Star Metric: Consumption ACV](#2-the-north-star-metric-consumption-acv)
+  - [2.1 Definition](#21-definition)
+  - [2.2 Formula](#22-formula)
+  - [2.2.2 Key Assumptions (v1)](#222-key-assumptions-v1)
+  - [2.3 Consumed ACV Rate](#23-consumed-acv-rate)
+  - [2.4 Aggregation Levels](#24-aggregation-levels)
+  - [2.5 Intended Behavioral Drivers](#25-intended-behavioral-drivers)
+  - [2.6 Retention and Churn as Secondary Metrics](#26-retention-and-churn-as-secondary-metrics)
+- [3. Prisma Cloud Credit Pricing Model](#3-prisma-cloud-credit-pricing-model)
+- [4. Industry Benchmarks](#4-industry-benchmarks)
+  - [4.1 The Shift to Consumption-Based Revenue](#41-the-shift-to-consumption-based-revenue)
+  - [4.2 Comparable Metrics at Peer Companies](#42-comparable-metrics-at-peer-companies)
+- [5. Health Tier Classification](#5-health-tier-classification)
+- [6. Edge Case Handling](#6-edge-case-handling)
+- [7. Proposed Compensation Framework](#7-proposed-compensation-framework)
+  - [7.0 Role Definitions and Rules of Engagement](#70-role-definitions-and-rules-of-engagement)
+  - [7.1 AE Incentive Mechanisms](#71-ae-incentive-mechanisms)
+  - [7.2 AM Incentive Mechanisms](#72-am-incentive-mechanisms)
+  - [7.3 Multi-Year ACV and Rep Credit](#73-multi-year-acv-and-rep-credit)
+  - [7.4 Phasing](#74-phasing)
+- [8. Quota Setting and Forecasting](#8-quota-setting-and-forecasting)
+  - [8.1 Quota Setting with Consumption ACV](#81-quota-setting-with-consumption-acv)
+  - [8.2 Forecasting with Consumption ACV](#82-forecasting-with-consumption-acv)
+- [9. Success Criteria](#9-success-criteria)
+- [10. v1 Scope](#10-v1-scope)
+- [11. Executive Dashboard](#11-executive-dashboard)
+- [12. Downstream System Integrations](#12-downstream-system-integrations)
+- [13. Open Questions for Executive Alignment](#13-open-questions-for-executive-alignment)
+- [14. Sources](#14-sources)
+
+---
+
 ## 1. Problem Statement
 
 Palo Alto Networks is transitioning Prisma Cloud from an Annual Recurring Revenue (ARR) model to a hybrid consumption-based model, with credits corresponding to the resources protected and the features utilized.  This creates a critical measurement gap:
