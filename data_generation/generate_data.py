@@ -107,7 +107,7 @@ INCIDENT_PROB   = 0.08   # probability any given day is a high-scan day
 INCIDENT_MULT   = 2.5    # credits multiplier on spike days
 
 # ── Domain lookups ────────────────────────────────────────────────────────────
-REGIONS    = ["Northeast", "Southeast", "Midwest", "West", "International"]
+REGIONS    = ["NAMER", "EMEA", "APAC", "LATAM", "Public Sector"]
 SEGMENTS   = ["Enterprise", "Mid-Market"]
 INDUSTRIES = [
     "Financial Services", "Healthcare", "Government & Public Sector",
@@ -125,23 +125,23 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 def build_sales_reps() -> pd.DataFrame:
     """
     Assigns reps proportionally by region based on PANW FY2025 revenue geography
-    (Americas 67%, International 33%) and US TAM density (West > Northeast > Southeast > Midwest).
+    (Americas ~55%, EMEA ~25%, APAC ~15%, other ~5%).
     Each region maintains a 40% Enterprise / 60% Mid-Market segment split.
 
     Region headcount:
-        West          12  (5 Enterprise, 7 Mid-Market) — Bay Area + SoCal tech density
-        Northeast      9  (4 Enterprise, 5 Mid-Market) — FSI / NY / DC adjacency
-        Southeast      7  (3 Enterprise, 4 Mid-Market)
-        Midwest        6  (2 Enterprise, 4 Mid-Market)
-        International 16  (6 Enterprise, 10 Mid-Market) — EMEA + APAC combined
+        NAMER          12  (5 Enterprise, 7 Mid-Market) — largest territory by ACV
+        EMEA            9  (4 Enterprise, 5 Mid-Market) — FSI + public cloud density
+        APAC            7  (3 Enterprise, 4 Mid-Market)
+        LATAM           6  (2 Enterprise, 4 Mid-Market)
+        Public Sector  16  (6 Enterprise, 10 Mid-Market) — Gov/SLED; separate overlay team
     """
     # (region, enterprise_count, midmarket_count)
     REGION_HEADCOUNT = [
-        ("West",          5,  7),
-        ("Northeast",     4,  5),
-        ("Southeast",     3,  4),
-        ("Midwest",       2,  4),
-        ("International", 6, 10),
+        ("NAMER",         5,  7),
+        ("EMEA",          4,  5),
+        ("APAC",          3,  4),
+        ("LATAM",         2,  4),
+        ("Public Sector", 6, 10),
     ]
 
     records = []
