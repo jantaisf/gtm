@@ -115,9 +115,7 @@ The following are explicit v1 design decisions, not empirically validated parame
 Consumed ACV Rate = Total Consumption ACV / Total ACV
 ```
 
-This is the headline health ratio for the CFO. A portfolio at 78% means 22% of booked ACV is not yet backed by consumption — that dollar amount is the renewal exposure the CS team needs to address.
-
-**The metric is ACV-weighted, not account-count-weighted.** A large shelfware account with $500K ACV at 4% consumption has far more impact on the portfolio rate than ten small healthy accounts at $10K ACV each. This is intentional — the CFO cares about dollar risk, not account count. For a worked example showing this weighting effect:
+**The metric is ACV-weighted, not account-count-weighted.** A large shelfware account with $500K ACV at 4% consumption has far more impact on the portfolio rate than ten small healthy accounts at $10K ACV each. This is intentional — the CFO cares about dollar risk, not account count:
 
 | Account | ACV | Consumption Rate | Consumption ACV | Notes |
 |---|---|---|---|---|
@@ -126,8 +124,9 @@ This is the headline health ratio for the CFO. A portfolio at 78% means 22% of b
 | Mid-Market C | $80K | 120% | $80K | Capped at ACV; Consumption Overage = $16K |
 | Mid-Market D | $60K | 75% | $45K | Approaching At Risk threshold |
 | SMB E | $40K | — | Excluded | Ramping — contract < 90 days |
+| **Portfolio total** | **$940K** | **62.4%** | **$587K** | Excluding Ramping |
 
-**Portfolio (excluding Ramping):** Total ACV = $940K · Total Consumption ACV = $587K · **Consumed ACV Rate = 62.4%**
+This is the headline health ratio for the CFO. A portfolio at **62.4%** means **37.6% ($353K) of booked ACV is not yet backed by consumption** — that dollar amount is the renewal exposure the CS team needs to address.
 
 Note that Enterprise B alone ($300K ACV at 4%) pulls the Consumed ACV Rate from ~87% down to ~62%. A low Consumed ACV Rate at the portfolio level almost always traces to a small number of large, low-consumption accounts — which is where CS and manager attention should focus first.
 
