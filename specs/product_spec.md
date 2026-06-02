@@ -331,7 +331,7 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 
 | Lifecycle Stage / Event | Consumption Signal | How Consumption ACV Responds |
 |---|---|---|
-| **Onboarding (Ramp)** | Contract start within last 90 days — insufficient consumption history | Excluded from Consumption ACV and portfolio rate; shown as Ramping until the 90-day window matures |
+| **Onboarding (Ramp)** | Contract start within last 90 days — insufficient consumption history | Excluded from Consumption ACV and portfolio rate; week-over-week credit consumption growth is monitored during the ramp window as the leading signal of healthy onboarding. Account graduates to the portfolio rate once the 90-day window matures and consumption reaches the Healthy tier (≥ 80%) |
 | **Spike & Drop** | Mass onboarding in month 1, then consumption collapses | Trailing 90-day window smooths the spike; correctly reflects the current inactive state once the spike ages out |
 | **Shelfware** | Near-zero consumption rate over trailing 90 days | Consumption ACV reflects near-zero value; account flagged for save plan |
 | **Consistent Overages** | Over-consuming commit for 2+ consecutive months | Consumption Overage reported separately; expansion flag surfaced to rep for upsell motion |
