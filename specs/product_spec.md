@@ -563,19 +563,11 @@ How ACV is defined and how overages are treated flows into every downstream calc
 - **Overage revenue recognition** *(CFO)* — Recognize Consumption Overage in-period or defer to contract amendment?
 - **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number.
 
-### Compensation Design
-Once the metric definition is locked, these questions determine how it translates to rep incentives. The in-flight transition question carries the highest change-management risk and should be resolved before any comp platform integration.
-
-- **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + Consumption ACV weighted) or two separate quota lines?
-- **Quota relief for ramping accounts** *(VP of Sales)* — Do new accounts in the 90-day ramp window reduce the quota denominator during that period?
-- **Portfolio attainment floor** *(VP of Sales)* — Does sustained low Consumption ACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
-- **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
-
 ### Rollout & Reporting
-Decisions about sequencing the launch and when the metric is mature enough for external disclosure.
+Decisions about sequencing the launch, integrating with comp, and when the metric is mature enough for external disclosure.
 
-- **Comp go-live timing** *(VP of Sales)* — Same-year comp launch or shadow-track for 1–2 quarters first before paying on it?
 - **Phased vs. big-bang rollout** *(VP of Sales)* — Full launch across all regions or pilot one region/segment first?
+- **Comp plan integration timing** *(VP of Sales + Finance + HR)* — When does Consumption ACV feed live comp calculations, and who needs to be aligned before that happens? Shadow-tracking for 1–2 quarters first is the lower-risk path; same-year integration moves faster but requires existing OTE plans to be reviewed and potentially renegotiated.
 - **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of Consumption ACV?
 
 ---
