@@ -56,7 +56,7 @@ The spec covers: background and market context (§2); the full metric definition
 - [5. Lifecycle Management with Consumption ACV](#5-lifecycle-management-with-consumption-acv)
 - [6. Quota Setting and Compensation](#6-quota-setting-and-compensation)
 - [7. Success Criteria](#7-success-criteria)
-- [8. v1 Scope](#8-v1-scope)
+- [8. Scope and Roadmap](#8-scope-and-roadmap)
 - [9. Executive Dashboard](#9-executive-dashboard)
 - [10. Downstream System Integrations](#10-downstream-system-integrations)
 - [11. Open Questions for Executive Alignment](#11-open-questions-for-executive-alignment)
@@ -421,11 +421,11 @@ Success for this initiative is measured across three dimensions: **business outc
 
 ---
 
-## 8. v1 Scope
+## 8. Scope and Roadmap
 
-This section makes explicit what is and is not in scope for the initial launch of Consumption ACV. The metric is designed to ship, not to be perfect.
+Consumption ACV is designed to ship and build trust before expanding. v1 establishes the core metric and measurement habit; subsequent versions layer in calibration, quality signals, and commercial sophistication as the data matures.
 
-### In scope for v1
+### v1 — Launch
 
 - Consumption ACV calculation at account, rep, region, and org level
 - Health tier classification (6 tiers) based on trailing 90-day consumption rate
@@ -436,17 +436,25 @@ This section makes explicit what is and is not in scope for the initial launch o
 - Data quality framework (11 automated assertions) with orphaned and rogue usage handling
 - Multi-year contract treatment: Year 1 ACV as the Consumption ACV basis *(v1 decision — see §11)*
 
-### Explicitly out of scope for v1
+### v2 — Calibrate and Deepen
 
-| Out-of-scope item | Rationale | Where it goes |
-|---|---|---|
-| Channel partner / SE / CSM comp design | Distinct quota structures and attribution rules; separate workstream | Separate spec |
-| Engagement quality signal (active usage vs. passive credit burn) | Requires additional instrumentation (login events, alert actions); acknowledged v1 risk | v2 roadmap |
-| Real-time consumption updates | Daily batch sufficient for v1; near-real-time adds infra complexity | v2 roadmap |
-| Health tier threshold calibration | Requires 12–18 months of renewal cohort data to validate | v2 milestone |
-| NRR prediction band validation | Same dependency on renewal cohort data | v2 milestone |
-| Multi-region currency normalization | Not relevant to current territory structure | v2 if needed |
-| Consumption ACV as an externally reported metric | Requires audit trail, definition consistency, and investor alignment | CFO decision (§11 Q6) |
+| Item | What unlocks it |
+|---|---|
+| Health tier threshold calibration | 12–18 months of renewal cohort data — validates whether the 5% / 40% / 80% / 120% cutoffs predict churn accurately |
+| NRR prediction band validation | Same renewal cohort dependency — empirically recalibrates the attainment → NRR outcome bands |
+| Engagement quality signal | Distinguishes active usage from passive credit burn (login events, alerts acted on, policies deployed); addresses the v1 credit-burning risk |
+| Real-time consumption updates | Daily batch is sufficient for v1; near-real-time enables intra-quarter intervention for at-risk accounts |
+| Segment-specific windows and targets | Enterprise, Mid-Market, and SMB may warrant different W windows and attainment targets once sufficient data has accumulated |
+| Multi-region currency normalization | Relevant once the metric is used in multi-currency territories |
+
+### Beyond v2 — Long-Term Vision
+
+| Item | Why it matters |
+|---|---|
+| Consumption ACV as an externally reported metric | If the metric earns CFO trust and audit readiness, it could become a board-level disclosure alongside NRR — similar to Snowflake's trailing consumption reporting *(CFO decision — see §11 Q6)* |
+| Predictive churn scoring | Use consumption trajectory (rate of change, not just current level) to flag accounts trending toward At Risk before they cross the threshold |
+| Channel partner and CSM comp integration | Extend the consumption accountability model to the full customer-facing team, not just AEs and AMs |
+| Cross-product consumption correlation | As PANW expands its platform, correlate Prisma Cloud consumption with Cortex and other product lines — a customer consuming deeply across products is a fundamentally different retention profile |
 
 ---
 
