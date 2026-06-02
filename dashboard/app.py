@@ -685,19 +685,32 @@ def page_reps(rep_df: pd.DataFrame):
 
     filtered = rep_df.sort_values("total_cacv", ascending=False).reset_index(drop=True)
     if not filtered.empty:
-        top = filtered.iloc[0]; bot = filtered.iloc[-1]
+        # Left tile: top performer by attainment rate (min 2 accounts to exclude small books)
+        qualified = filtered[filtered["cacv_attainment_rate"].notna()]
+        top_att = qualified.loc[qualified["cacv_attainment_rate"].idxmax()]
+
+        # Right tile: rep with the largest dollar gap to the 85% target
+        filtered["_gap_to_target"] = (filtered["total_acv"] * 0.85 - filtered["total_cacv"]).clip(lower=0)
+        most_gap = filtered.loc[filtered["_gap_to_target"].idxmax()]
+
         c1, c2 = st.columns(2)
         with c1:
-            st.success(f"**#{int(top['org_rank'])} {top['rep_name']}** · {top['region']}  \n"
-                       f"Consumption ACV **{fmt_m(top['total_cacv'])}** · Attainment **{fmt_pct(top['cacv_attainment_rate'])}**")
+            st.success(
+                f"**Top attainment · {top_att['rep_name']}** · {top_att['region']}  \n"
+                f"Attainment **{fmt_pct(top_att['cacv_attainment_rate'])}** · "
+                f"Consumption ACV **{fmt_m(top_att['total_cacv'])}**"
+            )
         with c2:
-            att  = bot["cacv_attainment_rate"]
-            body = (f"**{bot['rep_name']}** · {bot['region']}  \n"
-                    f"Consumption ACV **{fmt_m(bot['total_cacv'])}** · Attainment **{fmt_pct(att)}**")
+            gap = most_gap["_gap_to_target"]
+            att = most_gap["cacv_attainment_rate"]
+            body = (
+                f"**Largest gap to target · {most_gap['rep_name']}** · {most_gap['region']}  \n"
+                f"Gap **{fmt_m(gap)}** to 85% target · Attainment **{fmt_pct(att)}**"
+            )
             if pd.notna(att) and att < 0.6:
                 st.error(body)
             else:
-                st.info(body)
+                st.warning(body)
 
     # ── Coaching Priorities ──────────────────────────────────────────────────
     below_target = filtered[filtered["cacv_attainment_rate"].notna() &
