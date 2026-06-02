@@ -252,9 +252,9 @@ NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginnin
 
   | Tier | Consumed ACV | Hypothetical Mix | Renewal Outcome |
   |---|---|---|---|
-  | At Risk | < 85% | 15% of portfolio ACV | Churn or contraction at renewal — **GRR headwind** |
-  | Healthy | 85%–110% | 65% of portfolio ACV | Renews flat — **GRR anchor** |
-  | Expansion | > 110% | 20% of portfolio ACV | Expands contract — **NRR accelerator** |
+  | At Risk | < 80% (At Risk + Shelfware + Inactive tiers — see §4) | 15% of portfolio ACV | Churn or contraction at renewal — **GRR headwind** |
+  | Healthy | 80%–120% | 65% of portfolio ACV | Renews flat — **GRR anchor** |
+  | Expansion | > 120% | 20% of portfolio ACV | Expands contract — **NRR accelerator** |
 
   **Illustrative math on a $10M ACV portfolio:**
 
@@ -267,7 +267,7 @@ NRR = (Beginning ARR + Expansion ARR - Contraction ARR - Churned ARR) / Beginnin
   | **GRR** | ($10M − $750K) / $10M | **92.5%** |
   | **NRR** | ($10M − $750K + $600K) / $10M | **98.5%** |
 
-  NRR crosses 100% when expansion dollars exceed at-risk losses — i.e., when the 20% expansion pool grows fast enough to offset the 15% at-risk pool's churn. PANW's reported ~119% NRR reflects a much larger and faster-growing expansion engine than this baseline illustrates. **The 85% attainment target is not a claim that it directly produces 119% NRR** — it is a hypothesis that keeping the at-risk pool small (≤15% of ACV) creates the conditions for strong GRR, and that converting the expansion pool (≥30% upsell rate, per §8) drives NRR above 100%. Both require empirical validation once renewal cohort data accumulates (see v1 note below).
+  NRR crosses 100% when expansion dollars exceed at-risk losses — i.e., when the 20% expansion pool (>120%) grows fast enough to offset the 15% at-risk pool (<80%) churn. PANW's reported ~119% NRR reflects a much larger and faster-growing expansion engine than this baseline illustrates. **The 85% org-wide attainment target is not a claim that it directly produces 119% NRR** — it is a hypothesis that keeping the combined At Risk / Shelfware / Inactive pool small (≤15% of ACV) creates the conditions for strong GRR, and that converting the Expansion tier (≥30% upsell rate, per §8) drives NRR above 100%. Both require empirical validation once renewal cohort data accumulates (see v1 note below).
 
 **Gross Revenue Retention (GRR)**
 
