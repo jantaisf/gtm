@@ -364,15 +364,58 @@ Detailed comp plan design — OTE splits, activation bonus amounts, role-level r
 
 Success for this initiative is measured across three dimensions: **business outcomes** (is the metric driving the right customer behaviors?), **metric accuracy** (does Consumption ACV actually predict renewal outcomes?), and **data reliability** (can the pipeline be trusted to feed comp and exec reporting?). The targets below are v1 starting hypotheses — they should be reviewed against actual renewal cohort data after 12–18 months.
 
-| Category | KPI | Target | Window | Why it matters |
-|---|---|---|---|---|
-| **Business Outcomes** | Org-wide Consumption ACV Attainment | ≥ 85% | Rolling 90 days | The headline portfolio health number for the CFO — at 85%, the unconsumed ACV gap is small enough that GRR should remain stable at renewal |
-| **Business Outcomes** | Shelfware rate | ≤ 8% of active accounts | Monthly | Shelfware accounts are the leading indicator of logo churn; keeping this below 8% means the save plan backlog stays manageable |
-| **Business Outcomes** | Expansion flag conversion | ≥ 30% of flagged accounts → upsell within 180 days | Semi-annual | Validates that the expansion signal (sustained >120% consumption) is being worked by reps, not just observed on a dashboard |
-| **Business Outcomes** | New account activation | ≥ 70% reach Healthy tier within 90 days of go-live | Quarterly | Tests whether the AE is right-sizing deals and coordinating onboarding — a low activation rate points to overselling or poor handoff |
-| **Metric Accuracy** | Consumption ACV forecast accuracy vs. actual NRR | Within ± 10% | At annual renewal | The core validity test: if health tiers predict renewal outcomes accurately, the metric is doing its job as a leading indicator |
-| **Data Reliability** | Pipeline data freshness | Snapshot ≤ 24 hours old at time of dashboard load | Every pipeline run | Stale data erodes trust; reps and execs need to know the dashboard reflects yesterday's usage, not last week's |
-| **Data Reliability** | Data quality test pass rate (ERROR tier) | 100% — zero ERROR failures | Every pipeline run | Any ERROR-level failure means a Consumption ACV figure fed to comp or exec reporting may be wrong — this is a zero-tolerance threshold |
+<table>
+<thead>
+<tr><th>Category</th><th>KPI</th><th>Target</th><th>Window</th><th>Why it matters</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td rowspan="4"><strong>Business Outcomes</strong></td>
+  <td>Org-wide Consumption ACV Attainment</td>
+  <td>≥ 85%</td>
+  <td>Rolling 90 days</td>
+  <td>The headline portfolio health number for the CFO — at 85%, the unconsumed ACV gap is small enough that GRR should remain stable at renewal</td>
+</tr>
+<tr>
+  <td>Shelfware rate</td>
+  <td>≤ 8% of active accounts</td>
+  <td>Monthly</td>
+  <td>Shelfware accounts are the leading indicator of logo churn; keeping this below 8% means the save plan backlog stays manageable</td>
+</tr>
+<tr>
+  <td>Expansion flag conversion</td>
+  <td>≥ 30% of flagged accounts → upsell within 180 days</td>
+  <td>Semi-annual</td>
+  <td>Validates that the expansion signal (sustained &gt;120% consumption) is being worked by reps, not just observed on a dashboard</td>
+</tr>
+<tr>
+  <td>New account activation</td>
+  <td>≥ 70% reach Healthy tier within 90 days of go-live</td>
+  <td>Quarterly</td>
+  <td>Tests whether the AE is right-sizing deals and coordinating onboarding — a low activation rate points to overselling or poor handoff</td>
+</tr>
+<tr>
+  <td><strong>Metric Accuracy</strong></td>
+  <td>Consumption ACV forecast accuracy vs. actual NRR</td>
+  <td>Within ± 10%</td>
+  <td>At annual renewal</td>
+  <td>The core validity test: if health tiers predict renewal outcomes accurately, the metric is doing its job as a leading indicator</td>
+</tr>
+<tr>
+  <td rowspan="2"><strong>Data Reliability</strong></td>
+  <td>Pipeline data freshness</td>
+  <td>Snapshot ≤ 24 hours old at time of dashboard load</td>
+  <td>Every pipeline run</td>
+  <td>Stale data erodes trust; reps and execs need to know the dashboard reflects yesterday's usage, not last week's</td>
+</tr>
+<tr>
+  <td>Data quality test pass rate (ERROR tier)</td>
+  <td>100% — zero ERROR failures</td>
+  <td>Every pipeline run</td>
+  <td>Any ERROR-level failure means a Consumption ACV figure fed to comp or exec reporting may be wrong — this is a zero-tolerance threshold</td>
+</tr>
+</tbody>
+</table>
 
 > **Note on shelfware threshold:** The data quality test in `dq_tests.py` alerts at >15% shelfware rate (a data integrity floor). The 8% target above is a performance ceiling — the org should be well below the alert level. If shelfware rate is between 8% and 15%, it requires a sales operations review; above 15%, it triggers the automated data quality alert and escalation to the data engineering team.
 
