@@ -32,9 +32,9 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 
 Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based model where customers commit to an annual credit pool rather than a fixed seat count. This creates a measurement gap: two $500K contracts look identical in ARR yet can represent entirely different business realities — one fully consumed and on track to expand, the other untouched and quietly becoming a churn liability.
 
-This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §2.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the sales rep and CS team must close before contract renewal.
+This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the sales rep and CS team must close before contract renewal.
 
-The spec covers: the full metric definition and formula (§2); background on the credit pricing model and market context (§3); health tier classification for every account from Expansion Signal to Churned (§4); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§6); quota setting and forecasting methodology (§7); a four-audience executive dashboard (§10); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§11). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §12.
+The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); a compensation framework that shifts AE and AM incentives from deal signing toward consumption outcomes (§6); quota setting and forecasting methodology (§7); a four-audience executive dashboard (§10); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§11). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp plan weights, quota caps, and correction workflows — are documented in §12.
 
 **Status: Proposed — pending executive alignment.**
 
@@ -43,18 +43,15 @@ The spec covers: the full metric definition and formula (§2); background on the
 ## Table of Contents
 
 - [1. Problem Statement](#1-problem-statement)
-- [2. The North Star Metric: Consumption ACV](#2-the-north-star-metric-consumption-acv)
-  - [2.1 Definition](#21-definition)
-  - [2.2 Formula](#22-formula)
-  - [2.2.2 Key Assumptions (v1)](#222-key-assumptions-v1)
-  - [2.3 Consumed ACV Rate](#23-consumed-acv-rate)
-  - [2.4 Aggregation Levels](#24-aggregation-levels)
-  - [2.5 Intended Behavioral Drivers](#25-intended-behavioral-drivers)
-  - [2.6 Retention and Churn as Secondary Metrics](#26-retention-and-churn-as-secondary-metrics)
-- [3. Background & Market Context](#3-background--market-context)
-  - [3.1 Prisma Cloud Credit Pricing Model](#31-prisma-cloud-credit-pricing-model)
-  - [3.2 The Shift to Consumption-Based Revenue](#32-the-shift-to-consumption-based-revenue)
-  - [3.3 Comparable Metrics at Peer Companies](#33-comparable-metrics-at-peer-companies)
+- [2. Background & Market Context](#2-background--market-context)
+- [3. The North Star Metric: Consumption ACV](#3-the-north-star-metric-consumption-acv)
+  - [3.1 Definition](#31-definition)
+  - [3.2 Formula](#32-formula)
+  - [3.2.2 Key Assumptions (v1)](#322-key-assumptions-v1)
+  - [3.3 Consumed ACV Rate](#33-consumed-acv-rate)
+  - [3.4 Aggregation Levels](#34-aggregation-levels)
+  - [3.5 Intended Behavioral Drivers](#35-intended-behavioral-drivers)
+  - [3.6 Retention and Churn as Secondary Metrics](#36-retention-and-churn-as-secondary-metrics)
 - [4. Health Tier Classification](#4-health-tier-classification)
 - [5. Edge Case Handling](#5-edge-case-handling)
 - [6. Proposed Compensation Framework](#6-proposed-compensation-framework)
@@ -88,9 +85,15 @@ Sales leadership needs a single metric that:
 
 ---
 
-## 2. The North Star Metric: Consumption ACV
+## 2. Background & Market Context
 
-### 2.1 Definition
+Prisma Cloud contracts are denominated in **compute credits** — customers commit to an annual credit pool at signing (Business Edition: 1-year term; Enterprise Edition: 2–3 year, ~30% volume discount), and platform usage draws down against that pool daily. Consumption-based pricing is now the enterprise software standard: 85% of software companies offer some form of usage-based pricing *(Metronome, State of Usage-Based Pricing 2025)*, and peers like Snowflake and Databricks have built their GTM compensation models around trailing consumption metrics. The metric defined in §3 applies this same pattern to Prisma Cloud's credit model.
+
+---
+
+## 3. The North Star Metric: Consumption ACV
+
+### 3.1 Definition
 
 **Consumption ACV is the portion of contracted ACV (Annual Contract Value) that is backed by actual platform usage.**
 
@@ -100,7 +103,7 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 
 > **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §12 Q8). Retroactive Consumption ACV corrections after commission payment require CFO sign-off. The full audit trail data model — `pipeline_run_log`, `fact_cacv_corrections`, ownership history, and contract amendment tables — is specified in the Technical Spec §3.2–3.3. The rep dispute resolution workflow and correction approval chain must be defined by Finance and RevOps before comp platform integration (see §12 Q8).
 
-### 2.2 Formula
+### 3.2 Formula
 
 ```
 Consumption ACV     = ACV × consumption_rate(W)
@@ -115,7 +118,7 @@ consumption_rate(W) = SUM(daily_credits_consumed over last W days)
 - `ACV` (`annual_commit_dollars`) — the annualized contract value from the account's active contract
 - `daily_credits_consumed` — credits consumed on a given day, from `daily_usage_logs` (one row per account per day)
 - `included_monthly_compute_credits` — the monthly Prisma Cloud credit allowance from the `contracts` table; multiplied by W/30 to prorate the allotment to the exact window length
-- `W` — lookback window; see table below. **For compensation and quota attainment, W = 90 days is the v1 assumption** (see Key Assumptions §2.2.2). This may be revisited by segment in v2: Enterprise accounts have longer deployment cycles that may benefit from a longer smoothing window; SMB accounts have more volatile usage patterns that may call for a shorter one.
+- `W` — lookback window; see table below. **For compensation and quota attainment, W = 90 days is the v1 assumption** (see Key Assumptions §3.2.2). This may be revisited by segment in v2: Enterprise accounts have longer deployment cycles that may benefit from a longer smoothing window; SMB accounts have more volatile usage patterns that may call for a shorter one.
 
 #### 2.2.1 Standard Reporting Windows
 
@@ -133,7 +136,7 @@ The formula is intentionally window-agnostic. Three standard values of W are sup
 
 **Consumption Overage** is a derived metric — the portion of consumption above the contracted commit. It is always zero for accounts consuming at or below 100%, and positive for over-consuming accounts. Note that above-commit usage is billed at the Pay-As-You-Go (PAYG) list rate, so Consumption Overage underestimates the actual incremental revenue from overage; it is best treated as a demand signal rather than a revenue figure.
 
-### 2.2.2 Key Assumptions (v1)
+### 3.2.2 Key Assumptions (v1)
 
 The following are explicit v1 design decisions, not empirically validated parameters. Each should be reviewed after 12–18 months of data or when expanding to new segments.
 
@@ -157,13 +160,13 @@ The following are explicit v1 design decisions, not empirically validated parame
 | Overage | $80K | 138% | $110K | $30K |
 | New account (<90 days) | $150K | — | Excluded (ramping) | — |
 
-### 2.3 Consumed ACV Rate
+### 3.3 Consumed ACV Rate
 
 ```
 Consumed ACV Rate = Total Consumption ACV / Total ACV
 ```
 
-> **Ramping accounts are excluded from top-line numbers.** Accounts whose contract is less than 90 days old are in the ramp window and are excluded from both the numerator and denominator of the Consumed ACV Rate. Including them would artificially depress the portfolio rate — a customer who signed last week has had no meaningful time to consume credits. Ramping accounts are tracked separately and graduate into the main rate once the 90-day window closes. See §2.2.2 for the v1 ramp window assumption.
+> **Ramping accounts are excluded from top-line numbers.** Accounts whose contract is less than 90 days old are in the ramp window and are excluded from both the numerator and denominator of the Consumed ACV Rate. Including them would artificially depress the portfolio rate — a customer who signed last week has had no meaningful time to consume credits. Ramping accounts are tracked separately and graduate into the main rate once the 90-day window closes. See §3.2.2 for the v1 ramp window assumption.
 
 **The metric is ACV-weighted, not account-count-weighted.** A large shelfware account with $500K ACV at 4% consumption has far more impact on the portfolio rate than ten small healthy accounts at $10K ACV each. This is intentional — the CFO cares about dollar risk, not account count:
 
@@ -180,7 +183,7 @@ This is the headline health ratio for the CFO. A portfolio at **62.4%** means **
 
 Note that Enterprise B alone ($300K ACV at 4%) pulls the Consumed ACV Rate from ~87% down to ~62%. A low Consumed ACV Rate at the portfolio level may trace back to a smaller number of low-consumption accounts — worth investigating before drawing broader conclusions.
 
-### 2.4 Aggregation Levels
+### 3.4 Aggregation Levels
 
 Both Consumption ACV and Consumed ACV Rate aggregate across the following hierarchy:
 
@@ -191,9 +194,9 @@ Both Consumption ACV and Consumed ACV Rate aggregate across the following hierar
 | **Region** | Sum of rep Consumption ACV within a region; Region Consumed ACV Rate = Region Consumption ACV / Region ACV |
 | **Segment** | Sum of account Consumption ACV within a segment (Enterprise / Mid-Market / SMB); Segment Consumed ACV Rate = Segment Consumption ACV / Segment ACV — expected to differ materially across segments due to different deployment complexity and ramp timelines |
 | **Org** | Total — the Board-level North Star; Org Consumed ACV Rate is the portfolio headline metric |
-| **Cohort** | Sum of account Consumption ACV grouped by contract start quarter (e.g., all accounts signed in Q1 FY2025); the primary tool for detecting whether onboarding trends are improving or deteriorating over time. Cohort analysis is also the correct unit for validating health tier thresholds against actual renewal outcomes (see §2.6 v1 note). |
+| **Cohort** | Sum of account Consumption ACV grouped by contract start quarter (e.g., all accounts signed in Q1 FY2025); the primary tool for detecting whether onboarding trends are improving or deteriorating over time. Cohort analysis is also the correct unit for validating health tier thresholds against actual renewal outcomes (see §3.6 v1 note). |
 
-> **Why segment matters:** Enterprise, Mid-Market, and SMB accounts are likely to exhibit materially different ramp curves. Enterprise deployments span multiple business units and compliance domains and may take 6–9 months to reach steady-state consumption; SMB accounts may ramp faster but also drop off faster if the initial deployment is thin. A growing SMB mix can mask a deteriorating Enterprise rate (or vice versa), and a single Consumed ACV Rate target will be miscalibrated for at least one segment. v1 stores the data to compute segment-level rates; per-segment targets are a v2 calibration item once sufficient data has accumulated. See §2.2.2 Key Assumptions.
+> **Why segment matters:** Enterprise, Mid-Market, and SMB accounts are likely to exhibit materially different ramp curves. Enterprise deployments span multiple business units and compliance domains and may take 6–9 months to reach steady-state consumption; SMB accounts may ramp faster but also drop off faster if the initial deployment is thin. A growing SMB mix can mask a deteriorating Enterprise rate (or vice versa), and a single Consumed ACV Rate target will be miscalibrated for at least one segment. v1 stores the data to compute segment-level rates; per-segment targets are a v2 calibration item once sufficient data has accumulated. See §3.2.2 Key Assumptions.
 
 > **Source data note:** Daily usage logs (`daily_usage_logs`) are recorded at the account × day level — each row is the total credits consumed by one account on one day. `consumption_rate(W)` is computed by summing those daily rows over the last W days and dividing by the prorated W-day credit allotment (`included_monthly_compute_credits × W/30`). This means a 7-day window uses the last 7 days of actual usage against a 7-day allotment (not a monthly average), and a 90-day window uses the last 90 days against a 90-day allotment — consistent behavior at any window size. The aggregation hierarchy above describes how account-level Consumption ACV values are summed upward; it does not imply a different granularity of source data. In v1, the data pipeline already produces all levels on each run.
 >
@@ -201,7 +204,7 @@ Both Consumption ACV and Consumed ACV Rate aggregate across the following hierar
 
 ---
 
-### 2.5 Intended Behavioral Drivers
+### 3.5 Intended Behavioral Drivers
 
 Consumption ACV is designed to shift incentives at every layer of the GTM organization. The behaviors it is explicitly intended to reward — and suppress — are:
 
@@ -230,7 +233,7 @@ Consumption ACV is designed to shift incentives at every layer of the GTM organi
 
 ---
 
-### 2.6 Retention and Churn as Secondary Metrics
+### 3.6 Retention and Churn as Secondary Metrics
 
 Consumption ACV is the North Star, but retention and churn metrics provide the lagging validation that Consumption ACV is tracking the right thing. Together they form a leading/lagging system: **Consumption ACV attainment is observable today, in real time; NRR and GRR are only known at renewal, months later.** If the design is correct, high Consumption ACV attainment today should predict strong NRR at the next renewal cycle. Tracking both allows the team to validate — and over time recalibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
 
@@ -303,69 +306,6 @@ In a BI implementation this table should be colour-coded: green rows indicate si
 > **v1 note:** The NRR outcome bands in the prediction table above (≥90% → strong renewal, etc.) are starting hypotheses derived from industry analogues, not PANW-specific renewal data. Treat them as directional guidance for v1. The primary value of this framework is establishing the *measurement habit* — tracking Consumption ACV attainment alongside NRR outcomes at every renewal cohort — so the bands can be empirically recalibrated after 12–18 months. Plan a formal calibration milestone; commit to adjusting thresholds if the data contradicts them.
 
 Tracking both Consumption ACV (real-time) and NRR/GRR (at renewal) allows the team to validate — and over time calibrate — whether the health tier thresholds and attainment targets in this spec are set correctly.
-
----
-
-## 3. Background & Market Context
-
-### 3.1 Prisma Cloud Credit Pricing Model
-
-Credits are the unit of value in every Prisma Cloud contract. The monthly credit allowance is derived from ACV at deal signing.
-
-| Edition | Deal Profile |
-|---|---|
-| **Business Edition** | Mid-Market, 1-year term, no volume discount |
-| **Enterprise Edition** | Enterprise, 2–3 year platform deal, ~30% volume discount typical |
-| **Overage (PAYG)** | Above-commit usage billed at Business list rate |
-
-**Credit consumption by workload type** (Enterprise Edition):
-
-| Workload | Credits per Unit |
-|---|---|
-| VM (EC2, Azure VM, GCE) | 1 credit per VM |
-| Host Defender (Linux/Windows) | 0.5 credits per host |
-| Container Defender (host + all containers) | 5 credits per Defender |
-| Serverless container (Fargate, Cloud Run) | 1 credit per container |
-| Serverless function (Lambda, Azure Functions) | 1 credit per 6 functions |
-
-**Sources:**
-- **Credit consumption by workload type:** Prisma Cloud Compute Edition admin guide, Licensing section — [docs.prismacloud.io](https://docs.prismacloud.io/en/compute-edition/30/admin-guide/licensing/licensing).
-- **Credit-based licensing model and Business / Enterprise tier structure:** Corroborated by user reviews on [PeerSpot](https://www.peerspot.com/products/prisma-cloud-by-palo-alto-networks-pricing). List pricing not publicly disclosed by PANW — contact your account team or the [PANW Partner Portal](https://partners.paloaltonetworks.com) for current rates.
-- **~30% Enterprise discount:** Consistent with multi-year platform deal structures reported by Dell'Oro Group (see §13 Sources).
-
-### 3.2 The Shift to Consumption-Based Revenue
-
-Consumption-based pricing is rapidly becoming the enterprise software standard, not an edge case:
-
-- **85% of software companies** now offer some form of usage-based pricing. Among the largest software companies, 77% have incorporated consumption elements into their revenue model. *([Metronome, State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025))*
-- **SAP** announced in 2025 it is moving away from per-user and subscription pricing toward AI consumption-based billing as AI agents automate core enterprise workflows. CEO Christian Klein: *"It would be foolish to still charge subscription base, because AI is so powerful that it will automate a lot of tasks."* *([erp.today, 2025](https://erp.today/sap-shifts-to-ai-consumption-pricing-as-agents-threaten-saas-revenue-model/))*
-- **Salesforce** CEO Marc Benioff: *"We have per-user products which are for humans. And we have consumption products, they are for agents and robots."* — signaling the shift even in legacy SaaS. *([Metronome, State of Usage-Based Pricing 2025](https://metronome.com/state-of-usage-based-pricing-2025))*
-
-**Within cybersecurity specifically:**
-
-| Vendor | Consumption Unit | Model |
-|---|---|---|
-| Microsoft Sentinel | GB ingested | Pure consumption — $2–4/GB; no seat floor |
-| Lacework | Workload-hours | Usage-based CNAPP; scales with cloud footprint |
-| CrowdStrike | Endpoints + flex credits | Seat base + flex consumption for AI/XDR modules |
-| Wiz | Cloud workloads | Workload-count pricing tied to environment size |
-| **[PANW Prisma Cloud / Cortex Cloud](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)** | Compute credits | **Hybrid — committed ACV + consumption overlay** |
-
-PANW's credit model sits at the sophisticated end of this spectrum: unlike pure per-seat models it reflects *realized* security coverage, and unlike pure PAYG it provides revenue predictability for both the customer and PANW.
-
-### 3.3 Comparable Metrics at Peer Companies
-
-| Company | Consumption Unit | Equivalent Metric |
-|---|---|---|
-| [Snowflake](https://www.snowflake.com/en/data-cloud/pricing-options/) | Credits | Consumed Revenue = credits used × price/credit |
-| [Databricks](https://www.databricks.com/product/pricing) | DBUs | Consumed ACV = annualized trailing DBU usage |
-| [MongoDB](https://www.mongodb.com/pricing) | Queries/ops | Incremental ACV above usage baseline |
-| [OpenAI](https://openai.com/api/pricing/) / [Anthropic](https://www.anthropic.com/pricing) | Tokens | Revenue recognized on actual token consumption |
-| **[PANW Prisma Cloud](https://www.paloaltonetworks.com/blog/2025/02/announcing-innovations-cortex-cloud/)** | Prisma Cloud Credits | **Consumption ACV = ACV × consumption_rate** |
-
-**Snowflake precedent on compensation weighting:**
-- New/greenfield reps: 70% bookings / 30% consumption
-- Mature territory reps: 30% bookings / 70% consumption
 
 ---
 
