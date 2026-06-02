@@ -123,8 +123,8 @@ Consumed ACV Rate = Total Consumption ACV / Total ACV
 | Enterprise B | $300K | 4% | $12K | Shelfware — drives most of the portfolio risk |
 | Mid-Market C | $80K | 120% | $80K | Capped at ACV; Consumption Overage = $16K |
 | Mid-Market D | $60K | 75% | $45K | Approaching At Risk threshold |
-| SMB E | $40K | — | Excluded | Ramping — contract < 90 days |
-| **Portfolio total** | **$940K** | **62.4%** | **$587K** | Excluding Ramping |
+| **Portfolio total** | **$940K** | **62.4%** | **$587K** | |
+| *SMB E (excluded)* | *$40K* | *—* | *—* | *Ramping — contract < 90 days* |
 
 This is the headline health ratio for the CFO. A portfolio at **62.4%** means **37.6% ($353K) of booked ACV is not yet backed by consumption** — that dollar amount is the renewal exposure the CS team needs to address.
 
