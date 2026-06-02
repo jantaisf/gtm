@@ -57,7 +57,7 @@ To complete this, you are expected to utilize a spec-driven AI development appro
 | Data Model | Bronze source tables, Silver conformed tables, Gold dimension + fact tables, semantic layer views |
 | Pipeline Logic | Step-by-step SQL logic for all pipeline stages, edge case handling |
 | History & Audit | SCD strategy for dimension tables, comp audit trail, source data change logs |
-| Testing | Three-layer test suite: data quality, metric correctness, dashboard smoke tests |
+| Testing | Three-layer test suite: data quality, metric correctness, dashboard health checks |
 | Integrations | Reverse ETL to Salesforce, compensation platform, CS platform; executive dashboard |
 | Operations | Refresh schedule, upstream data dependencies, CI integration |
 
@@ -1029,7 +1029,7 @@ Layer 2 — Metric Correctness (pipeline unit tests)
     Asserts that the Gold-layer fact table matches expected values for
     known input scenarios (§5). Catches regressions in SQL logic.
 
-Layer 3 — Dashboard Smoke Tests
+Layer 3 — Dashboard Health Checks
     Confirms the Streamlit app loads, queries BigQuery, and renders
     all four pages without an unhandled exception.
 ```
@@ -1100,9 +1100,9 @@ The scenarios in §5 define the exact expected output for nine representative ac
 
 ---
 
-### 13.3 Layer 3 — Dashboard / BI Smoke Tests
+### 13.3 Layer 3 — Dashboard Health Checks
 
-Minimal end-to-end checks that confirm the Streamlit app renders without errors against a live (or mock) BigQuery connection. For the Streamlit prototype, smoke tests confirm the app loads and renders without errors. For the production BI platform build, the equivalent is confirming that each semantic layer view returns expected row counts and no NULL values on key metric columns — these can be added as dbt exposures or as scheduled BigQuery queries.
+Minimal end-to-end checks that confirm the dashboard connects to the data and renders correctly against a live (or mock) BigQuery connection. For the Streamlit prototype, these checks confirm the app loads and all views render without errors. For the production BI platform build, the equivalent is confirming that each semantic layer view returns expected row counts and no NULL values on key metric columns — these can be added as dbt exposures or as scheduled BigQuery queries.
 
 | Check | Description |
 |---|---|
@@ -1158,7 +1158,7 @@ Recommended implementation: a post-pipeline Python script that reads `dq_results
 | Gap | Risk | Planned fix |
 |---|---|---|
 | No automated metric correctness test file exists yet | Medium — SQL regressions may go undetected | Add `pytest` fixture in `pipeline_and_tests/test_metric_correctness.py` encoding all §5 scenarios |
-| Dashboard smoke tests are manual | Low for prototype; medium in production | Add `pytest` + `playwright` headless Streamlit tests |
+| Dashboard health checks are manual | Low for prototype; medium in production | Add `pytest` + `playwright` headless Streamlit tests |
 | No schema change detection | Medium — upstream column renames silently break the pipeline | Add a Bronze schema fingerprint check to `dq_tests.py` (compare actual column names against expected schema) |
 | Shelfware threshold (15%) is hardcoded | Low | Promote to a configurable parameter; alert threshold may differ by segment or quarter |
 | Data quality tests don't cover Silver or Gold tables | Medium post-GA | Extend `dq_tests.py` with a `--layer silver\|gold` flag to run referential integrity checks on the downstream tables |
