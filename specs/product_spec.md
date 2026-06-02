@@ -93,7 +93,7 @@ It answers the question: *"Of the revenue we've booked, how much is the customer
 
 > **Finance note:** Consumption ACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. If used in any materials shared with investors, we can label it as "Consumption ACV (GTM metric)" to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
 
-> **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §11 Q8). Retroactive Consumption ACV corrections after commission payment require CFO sign-off. The full audit trail data model — `pipeline_run_log`, `fact_cacv_corrections`, ownership history, and contract amendment tables — is specified in the Technical Spec §3.2–3.3. The rep dispute resolution workflow and correction approval chain must be defined by Finance and RevOps before comp platform integration (see §11 Q8).
+> **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §11 — Compensation Design). Retroactive Consumption ACV corrections after commission payment require CFO sign-off. The full audit trail data model — `pipeline_run_log`, `fact_cacv_corrections`, ownership history, and contract amendment tables — is specified in the Technical Spec §3.2–3.3. The rep dispute resolution workflow and correction approval chain must be defined by Finance and RevOps before comp platform integration (see §11 — Compensation Design).
 
 ### 3.2 Formula
 
@@ -141,7 +141,7 @@ The following are explicit v1 design decisions, not empirically validated parame
 | Health tier thresholds | 5% / 40% / 80% / 120% | Industry analogue starting points | Calibrate against actual renewal cohorts at 12–18 months |
 | Org-wide Consumption ACV attainment target | ≥ 85% | See §7; calibrate as renewal data accumulates | — |
 
-> **Open question — quota cap and expansion conversion:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at a fixed percentage of ACV — for example, 120% — so that over-consuming accounts do not indefinitely inflate a rep's attainment in lieu of a commercial expansion conversation. The ideal outcome when a customer sustains consumption above their contracted commit is a formal expansion or true-up contract, not ongoing PAYG overage billing. Capping Consumption ACV attainment at (say) 120% of ACV creates a direct financial incentive for the rep to convert sustained over-consumption into a new, larger contract: once the cap is reached, additional attainment credit requires a signed expansion. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §11 Q10.
+> **Open question — quota cap and expansion conversion:** For quota attainment purposes, Finance and Sales leadership may choose to cap Consumption ACV at a fixed percentage of ACV — for example, 120% — so that over-consuming accounts do not indefinitely inflate a rep's attainment in lieu of a commercial expansion conversation. The ideal outcome when a customer sustains consumption above their contracted commit is a formal expansion or true-up contract, not ongoing PAYG overage billing. Capping Consumption ACV attainment at (say) 120% of ACV creates a direct financial incentive for the rep to convert sustained over-consumption into a new, larger contract: once the cap is reached, additional attainment credit requires a signed expansion. The formula above is intentionally uncapped to give a complete picture of platform consumption. See §11 — Compensation Design.
 
 **Example:**
 
@@ -540,7 +540,7 @@ Once reliability and accuracy are solved in v1/v2, the long-term vision skews he
 <tr>
   <td><strong>Metric Accuracy</strong></td>
   <td>Consumption ACV as an externally reported metric</td>
-  <td>A metric that earns CFO trust and audit readiness could become a board-level disclosure alongside NRR, shifting the narrative from "we think customers are healthy" to "here is the data" <em>(CFO decision — see §11 Q6)</em></td>
+  <td>A metric that earns CFO trust and audit readiness could become a board-level disclosure alongside NRR, shifting the narrative from "we think customers are healthy" to "here is the data" <em>(CFO decision — see §11 — Rollout & Reporting)</em></td>
 </tr>
 <tr>
   <td><strong>Data Reliability</strong></td>
@@ -556,16 +556,27 @@ Once reliability and accuracy are solved in v1/v2, the long-term vision skews he
 
 The following decisions require VP of Sales and/or CFO sign-off before Consumption ACV can be operationalized.
 
-1. **Comp go-live timing** *(VP of Sales)* — Same-year comp launch or shadow-track for 1–2 quarters first before paying on it?
-2. **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + Consumption ACV weighted) or two separate quota lines?
-3. **Overage revenue recognition** *(CFO)* — Recognize Consumption Overage in-period or defer to contract amendment?
-4. **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the Consumption ACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
-5. **Phased vs. big-bang rollout** *(VP of Sales)* — Full launch across all regions or pilot one region/segment first?
-6. **Quota relief for ramping accounts** *(VP of Sales)* — Do new accounts in the 90-day ramp window reduce the quota denominator during that period?
-7. **Portfolio attainment floor** *(VP of Sales)* — Does sustained low Consumption ACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
-8. **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
-9. **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of Consumption ACV?
-10. **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number. Decision required before comp platform integration.
+### Metric Definition
+How ACV is defined and how overages are treated flows into every downstream calculation — quota, attainment, and comp. These need CFO sign-off first, as they set the foundation everything else builds on.
+
+- **Multi-year ACV basis** *(CFO)* — Confirm Year 1 ACV as the Consumption ACV denominator, or override with blended average annual value? *(v1 default: Year 1 ACV; ramp-structured deals flagged separately)*
+- **Overage revenue recognition** *(CFO)* — Recognize Consumption Overage in-period or defer to contract amendment?
+- **Consumption ACV cap for quota attainment** *(VP of Sales + Finance)* — Should Consumption ACV be capped at ACV when calculating quota attainment, so that over-consuming accounts cannot push a rep above 100% attainment on this metric alone? Capping preserves a clean "% of commit consumed" narrative; leaving it uncapped rewards over-consumption directly in the attainment number.
+
+### Compensation Design
+Once the metric definition is locked, these questions determine how it translates to rep incentives. The in-flight transition question carries the highest change-management risk and should be resolved before any comp platform integration.
+
+- **Single vs. dual quota** *(VP of Sales)* — Single blended attainment number (bookings + Consumption ACV weighted) or two separate quota lines?
+- **Quota relief for ramping accounts** *(VP of Sales)* — Do new accounts in the 90-day ramp window reduce the quota denominator during that period?
+- **Portfolio attainment floor** *(VP of Sales)* — Does sustained low Consumption ACV attainment (e.g., below 60% for two consecutive quarters) trigger a performance review independent of bookings?
+- **In-flight comp plan transition** *(VP of Sales + Finance)* — Are existing signed OTE plans honored to year-end, prorated, or renegotiated? *(highest change-management risk; legal review required)*
+
+### Rollout & Reporting
+Decisions about sequencing the launch and when the metric is mature enough for external disclosure.
+
+- **Comp go-live timing** *(VP of Sales)* — Same-year comp launch or shadow-track for 1–2 quarters first before paying on it?
+- **Phased vs. big-bang rollout** *(VP of Sales)* — Full launch across all regions or pilot one region/segment first?
+- **Board and investor reporting readiness** *(CFO)* — What accuracy, cohort size, and audit readiness threshold triggers external disclosure of Consumption ACV?
 
 ---
 
