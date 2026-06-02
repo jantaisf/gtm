@@ -49,7 +49,7 @@ Sales leadership needs a single metric that:
 
 It answers the question: *"Of the revenue we've booked, how much is the customer actually consuming?"*
 
-> **Naming note:** Consumption ACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. If used in any materials shared with investors, we can label it as "Consumption ACV (GTM metric)" to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
+> **Finance note:** Consumption ACV is an *imputed run-rate*, not recognized revenue. It equals `ACV × consumption_rate` and will not reconcile to PANW's reported ARR. Finance should treat it as a GTM health and forecasting metric — distinct from GAAP revenue recognition. If used in any materials shared with investors, we can label it as "Consumption ACV (GTM metric)" to prevent confusion with reported ARR. **ACV** is used throughout this spec for the contracted annual value; it carries no GAAP connotation and will not cause confusion with recognized revenue.
 
 > **Comp audit trail requirement:** Any Consumption ACV figure feeding a compensation calculation must be traceable to an immutable audit record that includes the pipeline run timestamp, pipeline version, and a before/after delta for any retroactive correction. Before integrating with a compensation platform, Finance and RevOps must define the correction workflow, approval chain, and rep dispute resolution process (see §13 Q8). Retroactive Consumption ACV corrections after commission payment require CFO sign-off. The full audit trail data model — `pipeline_run_log`, `fact_cacv_corrections`, ownership history, and contract amendment tables — is specified in the Technical Spec §3.2–3.3. The rep dispute resolution workflow and correction approval chain must be defined by Finance and RevOps before comp platform integration (see §13 Q8).
 
@@ -134,8 +134,6 @@ The following are explicit v1 design decisions, not empirically validated parame
 ```
 Consumed ACV Rate = Total Consumption ACV / Total ACV
 ```
-
-> **Naming note:** "Consumed ACV Rate" is the preferred label — it reads directly as *what fraction of ACV has been consumed*. In the dashboard and §9 success criteria this is also referred to as "Consumption ACV Attainment," which is acceptable in internal sales operations contexts. The important distinction is from *quota attainment* (a rep's Consumption ACV vs. their quota target), which is a different concept.
 
 This is the headline health ratio for the CFO. A portfolio at 78% means 22% of booked ACV is not yet backed by consumption — that dollar amount is the renewal exposure the CS team needs to address.
 
