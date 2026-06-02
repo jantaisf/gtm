@@ -34,7 +34,7 @@ Palo Alto Networks is transitioning Prisma Cloud to a hybrid consumption-based m
 
 This spec defines **Consumption ACV** — the portion of contracted ACV backed by actual platform usage — as the North Star metric for the Prisma Cloud GTM organization. The headline portfolio measure, **Consumed ACV Rate** (Consumption ACV ÷ Total ACV), gives the CFO a forward-looking indicator of renewal health rather than a lagging revenue figure. In the worked example in §3.3, four active accounts produce $587K of consumed ACV against $940K booked — a 62.4% rate, with $353K in unconsumed ACV representing the renewal exposure the account team must close before contract renewal.
 
-The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); quota setting, forecasting, and compensation implications (§6); a four-audience executive dashboard (§9); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§10). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §11.
+The spec covers: background and market context (§2); the full metric definition and formula (§3); health tier classification for every account from Expansion Signal to Churned (§4); quota setting and compensation implications (§6); a four-audience executive dashboard (§9); and downstream integrations with Salesforce, Xactly/CaptivateIQ, Gainsight, and the BI layer (§10). A working v1 prototype is available (`streamlit run dashboard/app.py`). Open questions requiring VP of Sales and CFO sign-off — including comp go-live timing, quota caps, and correction workflows — are documented in §11.
 
 **Status: Proposed — pending executive alignment.**
 
@@ -54,10 +54,9 @@ The spec covers: background and market context (§2); the full metric definition
   - [3.6 Retention and Churn as Secondary Metrics](#36-retention-and-churn-as-secondary-metrics)
 - [4. Health Tier Classification](#4-health-tier-classification)
 - [5. Lifecycle Management with Consumption ACV](#5-lifecycle-management-with-consumption-acv)
-- [6. Quota Setting, Forecasting, and Compensation](#6-quota-setting-forecasting-and-compensation)
+- [6. Quota Setting and Compensation](#6-quota-setting-and-compensation)
   - [6.1 Quota Setting with Consumption ACV](#61-quota-setting-with-consumption-acv)
-  - [6.2 Forecasting with Consumption ACV](#62-forecasting-with-consumption-acv)
-  - [6.3 Compensation Implications](#63-compensation-implications)
+  - [6.2 Compensation Implications](#62-compensation-implications)
 - [7. Success Criteria](#7-success-criteria)
 - [8. v1 Scope](#8-v1-scope)
 - [9. Executive Dashboard](#9-executive-dashboard)
@@ -305,14 +304,14 @@ Tracking both Consumption ACV (real-time) and NRR/GRR (at renewal) allows the te
 
 While Consumption ACV is a continuous metric, health tiers provide operational clarity for CS and sales prioritization:
 
-| Health Tier | Consumption Rate | Interpretation | Retention Signal | Action |
+| Health Tier | Consumption Rate | Interpretation | Renewal Forecast Signal | Action |
 |---|---|---|---|---|
-| **Expansion** | > 120% | Consistently over commit — upsell signal | NRR accelerator; expansion candidate | Rep-led expansion motion |
-| **Healthy** | 80–120% | On-track, full value realization | GRR anchor; renewal likely | Maintain cadence |
-| **At Risk** | 40–80% | Adoption lag — intervention needed | GRR risk; NRR compression at renewal | Account team escalation within 30 days |
-| **Shelfware** | 5–40% | Low utilization — churn risk | GRR headwind; elevated logo churn risk | Executive sponsor outreach |
+| **Expansion** | > 120% | Consistently over commit — upsell signal | Renewal likely + expansion probable; NRR accelerator | Rep-led expansion motion |
+| **Healthy** | 80–120% | On-track, full value realization | Renewal likely at flat ACV; GRR anchor | Maintain cadence |
+| **At Risk** | 40–80% | Adoption lag — intervention needed | Renewal at risk; NRR compression likely | Account team escalation within 30 days |
+| **Shelfware** | 5–40% | Low utilization — churn risk | High churn probability; GRR headwind | Executive sponsor outreach |
 | **Inactive** | < 5% | Near-zero usage | High logo churn risk | Immediate save plan |
-| **Ramping** | < 90 days old | Insufficient history | Excluded from NRR/GRR metrics | Tracked separately until window matures |
+| **Ramping** | < 90 days old | Insufficient history | Excluded from NRR/GRR forecast | Tracked separately until window matures |
 
 Health tiers are used for **dashboard visualization and CS prioritization only** — Consumption ACV itself uses the raw continuous consumption rate, not tiered multipliers.
 
@@ -337,7 +336,7 @@ Consumption ACV is designed to reflect where a customer actually is in their ado
 
 ---
 
-## 6. Quota Setting, Forecasting, and Compensation
+## 6. Quota Setting and Compensation
 
 ### 6.1 Quota Setting with Consumption ACV
 
@@ -358,37 +357,7 @@ Consumption ACV enables quota design that reflects territory health, not just la
 
 ---
 
-### 6.2 Forecasting with Consumption ACV
-
-Consumption ACV provides two distinct forecasting signals: **renewal risk** (defensive) and **expansion pipeline** (offensive).
-
-**Renewal risk forecast**
-- ACV at risk (ACV minus Consumption ACV) is the dollar value of committed ACV not backed by consumption
-- Accounts in the At Risk, Shelfware, or Inactive health tiers with a renewal within 90–180 days are the highest-priority save plays
-- The org-level ACV at risk total is the CFO's leading indicator: if it trends above ~15% of total ACV, NRR will compress at the next renewal cycle
-
-**Expansion pipeline forecast**
-- Accounts flagged for expansion (2+ consecutive months >120% consumption) have proven demand beyond their current commit — these are high-confidence upsell candidates
-- Expansion pipeline value (sum of ACV for flagged accounts) quantifies the near-term expansion opportunity the team should be working
-
-**NRR prediction**
-- Trailing Consumption ACV attainment rate is a leading indicator of net revenue retention at renewal:
-
-| Trailing Consumption ACV Attainment | Expected NRR Outcome |
-|---|---|
-| ≥ 90% | Strong renewal; likely expansion |
-| 70–90% | Renewal probable; flat or slight compression |
-| 50–70% | Renewal at risk; account team intervention required |
-| < 50% | High churn probability; executive save plan |
-
-- Target: Consumption ACV-based NRR forecast within ±10% of actual NRR at renewal (see §7 Success Criteria)
-
-**Cohort-based calibration (v2)**
-- Once sufficient renewal cohorts accumulate (12–18 months of data), regression against actual churn outcomes will allow the thresholds above to be empirically validated and refined per segment (Enterprise vs. Mid-Market) and industry vertical
-
----
-
-### 6.3 Compensation Implications
+### 6.2 Compensation Implications
 
 PANW currently pays AEs on full TCV (Nikesh Arora, Q2 FY2024 earnings: *"our salespeople still get paid on TCV...they're still going to do a three-year deal or a five-year deal"*). TCV comp rewards signing without accountability for consumption — a rep can close a $500K shelfware account and never revisit it.
 
