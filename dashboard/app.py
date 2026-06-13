@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
 
+import json
 import os
 
 import pandas as pd
@@ -1369,9 +1370,203 @@ _QUICK_ACTIONS = [
 ]
 
 
+_AGENT_TOOLS = [
+    {
+        "name": "query_accounts",
+        "description": (
+            "Look up accounts from the live portfolio snapshot. "
+            "Use this when the user asks about specific accounts, wants a filtered list "
+            "(e.g. all At Risk accounts in EMEA), or needs account-level detail to answer a question. "
+            "Returns up to `limit` accounts sorted by ACV at risk descending."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "health_tier": {
+                    "type": "string",
+                    "enum": ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive", "Ramping"],
+                    "description": "Filter to a single health tier. Omit to include all tiers.",
+                },
+                "rep_name": {
+                    "type": "string",
+                    "description": "Filter to accounts owned by this rep (exact name match).",
+                },
+                "region": {
+                    "type": "string",
+                    "description": "Filter to this region (e.g. NAMER, EMEA, APAC).",
+                },
+                "min_acv_at_risk": {
+                    "type": "number",
+                    "description": "Only return accounts with ACV at risk above this dollar threshold.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of accounts to return. Default 10.",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_rep_performance",
+        "description": (
+            "Get detailed performance metrics for a specific sales rep. "
+            "Use when the user asks about a named rep's attainment, portfolio, or coaching needs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "rep_name": {
+                    "type": "string",
+                    "description": "The rep's full name (e.g. 'Tammy Anderson').",
+                },
+            },
+            "required": ["rep_name"],
+        },
+    },
+    {
+        "name": "get_renewal_pipeline",
+        "description": (
+            "Get accounts renewing within a specified number of days, sorted by renewal risk. "
+            "Use for renewal planning, CFO reports, and CS prioritisation questions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days_window": {
+                    "type": "integer",
+                    "description": "Return accounts renewing within this many days. Default 90.",
+                },
+                "health_tier": {
+                    "type": "string",
+                    "enum": ["At Risk", "Shelfware", "Inactive", "Healthy", "Expansion", "Ramping"],
+                    "description": "Optionally filter by health tier.",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_portfolio_summary",
+        "description": (
+            "Get org-level portfolio KPIs: total ACV, Consumption ACV, attainment rate, "
+            "ACV at risk, expansion signal, and health tier breakdown. "
+            "Use for executive summaries and portfolio-level questions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "Scope to a specific region. Omit for the full org.",
+                },
+            },
+        },
+    },
+]
+
+_TOOL_LABELS = {
+    "query_accounts":       "🔍  Querying accounts…",
+    "get_rep_performance":  "👤  Looking up rep performance…",
+    "get_renewal_pipeline": "📅  Checking renewal pipeline…",
+    "get_portfolio_summary": "📊  Fetching portfolio summary…",
+}
+
+
 @st.cache_resource
 def _get_anthropic_client():
     return _anthropic.Anthropic()
+
+
+def _run_tool(
+    tool_name: str,
+    tool_input: dict,
+    acct_df: pd.DataFrame,
+    rep_df: pd.DataFrame,
+) -> list | dict:
+    """Execute a tool call and return a JSON-serialisable result."""
+
+    if tool_name == "query_accounts":
+        df = acct_df.copy()
+        if "health_tier" in tool_input:
+            df = df[df["health_tier"] == tool_input["health_tier"]]
+        if "rep_name" in tool_input:
+            df = df[df["rep_name"].str.lower() == tool_input["rep_name"].lower()]
+        if "region" in tool_input:
+            df = df[df["region"].str.upper() == tool_input["region"].upper()]
+        if "min_acv_at_risk" in tool_input:
+            df = df[df["acv_at_risk"] >= tool_input["min_acv_at_risk"]]
+        limit = tool_input.get("limit", 10)
+        return (
+            df.sort_values("acv_at_risk", ascending=False)
+            .head(limit)[
+                ["company_name", "health_tier", "annual_commit_dollars",
+                 "cacv", "acv_at_risk", "expansion_signal_acv",
+                 "trailing_90d_avg_rate", "rep_name", "region"]
+            ]
+            .round(2)
+            .to_dict(orient="records")
+        )
+
+    elif tool_name == "get_rep_performance":
+        name = tool_input["rep_name"]
+        row = rep_df[rep_df["rep_name"].str.lower() == name.lower()]
+        if row.empty:
+            return {"error": f"No rep found with name '{name}'. "
+                             f"Available reps: {rep_df['rep_name'].tolist()}"}
+        return row.round(4).to_dict(orient="records")
+
+    elif tool_name == "get_renewal_pipeline":
+        days   = tool_input.get("days_window", 90)
+        today  = date.today()
+        cutoff = today + timedelta(days=days)
+        df = acct_df.copy()
+        df["contract_end_date"] = pd.to_datetime(df["contract_end_date"]).dt.date
+        df = df[df["contract_end_date"] <= cutoff]
+        df["days_to_renewal"] = (df["contract_end_date"] - today).apply(lambda d: d.days)
+        if "health_tier" in tool_input:
+            df = df[df["health_tier"] == tool_input["health_tier"]]
+        return (
+            df.sort_values("acv_at_risk", ascending=False)
+            .head(20)[
+                ["company_name", "contract_end_date", "days_to_renewal",
+                 "health_tier", "annual_commit_dollars", "cacv",
+                 "acv_at_risk", "trailing_90d_avg_rate", "rep_name", "region"]
+            ]
+            .astype({"contract_end_date": str})
+            .round(2)
+            .to_dict(orient="records")
+        )
+
+    elif tool_name == "get_portfolio_summary":
+        df = rep_df.copy()
+        if "region" in tool_input:
+            df = df[df["region"].str.upper() == tool_input["region"].upper()]
+        total_acv       = df["total_acv"].sum()
+        total_cacv      = df["total_cacv"].sum()
+        total_at_risk   = df["total_acv_at_risk"].sum()
+        total_expansion = df["total_expansion_signal_acv"].sum()
+        attainment      = round(total_cacv / total_acv, 4) if total_acv > 0 else 0
+
+        # Tier breakdown from accounts
+        acct = acct_df.copy()
+        if "region" in tool_input:
+            acct = acct[acct["region"].str.upper() == tool_input["region"].upper()]
+        tier_counts = acct["health_tier"].value_counts().to_dict()
+        tier_acv    = acct.groupby("health_tier")["annual_commit_dollars"].sum().round(0).to_dict()
+
+        return {
+            "scope":           tool_input.get("region", "All Regions"),
+            "total_acv":       round(total_acv, 0),
+            "total_cacv":      round(total_cacv, 0),
+            "attainment_rate": attainment,
+            "total_acv_at_risk":   round(total_at_risk, 0),
+            "total_expansion_signal_acv": round(total_expansion, 0),
+            "rep_count":       len(df),
+            "account_count":   len(acct),
+            "health_tier_counts": tier_counts,
+            "health_tier_acv":    {k: int(v) for k, v in tier_acv.items()},
+        }
+
+    return {"error": f"Unknown tool: {tool_name}"}
 
 
 def _build_agent_system_prompt(rep_df: pd.DataFrame, acct_df: pd.DataFrame, as_of_date: str) -> str:
@@ -1431,10 +1626,19 @@ def _build_agent_system_prompt(rep_df: pd.DataFrame, acct_df: pd.DataFrame, as_o
     return f"""You are the GTM Analytics Agent for Prisma Cloud's Consumption ACV dashboard. Your role is to help sales reps, CSMs, sales managers, and executives move from "requesting a report" to "interacting with data."
 
 ## What You Can Do
-1. **Data Q&A** — Answer questions about the portfolio, accounts, reps, and regions using the live snapshot below
+1. **Data Q&A** — Query the live portfolio using your tools to answer questions about accounts, reps, and regions
 2. **Metric Explanation** — Explain Consumption ACV, health tiers, pipeline concepts, and how metrics are calculated
 3. **Action Recommendations** — Suggest specific CS plays, coaching priorities, expansion calls, and next steps
 4. **Draft Communications** — Write outreach emails, rep coaching notes, executive summaries, and renewal alerts
+
+## Tools Available
+You have four tools to query live data. Use them whenever a question requires specific account, rep, or pipeline detail — don't rely solely on the snapshot summary below.
+- **query_accounts** — filter accounts by health tier, rep, region, or minimum ACV at risk
+- **get_rep_performance** — detailed metrics for a named rep
+- **get_renewal_pipeline** — accounts renewing within N days, sorted by risk
+- **get_portfolio_summary** — org-level or regional KPIs
+
+Call tools proactively. For multi-part questions, call multiple tools before composing your answer.
 
 ## Consumption ACV (cACV) — The North Star Metric
 Consumption ACV = ACV × trailing_90d_consumption_rate, capped at ACV.
@@ -1579,24 +1783,84 @@ def page_gtm_agent(
         for m in st.session_state.agent_messages
     ]
 
-    # ── Stream Claude response ─────────────────────────────────────────────
+    # ── Agentic tool-use loop ──────────────────────────────────────────────
     system_prompt = _build_agent_system_prompt(rep_df, acct_df, as_of_date)
+    loop_messages = api_messages.copy()
+    response_text = ""
 
     try:
         client = _get_anthropic_client()
+
         with st.chat_message("assistant", avatar="🤖"):
-            with client.messages.stream(
-                model=_AGENT_MODEL,
-                max_tokens=2048,
-                thinking={"type": "adaptive"},
-                system=[{
-                    "type": "text",
-                    "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
-                }],
-                messages=api_messages,
-            ) as stream:
-                response_text = st.write_stream(stream.text_stream)
+            output_area = st.container()
+
+            # Safety cap: rarely needs more than 3 iterations
+            for _iteration in range(8):
+                response = client.messages.create(
+                    model=_AGENT_MODEL,
+                    max_tokens=4096,
+                    thinking={"type": "adaptive"},
+                    tools=_AGENT_TOOLS,
+                    system=[{
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }],
+                    messages=loop_messages,
+                )
+
+                if response.stop_reason == "tool_use":
+                    # ── Execute every tool call Claude requested ───────────
+                    tool_results = []
+                    for block in response.content:
+                        if block.type != "tool_use":
+                            continue
+
+                        label = _TOOL_LABELS.get(block.name, f"🔧  {block.name}…")
+                        with output_area:
+                            with st.status(label) as status:
+                                result = _run_tool(block.name, block.input,
+                                                   acct_df, rep_df)
+                                # Show result inline so the user sees what was found
+                                if isinstance(result, list) and result:
+                                    st.dataframe(
+                                        pd.DataFrame(result),
+                                        use_container_width=True,
+                                        hide_index=True,
+                                    )
+                                elif isinstance(result, dict) and "error" not in result:
+                                    st.json(result)
+                                status.update(state="complete")
+
+                        tool_results.append({
+                            "type":        "tool_result",
+                            "tool_use_id": block.id,
+                            "content":     json.dumps(result, default=str),
+                        })
+
+                    # Feed tool results back for the next Claude turn
+                    loop_messages.append({"role": "assistant",
+                                          "content": response.content})
+                    loop_messages.append({"role": "user",
+                                          "content": tool_results})
+
+                else:
+                    # ── end_turn: Claude has composed its final answer ─────
+                    for block in response.content:
+                        if hasattr(block, "text") and block.text:
+                            response_text = block.text
+                            break
+                    with output_area:
+                        st.markdown(response_text)
+                    break
+
+            else:
+                response_text = (
+                    "I reached the tool call limit before finishing. "
+                    "Try breaking your question into smaller parts."
+                )
+                with output_area:
+                    st.warning(response_text)
 
         st.session_state.agent_messages.append({
             "role": "assistant",
