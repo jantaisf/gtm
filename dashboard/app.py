@@ -18,10 +18,18 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
 
+import os
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
+try:
+    import anthropic as _anthropic
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    _ANTHROPIC_AVAILABLE = False
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
@@ -1340,6 +1348,268 @@ def page_data_health(acct_df: pd.DataFrame, rep_df: pd.DataFrame, as_of_date_str
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GTM Agent — Claude-powered chat
+# ─────────────────────────────────────────────────────────────────────────────
+
+_AGENT_MODEL = "claude-opus-4-7"
+
+_QUICK_ACTIONS = [
+    ("📊  Portfolio attainment",
+     "What is the overall portfolio Consumption ACV attainment rate, and which regions are ahead vs. behind?"),
+    ("⚠️  Top at-risk accounts",
+     "Which accounts are at the highest renewal risk? List the top 5 with their ACV at risk and health tier."),
+    ("👤  Rep coaching priorities",
+     "Which sales reps need the most coaching right now? Give me a prioritized list with the key issue for each."),
+    ("💡  Explain the metric",
+     "Explain what Consumption ACV is, how it's calculated, and why it's the North Star metric."),
+    ("📈  Expansion opportunities",
+     "Which accounts have the strongest expansion signals? List the top 5 with their expansion ACV and the owning rep."),
+    ("📝  Draft exec summary",
+     "Draft a brief executive summary of the current portfolio state I can share with the VP of Sales in a weekly meeting."),
+]
+
+
+@st.cache_resource
+def _get_anthropic_client():
+    return _anthropic.Anthropic()
+
+
+def _build_agent_system_prompt(rep_df: pd.DataFrame, acct_df: pd.DataFrame, as_of_date: str) -> str:
+    """Build a data-rich system prompt from the current snapshot."""
+    def fm(v: float) -> str:
+        if v >= 1_000_000: return f"${v / 1_000_000:.1f}M"
+        if v >= 1_000:     return f"${v / 1_000:.0f}K"
+        return f"${v:.0f}"
+
+    # Portfolio totals
+    total_acv       = rep_df["total_acv"].sum()
+    total_cacv      = rep_df["total_cacv"].sum()
+    total_at_risk   = rep_df["total_acv_at_risk"].sum()
+    total_expansion = rep_df["total_expansion_signal_acv"].sum()
+    attainment      = total_cacv / total_acv if total_acv > 0 else 0
+
+    # Health tier breakdown
+    tier_counts = acct_df["health_tier"].value_counts().to_dict()
+    tier_acv    = acct_df.groupby("health_tier")["annual_commit_dollars"].sum().to_dict()
+    tier_lines  = "\n".join(
+        f"  - {t}: {tier_counts.get(t, 0)} accounts ({fm(tier_acv.get(t, 0))} ACV)"
+        for t in ["Expansion", "Healthy", "At Risk", "Shelfware", "Inactive", "Ramping"]
+        if t in tier_counts
+    )
+
+    # Top at-risk accounts
+    at_risk = (
+        acct_df[acct_df["health_tier"].isin(["At Risk", "Shelfware", "Inactive"])]
+        .sort_values("acv_at_risk", ascending=False)
+        .head(10)
+    )
+    at_risk_lines = "\n".join(
+        f"  - {r['company_name']} ({r['health_tier']}): "
+        f"{fm(r['acv_at_risk'])} at risk of {fm(r['annual_commit_dollars'])} ACV — Rep: {r['rep_name']}"
+        for _, r in at_risk.iterrows()
+    )
+
+    # Top expansion accounts
+    expansion = (
+        acct_df[acct_df["health_tier"] == "Expansion"]
+        .sort_values("expansion_signal_acv", ascending=False)
+        .head(10)
+    )
+    expansion_lines = "\n".join(
+        f"  - {r['company_name']}: {fm(r['expansion_signal_acv'])} expansion signal "
+        f"on {fm(r['annual_commit_dollars'])} ACV — Rep: {r['rep_name']}"
+        for _, r in expansion.iterrows()
+    )
+
+    # Rep performance table
+    rep_lines = "\n".join(
+        f"  - {r['rep_name']} ({r['region']}): {r['cacv_attainment_rate']:.1%} attainment, "
+        f"{fm(r['total_acv'])} ACV, {fm(r['total_acv_at_risk'])} at risk"
+        for _, r in rep_df.sort_values("cacv_attainment_rate", ascending=False).iterrows()
+    )
+
+    return f"""You are the GTM Analytics Agent for Prisma Cloud's Consumption ACV dashboard. Your role is to help sales reps, CSMs, sales managers, and executives move from "requesting a report" to "interacting with data."
+
+## What You Can Do
+1. **Data Q&A** — Answer questions about the portfolio, accounts, reps, and regions using the live snapshot below
+2. **Metric Explanation** — Explain Consumption ACV, health tiers, pipeline concepts, and how metrics are calculated
+3. **Action Recommendations** — Suggest specific CS plays, coaching priorities, expansion calls, and next steps
+4. **Draft Communications** — Write outreach emails, rep coaching notes, executive summaries, and renewal alerts
+
+## Consumption ACV (cACV) — The North Star Metric
+Consumption ACV = ACV × trailing_90d_consumption_rate, capped at ACV.
+- A consumption rate of 0.75 means the account is using 75% of what it committed to — its cACV is 0.75 × ACV
+- When the rate exceeds 1.0× the account generates **Consumption Overage** — upsell revenue and an expansion signal
+- **Why it's the North Star**: it bridges what customers commit to pay vs. what they actually use, predicting renewal outcomes and expansion potential better than any bookings-only metric
+
+## Health Tiers
+- **Expansion** (green): Rate consistently >1.0× — consuming above commit; prime for upsell
+- **Healthy** (blue): Rate 0.85–1.0× — on track; renewal is safe
+- **At Risk** (amber): Rate 0.70–0.84× — below expectations; needs CS intervention
+- **Shelfware** (orange): Rate 0.50–0.69× — significant underutilization; renewal at serious risk
+- **Inactive** (red): Rate <0.50× — near-zero usage; potential churn; escalation required
+- **Ramping** (purple): New accounts (<90 days of data); excluded from comp calculations until mature
+
+## Portfolio Snapshot — {as_of_date}
+
+**Summary**
+- Consumption ACV: {fm(total_cacv)} of {fm(total_acv)} total ACV
+- Attainment rate: {attainment:.1%}
+- ACV at risk: {fm(total_at_risk)}
+- Expansion signal: {fm(total_expansion)}
+
+**Health Tier Breakdown**
+{tier_lines}
+
+**Top At-Risk Accounts** (by ACV at risk)
+{at_risk_lines}
+
+**Top Expansion Opportunities** (by expansion signal ACV)
+{expansion_lines}
+
+**Rep Performance** (sorted by attainment rate, high → low)
+{rep_lines}
+
+## Response Style
+- Be concise and direct — these are busy sales and CS professionals
+- Format currency as $M / $K (e.g., $2.3M, $450K)
+- Format rates as percentages (e.g., 74.6%)
+- When recommending actions, name the specific account, rep, or play — no vague advice
+- When drafting communications, produce ready-to-send copy with [bracketed placeholders] for items the user should personalize
+- Always connect data insights to a business action — don't just report numbers, say what to do about them
+"""
+
+
+def page_gtm_agent(
+    rep_df: pd.DataFrame,
+    acct_df: pd.DataFrame,
+    as_of_date: str,
+) -> None:
+    """GTM Agent tab — Claude-powered chat over the current portfolio snapshot."""
+
+    persona_callout(
+        "Sales Reps · CSMs · Sales Managers · Executives",
+        [
+            "Ask data questions about accounts, reps, or the portfolio",
+            "Get metric explanations in plain English",
+            "Request action recommendations and coaching priorities",
+            "Draft communications — emails, coaching notes, exec summaries",
+        ],
+        accent="#6d28d9",
+    )
+
+    # ── Guard: package available? ──────────────────────────────────────────
+    if not _ANTHROPIC_AVAILABLE:
+        st.error(
+            "**`anthropic` package not installed.**  \n"
+            "Run `pip install anthropic` to enable the GTM Agent, then restart the dashboard."
+        )
+        return
+
+    # ── Guard: API key set? ────────────────────────────────────────────────
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        st.warning(
+            "**ANTHROPIC_API_KEY not set.**  \n"
+            "Export your key before starting the dashboard:\n\n"
+            "```bash\nexport ANTHROPIC_API_KEY=sk-ant-…\nstreamlit run dashboard/app.py\n```"
+        )
+        return
+
+    # ── Hero banner ────────────────────────────────────────────────────────
+    st.markdown(
+        '<div style="background:linear-gradient(135deg,#4c1d95 0%,#6d28d9 55%,#7c3aed 100%);'
+        'border-radius:12px;padding:1.1rem 1.5rem;margin-bottom:1.25rem;">'
+        '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;'
+        'color:#c4b5fd;margin-bottom:0.3rem;">GTM Analytics Agent · Powered by Claude</div>'
+        '<div style="font-size:1rem;font-weight:600;color:white;margin-bottom:0.2rem;">'
+        'Stop requesting reports. Start asking questions.</div>'
+        '<div style="font-size:0.8rem;color:#ddd6fe;">'
+        'Ask about any account, rep, or portfolio metric — or request an action recommendation, '
+        'explanation, or draft communication.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Initialise session state ───────────────────────────────────────────
+    if "agent_messages" not in st.session_state:
+        st.session_state.agent_messages: list[dict] = []
+
+    # ── Quick-action chips ─────────────────────────────────────────────────
+    st.markdown(
+        '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.07em;'
+        'text-transform:uppercase;color:#94a3b8;margin-bottom:0.6rem;">Quick Actions</div>',
+        unsafe_allow_html=True,
+    )
+    triggered_prompt: str | None = None
+    qa_cols = st.columns(3)
+    for i, (label, prompt) in enumerate(_QUICK_ACTIONS):
+        with qa_cols[i % 3]:
+            if st.button(label, key=f"qa_{i}", use_container_width=True):
+                triggered_prompt = prompt
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # ── Render existing conversation ───────────────────────────────────────
+    for msg in st.session_state.agent_messages:
+        avatar = "🤖" if msg["role"] == "assistant" else "👤"
+        with st.chat_message(msg["role"], avatar=avatar):
+            st.markdown(msg["content"])
+
+    # Clear button (only shown when there's a conversation)
+    if st.session_state.agent_messages:
+        if st.button("🗑  Clear conversation", key="clear_agent_chat"):
+            st.session_state.agent_messages = []
+            st.rerun()
+
+    # ── Chat input ─────────────────────────────────────────────────────────
+    typed_input = st.chat_input("Ask about accounts, reps, metrics, or request a draft…")
+    user_input  = triggered_prompt or typed_input
+
+    if not user_input:
+        return
+
+    # Show the user message immediately
+    with st.chat_message("user", avatar="👤"):
+        st.markdown(user_input)
+    st.session_state.agent_messages.append({"role": "user", "content": user_input})
+
+    # Build API message list from full history
+    api_messages = [
+        {"role": m["role"], "content": m["content"]}
+        for m in st.session_state.agent_messages
+    ]
+
+    # ── Stream Claude response ─────────────────────────────────────────────
+    system_prompt = _build_agent_system_prompt(rep_df, acct_df, as_of_date)
+
+    try:
+        client = _get_anthropic_client()
+        with st.chat_message("assistant", avatar="🤖"):
+            with client.messages.stream(
+                model=_AGENT_MODEL,
+                max_tokens=2048,
+                thinking={"type": "adaptive"},
+                system=[{
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }],
+                messages=api_messages,
+            ) as stream:
+                response_text = st.write_stream(stream.text_stream)
+
+        st.session_state.agent_messages.append({
+            "role": "assistant",
+            "content": response_text,
+        })
+
+    except Exception as exc:
+        st.error(f"**Agent error:** {exc}")
+        # Roll back the user message so history stays consistent
+        st.session_state.agent_messages.pop()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1409,7 +1679,7 @@ def main():
     acct_df      = load_accounts(as_of_date, region, employee_id)
     acct_df_full = load_accounts(as_of_date)   # unfiltered for renewal risk
 
-    tab_ov, tab_rgn, tab_rep, tab_rnw, tab_exp, tab_acct, tab_dq = st.tabs([
+    tab_ov, tab_rgn, tab_rep, tab_rnw, tab_exp, tab_acct, tab_dq, tab_agent = st.tabs([
         "📊  Portfolio Overview",
         "🗺  By Region",
         "👤  By Rep",
@@ -1417,15 +1687,17 @@ def main():
         "📈  Expansion & Activation",
         "🏢  Account Detail",
         "📋  Data Health",
+        "🤖  GTM Agent",
     ])
 
-    with tab_ov:   page_overview(rep_df_view, acct_df, as_of_date)
-    with tab_rgn:  page_region(rep_df, acct_df_full)
-    with tab_rep:  page_reps(rep_df_view)
-    with tab_rnw:  page_renewal_risk(acct_df_full, as_of_date, rate_col, window_label)
-    with tab_exp:  page_expansion_activation(acct_df_full, rate_col, window_label)
-    with tab_acct: page_accounts(acct_df, rep_name, rate_col, window_label)
-    with tab_dq:   page_data_health(acct_df_full, rep_df, as_of_date)
+    with tab_ov:    page_overview(rep_df_view, acct_df, as_of_date)
+    with tab_rgn:   page_region(rep_df, acct_df_full)
+    with tab_rep:   page_reps(rep_df_view)
+    with tab_rnw:   page_renewal_risk(acct_df_full, as_of_date, rate_col, window_label)
+    with tab_exp:   page_expansion_activation(acct_df_full, rate_col, window_label)
+    with tab_acct:  page_accounts(acct_df, rep_name, rate_col, window_label)
+    with tab_dq:    page_data_health(acct_df_full, rep_df, as_of_date)
+    with tab_agent: page_gtm_agent(rep_df, acct_df_full, as_of_date)
 
 
 if __name__ == "__main__":
